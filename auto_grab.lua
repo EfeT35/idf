@@ -1,60 +1,207 @@
 -- ============================================================
--- INSTANT STEAL - Minimal Self-Contained Script
--- Extracted from HAZE hub. Instant Steal is always ON.
--- Fires fireproximityprompt on the nearest steal prompt
--- within INSTANT_STEAL_RADIUS studs every Heartbeat tick.
+-- AUTO GRAB - Minimal Instant Steal script
+-- Full TARGET CONTROLS UI (visual for all toggles,
+-- only Instant Steal does real work)
+-- 1.38s periodic toggle of Instant Steal
+-- Heartbeat fires executeInstantSteal when enabled
 -- ============================================================
-
-if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- ============================================================
 -- SERVICES
 -- ============================================================
-local Players           = game:GetService("Players")
-local RunService        = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace         = game:GetService("Workspace")
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage= game:GetService("ReplicatedStorage")
+local TweenService     = game:GetService("TweenService")
+local Workspace        = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ============================================================
--- REQUIRE GAME MODULES (async, script continues while loading)
+-- MOBILE DETECTION
 -- ============================================================
-local Synchronizer, AnimalsData, AnimalsShared, NumberUtils
+local IS_MOBILE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+-- ============================================================
+-- THEME
+-- ============================================================
+local Theme = {
+    Background       = Color3.fromRGB(10, 18, 14),
+    Surface          = Color3.fromRGB(12, 30, 22),
+    SurfaceHighlight = Color3.fromRGB(18, 50, 36),
+    Accent1          = Color3.fromRGB(80, 210, 120),
+    Accent2          = Color3.fromRGB(55, 160, 90),
+    TextPrimary      = Color3.fromRGB(225, 255, 235),
+    TextSecondary    = Color3.fromRGB(140, 200, 165),
+}
+
+-- ============================================================
+-- CONFIG (only what we need)
+-- ============================================================
+local Config = {
+    InstantSteal       = false,
+    StealNearest       = false,
+    StealHighest       = true,
+    StealPriority      = false,
+    AutoDestroyTurrets = false,
+    AutoKickOnSteal    = false,
+    AutoGrabOwnBase    = false,
+    UILocked           = false,
+    Positions = {
+        TargetControls = {X = 0.26, Y = 0.35, OffsetX = 15, OffsetY = 0},
+    },
+}
+
+-- ============================================================
+-- SHARED STATE (for mobile scale — mirrors original)
+-- ============================================================
+local SharedState = {
+    MobileScaleObjects = {},
+}
+
+-- ============================================================
+-- HELPER: MakeDraggable
+-- ============================================================
+local function MakeDraggable(handle, target, saveKey)
+    local dragging, dragInput, dragStart, startPos
+
+    handle.InputBegan:Connect(function(input)
+        if Config.UILocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging  = true
+            dragStart = input.Position
+            startPos  = target.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if saveKey then
+                        Config.Positions[saveKey] = {
+                            X       = target.Position.X.Scale,
+                            Y       = target.Position.Y.Scale,
+                            OffsetX = target.Position.X.Offset,
+                            OffsetY = target.Position.Y.Offset,
+                        }
+                    end
+                end
+            end)
+        end
+    end)
+
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            target.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ============================================================
+-- HELPER: ApplyViewportUIScale  (no-op on desktop)
+-- ============================================================
+local function ApplyViewportUIScale(targetFrame, _w, _h, minScale, maxScale)
+    if not targetFrame then return end
+    if not IS_MOBILE then return end
+    local existing = targetFrame:FindFirstChildOfClass("UIScale")
+    if existing then existing:Destroy() end
+    local sc = Instance.new("UIScale")
+    sc.Scale = math.clamp(0.5, minScale or 0.45, maxScale or 1)
+    sc.Parent = targetFrame
+    SharedState.MobileScaleObjects[targetFrame] = sc
+end
+
+-- ============================================================
+-- HELPER: AddMobileMinimize  (no-op on desktop)
+-- ============================================================
+local function AddMobileMinimize(frame, labelText)
+    if not IS_MOBILE then return end
+    if not frame or not frame.Parent then return end
+    local guiParent = frame.Parent
+    local header = frame:FindFirstChildWhichIsA("Frame")
+    if not header then return end
+
+    local minimizeBtn = Instance.new("TextButton")
+    minimizeBtn.Size = UDim2.new(0, 26, 0, 26)
+    minimizeBtn.Position = UDim2.new(1, -30, 0, 6)
+    minimizeBtn.BackgroundColor3 = Theme.SurfaceHighlight
+    minimizeBtn.Text = "-"
+    minimizeBtn.Font = Enum.Font.GothamBlack
+    minimizeBtn.TextSize = 18
+    minimizeBtn.TextColor3 = Theme.TextPrimary
+    minimizeBtn.AutoButtonColor = false
+    minimizeBtn.Parent = header
+    Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 8)
+
+    local restoreBtn = Instance.new("TextButton")
+    restoreBtn.Size = UDim2.new(0, 110, 0, 34)
+    restoreBtn.Position = UDim2.new(0, 10, 1, -44)
+    restoreBtn.BackgroundColor3 = Theme.SurfaceHighlight
+    restoreBtn.Text = labelText or "OPEN"
+    restoreBtn.Font = Enum.Font.GothamBold
+    restoreBtn.TextSize = 12
+    restoreBtn.TextColor3 = Theme.TextPrimary
+    restoreBtn.Visible = false
+    restoreBtn.AutoButtonColor = false
+    restoreBtn.Parent = guiParent
+    Instance.new("UICorner", restoreBtn).CornerRadius = UDim.new(0, 10)
+
+    MakeDraggable(restoreBtn, restoreBtn)
+
+    minimizeBtn.MouseButton1Click:Connect(function()
+        frame.Visible = false
+        restoreBtn.Visible = true
+    end)
+    restoreBtn.MouseButton1Click:Connect(function()
+        frame.Visible = true
+        restoreBtn.Visible = false
+    end)
+end
+
+-- ============================================================
+-- STATE VARIABLES
+-- ============================================================
+local instantStealEnabled  = false
+local instantStealReady    = false
+local instantStealDidInit  = false
+
+-- Visual-only toggle states
+local stealNearestEnabled  = false
+local stealHighestEnabled  = false
+local stealPriorityEnabled = false
+
+-- Prompt cache
+local PromptMemoryCache = {}
+local allAnimalsCache   = {}   -- populated by background scanner
+
+local selectedTargetIndex = 1
+
+-- ============================================================
+-- SYNCHRONIZER (best-effort require)
+-- ============================================================
+local Synchronizer
 
 task.spawn(function()
-    local Packages = ReplicatedStorage:WaitForChild("Packages")
-    local Datas    = ReplicatedStorage:WaitForChild("Datas")
-    local Shared   = ReplicatedStorage:WaitForChild("Shared")
-    local Utils    = ReplicatedStorage:WaitForChild("Utils")
-
-    Synchronizer  = require(Packages:WaitForChild("Synchronizer"))
-    AnimalsData   = require(Datas:WaitForChild("Animals"))
-    AnimalsShared = require(Shared:WaitForChild("Animals"))
-    NumberUtils   = require(Utils:WaitForChild("NumberUtils"))
+    local ok, s = pcall(function()
+        return require(ReplicatedStorage:WaitForChild("Packages", 10):WaitForChild("Synchronizer", 10))
+    end)
+    if ok then Synchronizer = s end
 end)
 
 -- ============================================================
--- CACHE / STATE
+-- isMyPlot_Instant
 -- ============================================================
-local allAnimalsCache   = {}
-local PromptMemoryCache  = {}
-local lastAnimalData    = {}
-
--- Instant Steal is always enabled — no toggle.
-local instantStealReady   = false
-local instantStealDidInit = false
-
--- ============================================================
--- HELPERS
--- ============================================================
-local function getHRP()
-    local char = LocalPlayer.Character
-    return char and char:FindFirstChild("HumanoidRootPart")
-end
-
--- Returns true if this plot belongs to the local player
--- (checks PlotSign YourBase BillboardGui).
 local function isMyPlot_Instant(plotName)
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return false end
@@ -66,78 +213,44 @@ local function isMyPlot_Instant(plotName)
     return yb and yb:IsA("BillboardGui") and yb.Enabled
 end
 
--- Returns true if an animal's plot is owned by the local player
--- (uses Synchronizer channel Owner field).
-local function isMyBaseAnimal(animalData)
-    if not animalData or not animalData.plot then return false end
-    if not Synchronizer then return false end
-    local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return false end
-    local plot = plots:FindFirstChild(animalData.plot)
-    if not plot then return false end
-    local ok, channel = pcall(function() return Synchronizer:Get(plot.Name) end)
-    if not ok or not channel then return false end
-    local owner = channel:Get("Owner")
-    if owner then
-        if typeof(owner) == "Instance" and owner:IsA("Player") then
-            return owner.UserId == LocalPlayer.UserId
-        elseif typeof(owner) == "table" and owner.UserId then
-            return owner.UserId == LocalPlayer.UserId
-        elseif typeof(owner) == "Instance" then
-            return owner == LocalPlayer
-        end
-    end
-    return false
-end
-
 -- ============================================================
--- FIND NEAREST STEAL PROMPT (direct workspace scan)
+-- findNearestPrompt_Instant
 -- ============================================================
 local INSTANT_STEAL_RADIUS = 60
 
 local function findNearestPrompt_Instant()
-    local hrp = getHRP()
-    if not hrp then return nil, math.huge, nil end
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil, math.huge end
     local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return nil, math.huge, nil end
-
-    local bestPrompt, bestDist, bestName = nil, math.huge, nil
-
+    if not plots then return nil, math.huge end
+    local bestPrompt, bestDist = nil, math.huge
     for _, plot in ipairs(plots:GetChildren()) do
         if isMyPlot_Instant(plot.Name) then continue end
-
         local plotDist = math.huge
         pcall(function() plotDist = (plot:GetPivot().Position - hrp.Position).Magnitude end)
         if plotDist > INSTANT_STEAL_RADIUS + 40 then continue end
-
         local podiums = plot:FindFirstChild("AnimalPodiums")
         if not podiums then continue end
-
         for _, pod in ipairs(podiums:GetChildren()) do
             local base  = pod:FindFirstChild("Base")
             local spawn = base and base:FindFirstChild("Spawn")
             if not spawn then continue end
-
             local dist = (spawn.Position - hrp.Position).Magnitude
             if dist > INSTANT_STEAL_RADIUS or dist >= bestDist then continue end
-
-            local att = spawn:FindFirstChild("PromptAttachment")
+            local att    = spawn:FindFirstChild("PromptAttachment")
             if not att then continue end
-
             local prompt = att:FindFirstChildOfClass("ProximityPrompt")
             if prompt and prompt.Parent and prompt.Enabled then
                 bestPrompt = prompt
                 bestDist   = dist
-                bestName   = pod.Name
             end
         end
     end
-
-    return bestPrompt, bestDist, bestName
+    return bestPrompt, bestDist
 end
 
 -- ============================================================
--- EXECUTE INSTANT STEAL
+-- executeInstantSteal
 -- ============================================================
 local function executeInstantSteal(prompt)
     if not prompt or not prompt.Parent then return end
@@ -145,267 +258,390 @@ local function executeInstantSteal(prompt)
 end
 
 -- ============================================================
--- PLOT SCANNING → allAnimalsCache
--- (Provides a sorted cache used by the fallback steal path)
+-- setInstantSteal (shared by button + periodic toggle)
 -- ============================================================
-local function getAnimalHash(al, ownerName)
-    if not al then return "" end
-    local h = ownerName or ""
-    for slot, d in pairs(al) do
-        if type(d) == "table" then
-            h = h .. tostring(slot) .. tostring(d.Index) .. tostring(d.Mutation)
-        end
+local function setInstantSteal(state)
+    instantStealEnabled = state
+    if not state then
+        instantStealReady   = false
+        instantStealDidInit = false
     end
-    return h
+    Config.InstantSteal = state
+    _G.NEAREST_INSTANT_MODE = (stealNearestEnabled and state)
+    -- updateUI called after it's defined below
+end
+_G._hazeSetInstantSteal = setInstantSteal
+
+-- ============================================================
+-- BUILD TARGET CONTROLS UI
+-- ============================================================
+local existingTC = PlayerGui:FindFirstChild("AutoStealTargetControls")
+if existingTC then existingTC:Destroy() end
+
+local targetControlsGui = Instance.new("ScreenGui")
+targetControlsGui.Name           = "AutoStealTargetControls"
+targetControlsGui.ResetOnSpawn   = false
+targetControlsGui.IgnoreGuiInset = true
+targetControlsGui.DisplayOrder   = 999
+targetControlsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+targetControlsGui.Parent         = PlayerGui
+
+local mobileScale       = IS_MOBILE and 0.6  or 1
+local mobileButtonScale = IS_MOBILE and 1.3  or 1
+
+local targetControlsFrame = Instance.new("Frame", targetControlsGui)
+targetControlsFrame.Name                   = "TargetControlsFrame"
+targetControlsFrame.AutomaticSize          = Enum.AutomaticSize.Y
+targetControlsFrame.Size                   = UDim2.new(0, 240 * mobileScale, 0, 0)
+targetControlsFrame.Position               = UDim2.new(
+    Config.Positions.TargetControls.X       or 0.26,
+    Config.Positions.TargetControls.OffsetX or 15,
+    Config.Positions.TargetControls.Y       or 0.35,
+    Config.Positions.TargetControls.OffsetY or 0
+)
+targetControlsFrame.BackgroundColor3       = Color3.fromRGB(15, 15, 18)
+targetControlsFrame.BackgroundTransparency = 0
+targetControlsFrame.BorderSizePixel        = 0
+targetControlsFrame.ClipsDescendants       = false
+targetControlsFrame.ZIndex                 = 100
+
+ApplyViewportUIScale(targetControlsFrame, 300, 250, 0.45, 0.8)
+AddMobileMinimize(targetControlsFrame, "TARGET CONTROLS")
+
+local MiniTargetColors = {
+    BG          = Color3.fromRGB(15, 15, 18),
+    SURF        = Color3.fromRGB(28, 28, 32),
+    SURF2       = Color3.fromRGB(45, 45, 50),
+    TEXT        = Color3.fromRGB(245, 245, 250),
+    AQUA_STROKE = Color3.fromRGB(190, 190, 200),
+    GREEN1      = Color3.fromRGB(18, 88, 58),
+    GREEN2      = Color3.fromRGB(21, 120, 76),
+    GREEN_STROKE= Color3.fromRGB(60, 185, 120),
+    OFF_BG      = Color3.fromRGB(35, 35, 40),
+    OFF_TEXT    = Color3.fromRGB(140, 140, 150),
+}
+
+local function miniRound(obj, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius)
+    c.Parent = obj
+    return c
 end
 
-local function scanSinglePlot(plot)
-    if not Synchronizer or not AnimalsData or not AnimalsShared or not NumberUtils then return end
-    pcall(function()
-        local ch = Synchronizer:Get(plot.Name)
-        if not ch then return end
+local function miniStroke(obj, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = obj
+    return s
+end
 
-        local al    = ch:Get("AnimalList")
-        local owner = ch:Get("Owner")
+local function miniTween(obj, t, props, style, dir)
+    TweenService:Create(
+        obj,
+        TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out),
+        props
+    ):Play()
+end
 
-        -- Remove entries for plots with no online owner or no animals
-        if not owner or not owner.Name or not Players:FindFirstChild(owner.Name) then
-            lastAnimalData[plot.Name] = nil
-            for i = #allAnimalsCache, 1, -1 do
-                if allAnimalsCache[i].plot == plot.Name then
-                    table.remove(allAnimalsCache, i)
-                end
-            end
-            return
-        end
+local function miniGradient(parent, c1, c2, rot)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, c1),
+        ColorSequenceKeypoint.new(1, c2),
+    })
+    g.Rotation = rot or 0
+    g.Parent = parent
+    return g
+end
 
-        if not al then
-            lastAnimalData[plot.Name] = nil
-            for i = #allAnimalsCache, 1, -1 do
-                if allAnimalsCache[i].plot == plot.Name then
-                    table.remove(allAnimalsCache, i)
-                end
-            end
-            return
-        end
+miniRound(targetControlsFrame, 18)
+miniStroke(targetControlsFrame, MiniTargetColors.AQUA_STROKE, 1.2, 0.40)
 
-        local ownerName = owner.Name
-        local hash = getAnimalHash(al, ownerName)
-        if lastAnimalData[plot.Name] == hash then return end
+-- Drop shadow
+local targetShadow = Instance.new("ImageLabel")
+targetShadow.AnchorPoint       = Vector2.new(0.5, 0.5)
+targetShadow.Position          = UDim2.new(0.5, 0, 0.5, 2)
+targetShadow.Size              = UDim2.new(1, 24, 1, 24)
+targetShadow.BackgroundTransparency = 1
+targetShadow.Image             = "rbxassetid://6014261993"
+targetShadow.ImageColor3       = Color3.new(0, 0, 0)
+targetShadow.ImageTransparency = 0.72
+targetShadow.ScaleType         = Enum.ScaleType.Slice
+targetShadow.SliceCenter       = Rect.new(49, 49, 450, 450)
+targetShadow.ZIndex            = 99
+targetShadow.Parent            = targetControlsFrame
 
-        -- Remove stale entries for this plot
-        for i = #allAnimalsCache, 1, -1 do
-            if allAnimalsCache[i].plot == plot.Name then
-                table.remove(allAnimalsCache, i)
-            end
-        end
+-- Header / drag handle
+local targetControlsHeader = Instance.new("Frame", targetControlsFrame)
+targetControlsHeader.Size               = UDim2.new(1, 0, 0, 44)
+targetControlsHeader.BackgroundTransparency = 1
+targetControlsHeader.ZIndex             = 101
+MakeDraggable(targetControlsHeader, targetControlsFrame, "TargetControls")
 
-        -- Insert fresh entries
-        for slot, ad in pairs(al) do
-            if type(ad) == "table" then
-                local aName = ad.Index
-                local aInfo = AnimalsData[aName]
-                if aInfo then
-                    local mut = ad.Mutation or "None"
-                    if mut == "Yin Yang" then mut = "YinYang" end
-                    local gv = AnimalsShared:GetGeneration(aName, ad.Mutation, ad.Traits, nil)
-                    local gt = "$" .. NumberUtils:ToString(gv) .. "/s"
-                    table.insert(allAnimalsCache, {
-                        name     = aInfo.DisplayName or aName,
-                        genText  = gt,
-                        genValue = gv,
-                        mutation = mut,
-                        owner    = ownerName,
-                        plot     = plot.Name,
-                        slot     = tostring(slot),
-                        uid      = plot.Name .. "_" .. tostring(slot),
-                    })
-                end
-            end
-        end
+local targetControlsTitle = Instance.new("TextLabel", targetControlsHeader)
+targetControlsTitle.Size               = UDim2.new(1, -28, 0, 24)
+targetControlsTitle.Position           = UDim2.new(0, 14, 0, 10)
+targetControlsTitle.ZIndex             = 102
+targetControlsTitle.BackgroundTransparency = 1
+targetControlsTitle.Text               = "TARGET CONTROLS"
+targetControlsTitle.Font               = Enum.Font.GothamBlack
+targetControlsTitle.TextSize           = 18
+targetControlsTitle.TextColor3         = MiniTargetColors.TEXT
+targetControlsTitle.TextXAlignment     = Enum.TextXAlignment.Center
 
-        lastAnimalData[plot.Name] = hash
-        table.sort(allAnimalsCache, function(a, b) return a.genValue > b.genValue end)
+local titleLine = Instance.new("Frame", targetControlsFrame)
+titleLine.AnchorPoint            = Vector2.new(0.5, 0)
+titleLine.Position               = UDim2.new(0.5, 0, 0, 38)
+titleLine.Size                   = UDim2.new(0, 124, 0, 1)
+titleLine.BackgroundColor3       = Color3.fromRGB(255, 255, 255)
+titleLine.BackgroundTransparency = 0.15
+titleLine.BorderSizePixel        = 0
+titleLine.ZIndex                 = 101
+
+-- Content area
+local targetControlsContent = Instance.new("Frame", targetControlsFrame)
+targetControlsContent.AutomaticSize    = Enum.AutomaticSize.Y
+targetControlsContent.Size             = UDim2.new(1, -20, 0, 0)
+targetControlsContent.Position         = UDim2.fromOffset(10, 48)
+targetControlsContent.BackgroundColor3 = MiniTargetColors.SURF
+targetControlsContent.BorderSizePixel  = 0
+targetControlsContent.ZIndex           = 101
+miniRound(targetControlsContent, 16)
+miniStroke(targetControlsContent, MiniTargetColors.AQUA_STROKE, 1, 0.48)
+
+-- Row container
+local toggleBtnContainer = Instance.new("Frame", targetControlsContent)
+toggleBtnContainer.AutomaticSize          = Enum.AutomaticSize.Y
+toggleBtnContainer.Size                   = UDim2.new(1, -10, 0, 0)
+toggleBtnContainer.Position               = UDim2.fromOffset(5, 5)
+toggleBtnContainer.BackgroundTransparency = 1
+toggleBtnContainer.ZIndex                 = 102
+
+local toggleLayout = Instance.new("UIListLayout")
+toggleLayout.Padding   = UDim.new(0, 8)
+toggleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+toggleLayout.Parent    = toggleBtnContainer
+
+-- Bottom padding
+local bottomPad = Instance.new("UIPadding", toggleBtnContainer)
+bottomPad.PaddingBottom = UDim.new(0, 6)
+
+-- ============================================================
+-- createToggleRow
+-- ============================================================
+local function createToggleRow(parent, text, layoutOrder)
+    local row = Instance.new("Frame", parent)
+    row.Name                   = text:gsub("%s+", "") .. "Row"
+    row.Size                   = UDim2.new(1, 0, 0, math.floor(36 * mobileButtonScale))
+    row.BackgroundColor3       = MiniTargetColors.SURF2
+    row.BackgroundTransparency = 0.02
+    row.BorderSizePixel        = 0
+    row.LayoutOrder            = layoutOrder or 1
+    row.ZIndex                 = 103
+    miniRound(row, 11)
+    local rowStroke = miniStroke(row, MiniTargetColors.AQUA_STROKE, 1, 0.52)
+
+    local label = Instance.new("TextLabel", row)
+    label.BackgroundTransparency = 1
+    label.Position               = UDim2.fromOffset(12, 0)
+    label.Size                   = UDim2.new(1, -100, 1, 0)
+    label.Font                   = Enum.Font.GothamBold
+    label.Text                   = text
+    label.TextColor3             = MiniTargetColors.TEXT
+    label.TextSize               = 12 * mobileButtonScale
+    label.TextXAlignment         = Enum.TextXAlignment.Left
+    label.ZIndex                 = 104
+
+    local stateBox = Instance.new("TextButton", row)
+    stateBox.AutoButtonColor  = false
+    stateBox.Size             = UDim2.fromOffset(math.floor(72*mobileButtonScale), math.floor(22*mobileButtonScale))
+    stateBox.Position         = UDim2.new(1, -math.floor(82*mobileButtonScale), 0.5, -math.floor(11*mobileButtonScale))
+    stateBox.BackgroundColor3 = MiniTargetColors.OFF_BG
+    stateBox.BorderSizePixel  = 0
+    stateBox.Text             = ""
+    stateBox.ZIndex           = 104
+    miniRound(stateBox, 7)
+    local stateStroke = miniStroke(stateBox, MiniTargetColors.AQUA_STROKE, 1, 0.55)
+
+    local stateFill = Instance.new("Frame", stateBox)
+    stateFill.Size                   = UDim2.new(1, 0, 1, 0)
+    stateFill.BackgroundTransparency = 1
+    stateFill.BorderSizePixel        = 0
+    stateFill.ZIndex                 = 104
+    miniRound(stateFill, 7)
+    miniGradient(stateFill, MiniTargetColors.GREEN1, MiniTargetColors.GREEN2, 0)
+
+    local stateText = Instance.new("TextLabel", stateBox)
+    stateText.BackgroundTransparency = 1
+    stateText.Size                   = UDim2.fromScale(1, 1)
+    stateText.Font                   = Enum.Font.GothamBold
+    stateText.TextSize               = 11 * mobileButtonScale
+    stateText.Text                   = "OFF"
+    stateText.TextColor3             = MiniTargetColors.OFF_TEXT
+    stateText.ZIndex                 = 105
+
+    row.MouseEnter:Connect(function()
+        miniTween(row, 0.14, {BackgroundColor3 = Color3.fromRGB(34, 39, 58)})
+        miniTween(rowStroke, 0.14, {Transparency = 0.38})
     end)
-end
-
-local function setupPlotListener(plot)
-    if not Synchronizer then return end
-    local ch, retries = nil, 0
-    while not ch and retries < 50 do
-        local ok, r = pcall(function() return Synchronizer:Get(plot.Name) end)
-        if ok and r then ch = r; break else retries = retries + 1; task.wait(0.1) end
-    end
-    if not ch then return end
-    scanSinglePlot(plot)
-    plot.DescendantAdded:Connect(function()    task.wait(0.1); scanSinglePlot(plot) end)
-    plot.DescendantRemoving:Connect(function() task.wait(0.1); scanSinglePlot(plot) end)
-    task.spawn(function()
-        while plot.Parent do task.wait(5); scanSinglePlot(plot) end
-    end)
-end
-
--- ============================================================
--- FIND PROXIMITY PROMPT VIA SLOT (PromptMemoryCache fallback)
--- ============================================================
-local function findProximityPromptForAnimal(animalData)
-    if not animalData then return nil end
-    local cp = PromptMemoryCache[animalData.uid]
-    if cp and cp.Parent then return cp end
-
-    local plotsFolder = Workspace:FindFirstChild("Plots")
-    if not plotsFolder then return nil end
-    local plot = plotsFolder:FindFirstChild(animalData.plot)
-    if not plot then return nil end
-    local podiums = plot:FindFirstChild("AnimalPodiums")
-    if not podiums then return nil end
-
-    -- Direct slot lookup
-    local foundPodium = podiums:FindFirstChild(animalData.slot)
-
-    -- Synchronizer-based slot cross-reference (in case slot key drifted)
-    if not foundPodium and Synchronizer then
-        pcall(function()
-            local ch = Synchronizer:Get(plot.Name)
-            if not ch then return end
-            local al = ch:Get("AnimalList")
-            if not al then return end
-            local brainrotName = animalData.name and animalData.name:lower() or ""
-            for slot, ad in pairs(al) do
-                if type(ad) == "table" and tostring(slot) == animalData.slot then
-                    local aName = ad.Index
-                    local aInfo = AnimalsData and AnimalsData[aName]
-                    if aInfo and (aInfo.DisplayName or aName):lower() == brainrotName then
-                        foundPodium = podiums:FindFirstChild(tostring(slot))
-                        break
-                    end
-                end
-            end
-        end)
-    end
-
-    if not foundPodium then return nil end
-
-    local base  = foundPodium:FindFirstChild("Base")
-    local spawn = base and base:FindFirstChild("Spawn")
-    if not spawn then return nil end
-
-    -- Try PromptAttachment first
-    local attach = spawn:FindFirstChild("PromptAttachment")
-    if attach then
-        for _, p in ipairs(attach:GetChildren()) do
-            if p:IsA("ProximityPrompt") and p.Enabled then
-                PromptMemoryCache[animalData.uid] = p
-                return p
-            end
-        end
-    end
-
-    -- Spatial fallback: find nearest enabled ProximityPrompt above spawn.Y
-    local startPos = spawn.Position
-    local nearestPrompt, minDist = nil, math.huge
-    for _, desc in pairs(plot:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") and desc.Enabled then
-            local part = desc.Parent
-            local promptPos = nil
-            if part and part:IsA("BasePart") then
-                promptPos = part.Position
-            elseif part and part:IsA("Attachment") and part.Parent and part.Parent:IsA("BasePart") then
-                promptPos = part.Parent.Position
-            end
-            if promptPos then
-                local hDist = math.sqrt((promptPos.X - startPos.X)^2 + (promptPos.Z - startPos.Z)^2)
-                if hDist < 5 and promptPos.Y > startPos.Y then
-                    local yDist = promptPos.Y - startPos.Y
-                    if yDist < minDist then
-                        minDist = yDist
-                        nearestPrompt = desc
-                    end
-                end
-            end
-        end
-    end
-
-    if nearestPrompt then
-        PromptMemoryCache[animalData.uid] = nearestPrompt
-        return nearestPrompt
-    end
-
-    return nil
-end
-
--- ============================================================
--- FILTERED PET LIST (excludes own base, sorted by gen value)
--- ============================================================
-local function get_all_pets()
-    local out = {}
-    for _, a in ipairs(allAnimalsCache) do
-        if a.genValue >= 1 and not isMyBaseAnimal(a) then
-            table.insert(out, {
-                petName    = a.name,
-                mpsText    = a.genText,
-                mpsValue   = a.genValue,
-                owner      = a.owner,
-                plot       = a.plot,
-                slot       = a.slot,
-                uid        = a.uid,
-                mutation   = a.mutation,
-                animalData = a,
-            })
-        end
-    end
-    return out
-end
-
--- ============================================================
--- STARTUP: wait for modules, then wire up plot scanning
--- ============================================================
-task.spawn(function()
-    local timeout = os.clock() + 20
-    while not Synchronizer or not AnimalsData or not AnimalsShared or not NumberUtils do
-        if os.clock() > timeout then
-            warn("[InstantSteal] Timed out waiting for game modules — plot cache disabled.")
-            return
-        end
-        task.wait(0.2)
-    end
-
-    local plots = Workspace:WaitForChild("Plots", 10)
-    if not plots then
-        warn("[InstantSteal] Could not find Plots folder.")
-        return
-    end
-
-    for _, p in ipairs(plots:GetChildren()) do
-        task.spawn(setupPlotListener, p)
-    end
-
-    plots.ChildAdded:Connect(function(p)
-        task.wait(0.5)
-        task.spawn(setupPlotListener, p)
+    row.MouseLeave:Connect(function()
+        miniTween(row, 0.14, {BackgroundColor3 = MiniTargetColors.SURF2})
+        miniTween(rowStroke, 0.14, {Transparency = 0.52})
     end)
 
-    plots.ChildRemoved:Connect(function(p)
-        lastAnimalData[p.Name] = nil
-        for i = #allAnimalsCache, 1, -1 do
-            if allAnimalsCache[i].plot == p.Name then
-                table.remove(allAnimalsCache, i)
-            end
-        end
-    end)
+    return {
+        row        = row,
+        label      = label,
+        button     = stateBox,
+        knob       = stateFill,
+        stateLabel = stateText,
+        stroke     = stateStroke,
+        rowStroke  = rowStroke,
+    }
+end
+
+-- ============================================================
+-- Create the 7 toggle rows
+-- ============================================================
+local nearestBtn    = createToggleRow(toggleBtnContainer, "Nearest",      1)
+local highestBtn    = createToggleRow(toggleBtnContainer, "Highest",      2)
+local priorityBtn   = createToggleRow(toggleBtnContainer, "Priority",     3)
+local autoTurretBtn = createToggleRow(toggleBtnContainer, "Auto Turret",  4)
+local autoKickBtn   = createToggleRow(toggleBtnContainer, "Auto Kick",    5)
+local instantStealBtn = createToggleRow(toggleBtnContainer, "Instant Steal", 6)
+local ownBaseBtn    = createToggleRow(toggleBtnContainer, "Own Base",     7)
+
+-- ============================================================
+-- paintToggle + updateUI
+-- ============================================================
+local function paintToggle(ref, isOn)
+    if isOn then
+        ref.button.BackgroundColor3      = MiniTargetColors.GREEN1
+        ref.knob.BackgroundTransparency  = 0
+        ref.stateLabel.Text              = "ON"
+        ref.stateLabel.TextColor3        = Color3.fromRGB(232, 255, 240)
+        ref.stroke.Color                 = MiniTargetColors.GREEN_STROKE
+        ref.stroke.Transparency          = 0.22
+    else
+        ref.button.BackgroundColor3      = MiniTargetColors.OFF_BG
+        ref.knob.BackgroundTransparency  = 1
+        ref.stateLabel.Text              = "OFF"
+        ref.stateLabel.TextColor3        = MiniTargetColors.OFF_TEXT
+        ref.stroke.Color                 = MiniTargetColors.AQUA_STROKE
+        ref.stroke.Transparency          = 0.55
+    end
+    if ref.rowStroke then
+        ref.rowStroke.Transparency = isOn and 0.38 or 0.52
+    end
+end
+
+local function updateUI()
+    paintToggle(nearestBtn,     stealNearestEnabled)
+    paintToggle(highestBtn,     stealHighestEnabled)
+    paintToggle(priorityBtn,    stealPriorityEnabled)
+    paintToggle(autoTurretBtn,  Config.AutoDestroyTurrets)
+    paintToggle(autoKickBtn,    Config.AutoKickOnSteal)
+    paintToggle(ownBaseBtn,     Config.AutoGrabOwnBase)
+    paintToggle(instantStealBtn, instantStealEnabled)
+end
+
+-- Now that updateUI is defined, wire it into setInstantSteal
+local _origSetInstantSteal = setInstantSteal
+setInstantSteal = function(state)
+    _origSetInstantSteal(state)
+    updateUI()
+end
+_G._hazeSetInstantSteal = setInstantSteal
+
+-- Initial paint
+updateUI()
+
+-- ============================================================
+-- BUTTON HANDLERS
+-- Nearest / Highest / Priority / Auto Turret / Auto Kick / Own Base:
+--   visual-only — they toggle their flag and repaint, nothing else
+-- Instant Steal: calls setInstantSteal (real work)
+-- ============================================================
+
+nearestBtn.button.MouseButton1Click:Connect(function()
+    stealNearestEnabled = not stealNearestEnabled
+    if stealNearestEnabled then
+        stealHighestEnabled  = false
+        stealPriorityEnabled = false
+    end
+    updateUI()
+end)
+
+highestBtn.button.MouseButton1Click:Connect(function()
+    stealHighestEnabled = not stealHighestEnabled
+    if stealHighestEnabled then
+        stealNearestEnabled  = false
+        stealPriorityEnabled = false
+    end
+    updateUI()
+end)
+
+priorityBtn.button.MouseButton1Click:Connect(function()
+    stealPriorityEnabled = not stealPriorityEnabled
+    if stealPriorityEnabled then
+        stealNearestEnabled = false
+        stealHighestEnabled = false
+    end
+    updateUI()
+end)
+
+autoTurretBtn.button.MouseButton1Click:Connect(function()
+    Config.AutoDestroyTurrets = not Config.AutoDestroyTurrets
+    updateUI()
+end)
+
+autoKickBtn.button.MouseButton1Click:Connect(function()
+    Config.AutoKickOnSteal = not Config.AutoKickOnSteal
+    updateUI()
+end)
+
+ownBaseBtn.button.MouseButton1Click:Connect(function()
+    Config.AutoGrabOwnBase = not Config.AutoGrabOwnBase
+    updateUI()
+end)
+
+instantStealBtn.button.MouseButton1Click:Connect(function()
+    setInstantSteal(not instantStealEnabled)
 end)
 
 -- ============================================================
--- HEARTBEAT: Instant Steal loop (always active, no toggle)
+-- 1.38s PERIODIC TOGGLE  (keeps Instant Steal cycling ON/OFF/ON)
+-- ============================================================
+task.spawn(function()
+    -- Activate immediately on load
+    if _G._hazeSetInstantSteal then _G._hazeSetInstantSteal(true) end
+
+    while true do
+        task.wait(1.38)
+        if _G._hazeSetInstantSteal then
+            _G._hazeSetInstantSteal(false)   -- OFF
+            task.wait(0.05)                  -- brief pause
+            _G._hazeSetInstantSteal(true)    -- ON
+        end
+    end
+end)
+
+-- ============================================================
+-- HEARTBEAT — fires executeInstantSteal when enabled
 -- ============================================================
 local lastInstantTick = 0
 
 RunService.Heartbeat:Connect(function()
+    if not instantStealEnabled then return end
+
     local now = os.clock()
     if now - lastInstantTick < 0.05 then return end
     lastInstantTick = now
 
-    -- One-time delayed init: give game a moment before first steal
+    -- One-time init: wait 0.5s before first fire to let prompts load
     if not instantStealDidInit then
         instantStealDidInit = true
         task.spawn(function()
@@ -417,24 +653,11 @@ RunService.Heartbeat:Connect(function()
 
     if not instantStealReady then return end
 
-    -- Primary: fire nearest prompt found by direct workspace scan
-    local prompt, dist, _ = findNearestPrompt_Instant()
+    -- Always use nearest-prompt strategy (fastest)
+    local prompt, dist = findNearestPrompt_Instant()
     if prompt and dist <= INSTANT_STEAL_RADIUS then
         executeInstantSteal(prompt)
-        return
-    end
-
-    -- Fallback: use allAnimalsCache + PromptMemoryCache (highest gen-value pet)
-    local pets = get_all_pets()
-    if #pets == 0 then return end
-    local tp = pets[1]
-    if not tp then return end
-
-    local pr = PromptMemoryCache[tp.uid]
-    if not pr or not pr.Parent then
-        pr = findProximityPromptForAnimal(tp.animalData)
-    end
-    if pr then
-        executeInstantSteal(pr)
     end
 end)
+
+print("[AUTO_GRAB] Loaded. Target Controls UI ready. Instant Steal cycling every 1.38s.")
