@@ -1940,7 +1940,7 @@ local function goToBrainrot(petData)
     if isThirdFloor then
         snapY = exactPos.Y - 8
     elseif _f2mode then
-        snapY = exactPos.Y - 7   -- approche par en dessous (logique floor1 pour 2e étage)
+        snapY = exactPos.Y - 12  -- approche par en dessous (logique floor1 pour 2e étage)
     else
         snapY = exactPos.Y + 3.5
     end
@@ -17098,17 +17098,31 @@ do
 		end)
 	end
 
+	-- Fallback : cherche le remote directement si le hook n'a pas encore capturé
+	local function _findBalloonRemote()
+		if _G._balloonResetRemote and _G._balloonResetRemote.Parent then return _G._balloonResetRemote end
+		-- Scan ReplicatedStorage pour un RemoteEvent "RE/..."
+		local RS = game:GetService("ReplicatedStorage")
+		for _, v in ipairs(RS:GetDescendants()) do
+			if v:IsA("RemoteEvent") and v.Name:sub(1, 3) == "RE/" then
+				_G._balloonResetRemote = v
+				return v
+			end
+		end
+		return nil
+	end
+
 	local function balloonInstaReset()
 		if _G._balloonResetCooldown then return false end
-		local remote = _G._balloonResetRemote
+		local remote = _findBalloonRemote()
 		if not remote then return false end
 		_G._balloonResetCooldown = true
 		local oldChar = _LP.Character
 		task.spawn(function()
-			local deadline = tick() + 1
+			local deadline = tick() + 1.5
 			while _LP.Character == oldChar and tick() < deadline do
-				for _=1,3 do pcall(function() remote:FireServer(BALLOON_RESET_GUID, _LP, "balloon") end) end
-				task.wait(0.033)
+				for _=1,5 do pcall(function() remote:FireServer(BALLOON_RESET_GUID, _LP, "balloon") end) end
+				task.wait(0.016)
 			end
 			_G._balloonResetCooldown = false
 		end)
@@ -17167,11 +17181,15 @@ do
 
 		task.spawn(function()
 			local origChar = char
-			task.wait(0.05)
+			task.wait(0.02)
 			local i = 0
-			while _LP.Character == origChar and i < 20 do
+			while _LP.Character == origChar and i < 30 do
 				pcall(function() _LP:LoadCharacter() end)
-				task.wait(0.033)
+				pcall(function()
+					local h = origChar and origChar:FindFirstChildOfClass("Humanoid")
+					if h and h.Parent then h.Health = 0; h:ChangeState(Enum.HumanoidStateType.Dead) end
+				end)
+				task.wait(0.016)
 				i = i + 1
 			end
 			task.wait(0.2)
