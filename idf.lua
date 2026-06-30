@@ -3226,93 +3226,93 @@ end) end)
 
 -- ═══ HAZE Instant Steal (toggle 1.38s) ═══
 task.spawn(function() pcall(function()
-    local _LP     = game:GetService("Players").LocalPlayer
-    local _tracked = {}
-    local _lastFire = {}
-    local RADIUS  = 12
-    local BURST   = 25
-    local ACTIVE  = true  -- géré par le toggle 1.38s
+    local _LP  = game:GetService("Players").LocalPlayer
+    local _RS  = game:GetService("RunService")
+    local RADIUS = 20
+    local BURST  = 25
+    local ACTIVE = true
+    local _connCache = {}
+    local _lastFire  = {}
 
     local function _getHRP()
         local c = _LP.Character
         return c and c:FindFirstChild("HumanoidRootPart")
     end
 
-    local function _getPartFromPrompt(prompt)
-        local p = prompt.Parent
-        if p and p:IsA("Attachment") then p = p.Parent end
-        if p and p:IsA("BasePart") then return p end
-        return nil
-    end
-
-    local function _fire(prompt)
+    local function _firePrompt(prompt)
         local t = os.clock()
         if _lastFire[prompt] and (t - _lastFire[prompt]) < 0.08 then return end
         _lastFire[prompt] = t
-        for _ = 1, BURST do
-            pcall(function() fireproximityprompt(prompt, 0) end)
+
+        -- méthode 1 : fireproximityprompt
+        pcall(function() fireproximityprompt(prompt) end)
+
+        -- méthode 2 : fire les callbacks Triggered directement
+        if getconnections then
+            if not _connCache[prompt] then
+                local triggers = {}
+                pcall(function()
+                    for _, c in ipairs(getconnections(prompt.Triggered)) do
+                        if c.Function then triggers[#triggers+1] = c.Function end
+                    end
+                end)
+                _connCache[prompt] = triggers
+            end
+            for _ = 1, BURST do
+                for _, fn in ipairs(_connCache[prompt]) do
+                    pcall(fn)
+                end
+            end
         end
     end
 
-    local function _inRange(prompt)
-        local hrp = _getHRP(); if not hrp then return false end
-        local part = _getPartFromPrompt(prompt); if not part then return false end
-        return (part.Position - hrp.Position).Magnitude <= RADIUS
+    local function _getPromptPart(prompt)
+        local p = prompt.Parent
+        if p and p:IsA("Attachment") then p = p.Parent end
+        return p and p:IsA("BasePart") and p or nil
     end
 
-    local function _track(prompt)
-        if _tracked[prompt] then return end
-        _tracked[prompt] = true
-        prompt:GetPropertyChangedSignal("Enabled"):Connect(function()
-            if ACTIVE and prompt.Enabled and _inRange(prompt) then
-                _fire(prompt)
+    local function _isMyPlot(plot)
+        local sign = plot:FindFirstChild("PlotSign")
+        if not sign then return false end
+        for _, d in ipairs(sign:GetDescendants()) do
+            if d:IsA("TextLabel") then
+                local t = d.Text:lower()
+                if t:find(_LP.Name:lower(), 1, true) or t:find(_LP.DisplayName:lower(), 1, true) then
+                    return true
+                end
             end
-        end)
-        prompt.AncestryChanged:Connect(function()
-            if not prompt:IsDescendantOf(workspace) then
-                _tracked[prompt] = nil
-                _lastFire[prompt] = nil
-            end
-        end)
+        end
+        return false
     end
 
-    local function _scan()
+    -- Heartbeat : cherche et fire tous les steal prompts proches
+    _RS.Heartbeat:Connect(function()
+        if not ACTIVE then return end
+        local hrp = _getHRP(); if not hrp then return end
         local plots = workspace:FindFirstChild("Plots"); if not plots then return end
+
         for _, plot in ipairs(plots:GetChildren()) do
+            if _isMyPlot(plot) then continue end
             local pods = plot:FindFirstChild("AnimalPodiums"); if not pods then continue end
             for _, obj in ipairs(pods:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then _track(obj) end
-            end
-        end
-    end
-
-    _scan()
-    workspace.DescendantAdded:Connect(function(obj)
-        if obj:IsA("ProximityPrompt") and obj:FindFirstAncestor("AnimalPodiums") then
-            task.wait(); _track(obj)
-        end
-    end)
-
-    -- Backup loop toutes les 0.08s
-    task.spawn(function()
-        while true do
-            task.wait(0.08)
-            if not ACTIVE then continue end
-            local hrp = _getHRP(); if not hrp then continue end
-            for prompt in pairs(_tracked) do
-                if prompt and prompt.Parent and prompt.Enabled and _inRange(prompt) then
-                    _fire(prompt)
+                if obj:IsA("ProximityPrompt") and obj.Enabled then
+                    local part = _getPromptPart(obj)
+                    if part and (part.Position - hrp.Position).Magnitude <= RADIUS then
+                        _firePrompt(obj)
+                    end
                 end
             end
         end
     end)
 
-    -- Toggle 1.38s : off 50ms puis on
+    -- Toggle 1.38s
     while true do
         task.wait(1.38)
         ACTIVE = false
         task.wait(0.05)
         ACTIVE = true
+        _connCache = {}  -- reset cache pour re-scanner les callbacks
     end
 end) end)
 
