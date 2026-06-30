@@ -986,6 +986,7 @@ local FlashExtra = {
     wallAnchorWait    = 0.10,
     tpSpeed           = 400,    -- velocity-TP travel speed (TP Speed slider)
     brainrotSnapSpeed = 300,    -- final go-to-brainrot tween speed (Brainrot Speed slider)
+    floor2AsFloor1    = false,  -- 2e étage utilise logique floor1 (LOWER + approche par en dessous)
     -- legacy kept for import compat but not used by GUI
     walkDuration      = 0.05,
     walkSettle        = 0.05,
@@ -1875,31 +1876,51 @@ local function goToBrainrot(petData)
 
     local exactPos = snapPart.Position
     local isThirdFloor = exactPos.Y > 22
-    local snapY = isThirdFloor and (exactPos.Y - 8) or (exactPos.Y + 3.5)   -- try 3.5 or 4
+    local isSecondFloor = exactPos.Y > UPPER_Y_THRESHOLD and exactPos.Y <= 22
+    local _f2mode = (_G.FlashExtra and _G.FlashExtra.floor2AsFloor1) and isSecondFloor
+    local snapY
+    if isThirdFloor then
+        snapY = exactPos.Y - 8
+    elseif _f2mode then
+        snapY = exactPos.Y - 12  -- approche par en dessous (logique floor1 pour 2e étage)
+    else
+        snapY = exactPos.Y + 3.5
+    end
     -- Land exactly on the spawn position on all floors.
     local snapPos = Vector3.new(exactPos.X, snapY, exactPos.Z)
 
-    -- PATCH: activer le float pour les brainrots en hauteur
-    local _verticalDiff = exactPos.Y - hrp.Position.Y
-    if _verticalDiff > 2 then
-        -- Activer le float si pas deja actif
-        if _G.FloatToggle and not _G._floatActive then
-            pcall(_G.FloatToggle)
+    -- Activer le float automatiquement pour tout brainrot (haut ou bas)
+    if not _G._floatActive then
+        if _G.setFloatEnabled then pcall(_G.setFloatEnabled, true)
+        elseif _G.FloatToggle then pcall(_G.FloatToggle) end
+    end
+    _G._autoFloatPending = true
+
+    -- Désactiver le float après le grab (fin du steal)
+    task.spawn(function()
+        local _deadline = tick() + 10
+        repeat task.wait(0.1) until (not LP:GetAttribute("Stealing")) or tick() > _deadline
+        task.wait(0.3)
+        if _G._autoFloatPending then
+            _G._autoFloatPending = false
+            if _G.unpinFloat then pcall(_G.unpinFloat) end
+            if _G.setFloatEnabled then pcall(_G.setFloatEnabled, false)
+            elseif _G.FloatToggle then pcall(_G.FloatToggle) end
         end
-        _G._autoFloatPending = true
-        -- Auto Clone si le toggle est actif
-        if _G._autoCloneOnHighSteal then
-            task.spawn(function()
-                task.wait(0.1)
-                local VIM = game:GetService("VirtualInputManager")
-                local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
-                if cloneKey then
-                    pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
-                    task.wait(0.05)
-                    pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
-                end
-            end)
-        end
+    end)
+
+    -- Auto Clone si le toggle est actif
+    if _G._autoCloneOnHighSteal then
+        task.spawn(function()
+            task.wait(0.1)
+            local VIM = game:GetService("VirtualInputManager")
+            local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
+            if cloneKey then
+                pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
+                task.wait(0.05)
+                pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
+            end
+        end)
     end
 
     local _healDone = false
@@ -2168,14 +2189,15 @@ local function doVelocityTP()
 
         local adjY = petPos.Y
         if TALL_PETS[petName] then adjY = petPos.Y - TALL_OFFSET end
-        local coordTable = adjY > UPPER_Y_THRESHOLD and UPPER or LOWER
+        local _floor2Mode = (_G.FlashExtra and _G.FlashExtra.floor2AsFloor1) and (adjY > UPPER_Y_THRESHOLD and adjY <= 22)
+        local coordTable = (not _floor2Mode) and (adjY > UPPER_Y_THRESHOLD and UPPER or LOWER) or LOWER
 
         local closestData, skyKey = findClosest(petPos, coordTable)
         if not closestData or not skyKey then _G.TPStatus = "no_sky_platform"; warn("[TP] no_sky_platform"); return end
 
         local destPos = closestData.coord
 
-        if coordTable == UPPER then
+        if coordTable == UPPER and not _floor2Mode then
             local FLOOR2_BASES = {
                 { L=Vector3.new(-478.0322,13.9682,  25.2552),  R=Vector3.new(-478.9711,13.9682, -11.5476) },
                 { L=Vector3.new(-479.4897,14.0340, -81.4871),  R=Vector3.new(-478.7449,14.0340,-118.3792) },
@@ -2417,6 +2439,7 @@ pcall(function()
         if type(t.tpSpeed)           == "number"  then fe2.tpSpeed           = t.tpSpeed           end
         if type(t.brainrotSnapSpeed) == "number"  then fe2.brainrotSnapSpeed = t.brainrotSnapSpeed end
         if type(t.tpTool)            == "string"  then fe2.tpTool            = t.tpTool            end
+        if type(t.floor2AsFloor1)    == "boolean" then fe2.floor2AsFloor1    = t.floor2AsFloor1    end
     end
     -- Apply saved speed
     if fe2 and fe2.tpSpeed and _G._FlashSetSpeed then
@@ -8120,6 +8143,20 @@ do
     y = y + _TP_ROW + _TP_GAP
     local _tpPrioBtn, _tpPrioSet = makeTpToggle("TP Priority list", y, fe.tpPriorityEnabled ~= false)
     y = y + _TP_ROW + _TP_GAP
+    local _tpF2Btn, _tpF2Set = makeTpToggle("2e etage \226\134\146 Floor 1 (par en dessous)", y, fe.floor2AsFloor1 == true)
+    y = y + _TP_ROW + _TP_GAP
+    _tpF2Btn.MouseButton1Click:Connect(function()
+        local fe2 = _G.FlashExtra
+        if not fe2 then return end
+        fe2.floor2AsFloor1 = not fe2.floor2AsFloor1
+        _tpF2Set(fe2.floor2AsFloor1)
+        pcall(function() SettingsObj:SetAttribute("SavedTPFloor2AsFloor1", fe2.floor2AsFloor1) end)
+    end)
+    pcall(function()
+        local sv = SettingsObj:GetAttribute("SavedTPFloor2AsFloor1")
+        local fe2 = _G.FlashExtra
+        if fe2 and sv ~= nil then fe2.floor2AsFloor1 = sv; _tpF2Set(sv) end
+    end)
 
     -- ── TP V1 / V2 (mutuellement exclusifs) ─────────────────────────────────
     do  -- scope isole pour eviter la limite de 200 locals Lua
@@ -8186,6 +8223,7 @@ do
                 tpSpeed           = _fe2.tpSpeed,
                 brainrotSnapSpeed = _fe2.brainrotSnapSpeed,
                 tpTool            = _fe2.tpTool or "",
+                floor2AsFloor1    = _fe2.floor2AsFloor1 or false,
             }))
         end)
     end
@@ -8194,6 +8232,7 @@ do
     -- Wire save into toggle handlers that are already declared above
     _tpHighBtn.MouseButton1Click:Connect(function() _saveExtraFromHub() end)
     _tpPrioBtn.MouseButton1Click:Connect(function() _saveExtraFromHub() end)
+    _tpF2Btn.MouseButton1Click:Connect(function() _saveExtraFromHub() end)
 
     -- ── Open Priority List button ─────────────────────────────────────────
     do
