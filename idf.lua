@@ -3231,7 +3231,6 @@ task.spawn(function() pcall(function()
     local RADIUS = 20
     local BURST  = 25
     local ACTIVE = true
-    local _connCache = {}
     local _lastFire  = {}
 
     local function _getHRP()
@@ -3240,29 +3239,14 @@ task.spawn(function() pcall(function()
     end
 
     local function _firePrompt(prompt)
+        if not prompt or not prompt.Parent then return end
+        if not prompt.Enabled then return end
         local t = os.clock()
         if _lastFire[prompt] and (t - _lastFire[prompt]) < 0.08 then return end
         _lastFire[prompt] = t
 
-        -- méthode 1 : fireproximityprompt
-        pcall(function() fireproximityprompt(prompt) end)
-
-        -- méthode 2 : fire les callbacks Triggered directement
-        if getconnections then
-            if not _connCache[prompt] then
-                local triggers = {}
-                pcall(function()
-                    for _, c in ipairs(getconnections(prompt.Triggered)) do
-                        if c.Function then triggers[#triggers+1] = c.Function end
-                    end
-                end)
-                _connCache[prompt] = triggers
-            end
-            for _ = 1, BURST do
-                for _, fn in ipairs(_connCache[prompt]) do
-                    pcall(fn)
-                end
-            end
+        for _ = 1, BURST do
+            pcall(function() fireproximityprompt(prompt, 0) end)
         end
     end
 
@@ -3312,7 +3296,7 @@ task.spawn(function() pcall(function()
         ACTIVE = false
         task.wait(0.05)
         ACTIVE = true
-        _connCache = {}  -- reset cache pour re-scanner les callbacks
+        _lastFire = {}  -- reset debounce
     end
 end) end)
 
