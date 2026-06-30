@@ -3394,23 +3394,6 @@ if plot then
     end
 end
 
--- SOLO NEAREST RESPETA BOXES
-if _G.NEAREST_INSTANT_MODE == true then
-    local playerBox = getBoxIndex(hrpPos)
-    local promptBox = getBoxIndex(pos)
-
-    if not playerBox or playerBox ~= promptBox then
-        return false
-    end
-end
-
--- SI ESTA EN NEAREST + INSTANT STEAL NO USAR TABLA
-if not (_G.NEAREST_INSTANT_MODE == true) then
-    if not promptMatchesSelectedPet(prompt) then
-        return false
-    end
-end
-
     local maxDist = (typeof(prompt.MaxActivationDistance) == "number" and prompt.MaxActivationDistance > 0)
         and prompt.MaxActivationDistance
         or CONFIG.RADIUS
@@ -3544,7 +3527,7 @@ task.spawn(function()
             end
         end
 
-        CONFIG.AUTO_STEAL = anyAvailable
+        -- Ne pas écraser AUTO_STEAL géré par _hazeSetInstantSteal
     end
 end)
 
