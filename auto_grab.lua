@@ -1,5 +1,9 @@
--- AutoGrabOwnBase - Minimal standalone script
--- Automatically grabs animals from your own base using proximity prompts
+-- ============================================================
+-- INSTANT STEAL - Minimal Self-Contained Script
+-- Extracted from HAZE hub. Instant Steal is always ON.
+-- Fires fireproximityprompt on the nearest steal prompt
+-- within INSTANT_STEAL_RADIUS studs every Heartbeat tick.
+-- ============================================================
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -14,279 +18,139 @@ local Workspace         = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============================================================
--- SYNCHRONIZER + GAME DATA MODULES
+-- REQUIRE GAME MODULES (async, script continues while loading)
 -- ============================================================
-local Packages    = ReplicatedStorage:WaitForChild("Packages")
-local Datas       = ReplicatedStorage:WaitForChild("Datas")
-local Shared      = ReplicatedStorage:WaitForChild("Shared")
-local Utils       = ReplicatedStorage:WaitForChild("Utils")
+local Synchronizer, AnimalsData, AnimalsShared, NumberUtils
 
-local Synchronizer  = require(Packages:WaitForChild("Synchronizer"))
-local AnimalsData   = require(Datas:WaitForChild("Animals"))
-local AnimalsShared = require(Shared:WaitForChild("Animals"))
-local NumberUtils   = require(Utils:WaitForChild("NumberUtils"))
+task.spawn(function()
+    local Packages = ReplicatedStorage:WaitForChild("Packages")
+    local Datas    = ReplicatedStorage:WaitForChild("Datas")
+    local Shared   = ReplicatedStorage:WaitForChild("Shared")
+    local Utils    = ReplicatedStorage:WaitForChild("Utils")
+
+    Synchronizer  = require(Packages:WaitForChild("Synchronizer"))
+    AnimalsData   = require(Datas:WaitForChild("Animals"))
+    AnimalsShared = require(Shared:WaitForChild("Animals"))
+    NumberUtils   = require(Utils:WaitForChild("NumberUtils"))
+end)
 
 -- ============================================================
--- STATE
+-- CACHE / STATE
 -- ============================================================
 local allAnimalsCache   = {}
+local PromptMemoryCache  = {}
 local lastAnimalData    = {}
-local PromptMemoryCache = {}
-local lastOwnBaseGrabTime = 0
+
+-- Instant Steal is always enabled — no toggle.
+local instantStealReady   = false
+local instantStealDidInit = false
 
 -- ============================================================
--- isMyBaseAnimal(animalData)
--- Returns true if the given animal belongs to the local player's plot
+-- HELPERS
 -- ============================================================
+local function getHRP()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- Returns true if this plot belongs to the local player
+-- (checks PlotSign YourBase BillboardGui).
+local function isMyPlot_Instant(plotName)
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return false end
+    local plot = plots:FindFirstChild(plotName)
+    if not plot then return false end
+    local sign = plot:FindFirstChild("PlotSign")
+    if not sign then return false end
+    local yb = sign:FindFirstChild("YourBase")
+    return yb and yb:IsA("BillboardGui") and yb.Enabled
+end
+
+-- Returns true if an animal's plot is owned by the local player
+-- (uses Synchronizer channel Owner field).
 local function isMyBaseAnimal(animalData)
     if not animalData or not animalData.plot then return false end
+    if not Synchronizer then return false end
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return false end
     local plot = plots:FindFirstChild(animalData.plot)
     if not plot then return false end
-    local channel = Synchronizer:Get(plot.Name)
-    if channel then
-        local owner = channel:Get("Owner")
-        if owner then
-            if typeof(owner) == "Instance" and owner:IsA("Player") then
-                return owner.UserId == LocalPlayer.UserId
-            elseif typeof(owner) == "table" and owner.UserId then
-                return owner.UserId == LocalPlayer.UserId
-            elseif typeof(owner) == "Instance" then
-                return owner == LocalPlayer
-            end
+    local ok, channel = pcall(function() return Synchronizer:Get(plot.Name) end)
+    if not ok or not channel then return false end
+    local owner = channel:Get("Owner")
+    if owner then
+        if typeof(owner) == "Instance" and owner:IsA("Player") then
+            return owner.UserId == LocalPlayer.UserId
+        elseif typeof(owner) == "table" and owner.UserId then
+            return owner.UserId == LocalPlayer.UserId
+        elseif typeof(owner) == "Instance" then
+            return owner == LocalPlayer
         end
     end
     return false
 end
 
 -- ============================================================
--- findAdorneeGlobal(animalData)
--- Finds the physical spawn part for an animal on its podium
+-- FIND NEAREST STEAL PROMPT (direct workspace scan)
 -- ============================================================
-local function findAdorneeGlobal(animalData)
-    if not animalData then return nil end
+local INSTANT_STEAL_RADIUS = 60
+
+local function findNearestPrompt_Instant()
+    local hrp = getHRP()
+    if not hrp then return nil, math.huge, nil end
     local plots = Workspace:FindFirstChild("Plots")
-    local plot = plots and plots:FindFirstChild(animalData.plot)
-    if plot then
+    if not plots then return nil, math.huge, nil end
+
+    local bestPrompt, bestDist, bestName = nil, math.huge, nil
+
+    for _, plot in ipairs(plots:GetChildren()) do
+        if isMyPlot_Instant(plot.Name) then continue end
+
+        local plotDist = math.huge
+        pcall(function() plotDist = (plot:GetPivot().Position - hrp.Position).Magnitude end)
+        if plotDist > INSTANT_STEAL_RADIUS + 40 then continue end
+
         local podiums = plot:FindFirstChild("AnimalPodiums")
-        if podiums then
-            local podium = podiums:FindFirstChild(animalData.slot)
-            if podium then
-                local base = podium:FindFirstChild("Base")
-                if base then
-                    local spawn = base:FindFirstChild("Spawn")
-                    if spawn then return spawn end
-                    return base:FindFirstChildWhichIsA("BasePart") or base
-                end
-            end
-        end
-    end
-    return nil
-end
+        if not podiums then continue end
 
--- ============================================================
--- findProximityPromptForAnimal(animalData)
--- Locates the proximity prompt for a given animal
--- ============================================================
-local function findProximityPromptForAnimal(animalData)
-    if not animalData then return nil end
-
-    -- Return cached prompt if still valid
-    local cp = PromptMemoryCache[animalData.uid]
-    if cp and cp.Parent then return cp end
-
-    local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return nil end
-    local plot = plots:FindFirstChild(animalData.plot)
-    if not plot then return nil end
-    local podiums = plot:FindFirstChild("AnimalPodiums")
-    if not podiums then return nil end
-
-    local ch = Synchronizer:Get(plot.Name)
-
-    -- Fallback: no Synchronizer channel available
-    if not ch then
-        local podium = podiums:FindFirstChild(animalData.slot)
-        if podium then
-            local base = podium:FindFirstChild("Base")
+        for _, pod in ipairs(podiums:GetChildren()) do
+            local base  = pod:FindFirstChild("Base")
             local spawn = base and base:FindFirstChild("Spawn")
-            if spawn then
-                local attach = spawn:FindFirstChild("PromptAttachment")
-                if attach then
-                    for _, p in ipairs(attach:GetChildren()) do
-                        if p:IsA("ProximityPrompt") then
-                            PromptMemoryCache[animalData.uid] = p
-                            return p
-                        end
-                    end
-                end
-            end
-        end
-        return nil
-    end
+            if not spawn then continue end
 
-    local al = ch:Get("AnimalList")
-    if not al then return nil end
+            local dist = (spawn.Position - hrp.Position).Magnitude
+            if dist > INSTANT_STEAL_RADIUS or dist >= bestDist then continue end
 
-    local brainrotName = animalData.name and animalData.name:lower() or ""
-    local targetSlot   = animalData.slot
+            local att = spawn:FindFirstChild("PromptAttachment")
+            if not att then continue end
 
-    -- Try to find the exact podium via AnimalList matching
-    local foundPodium = nil
-    for slot, ad in pairs(al) do
-        if type(ad) == "table" and tostring(slot) == targetSlot then
-            local aName  = ad.Index
-            local aInfo  = AnimalsData[aName]
-            if aInfo and (aInfo.DisplayName or aName):lower() == brainrotName then
-                foundPodium = podiums:FindFirstChild(tostring(slot))
-                break
+            local prompt = att:FindFirstChildOfClass("ProximityPrompt")
+            if prompt and prompt.Parent and prompt.Enabled then
+                bestPrompt = prompt
+                bestDist   = dist
+                bestName   = pod.Name
             end
         end
     end
 
-    -- Fallback: use slot directly
-    if not foundPodium then
-        foundPodium = podiums:FindFirstChild(animalData.slot)
-    end
-
-    if foundPodium then
-        local base  = foundPodium:FindFirstChild("Base")
-        local spawn = base and base:FindFirstChild("Spawn")
-        if spawn then
-            -- Try PromptAttachment first
-            local attach = spawn:FindFirstChild("PromptAttachment")
-            if attach then
-                for _, p in ipairs(attach:GetChildren()) do
-                    if p:IsA("ProximityPrompt") and p.Enabled then
-                        PromptMemoryCache[animalData.uid] = p
-                        return p
-                    end
-                end
-            end
-
-            -- Fallback: find nearest prompt on the plot within horizontal range
-            local startPos  = spawn.Position
-            local slotX     = startPos.X
-            local slotZ     = startPos.Z
-            local nearestPrompt = nil
-            local minDist   = math.huge
-
-            for _, desc in pairs(plot:GetDescendants()) do
-                if desc:IsA("ProximityPrompt") and desc.Enabled then
-                    local part = desc.Parent
-                    local promptPos = nil
-                    if part and part:IsA("BasePart") then
-                        promptPos = part.Position
-                    elseif part and part:IsA("Attachment") and part.Parent and part.Parent:IsA("BasePart") then
-                        promptPos = part.Parent.Position
-                    end
-                    if promptPos then
-                        local checkStartY = startPos.Y
-                        -- Special-case for pets whose name contains unusual substring
-                        if brainrotName:find("la secret combinasion") then
-                            checkStartY = startPos.Y - 5
-                        end
-                        local horizontalDist = math.sqrt((promptPos.X - slotX)^2 + (promptPos.Z - slotZ)^2)
-                        if horizontalDist < 5 and promptPos.Y > checkStartY then
-                            local yDist = promptPos.Y - checkStartY
-                            if yDist < minDist then
-                                minDist = yDist
-                                nearestPrompt = desc
-                            end
-                        end
-                    end
-                end
-            end
-
-            if nearestPrompt then
-                PromptMemoryCache[animalData.uid] = nearestPrompt
-                return nearestPrompt
-            end
-        end
-    end
-
-    return nil
+    return bestPrompt, bestDist, bestName
 end
 
 -- ============================================================
--- triggerOwnBaseGrab(prompt, animalUID)
--- Fires the proximity prompt to collect the animal
+-- EXECUTE INSTANT STEAL
 -- ============================================================
-local function triggerOwnBaseGrab(prompt, animalUID)
-    if not prompt or not prompt.Parent then return false end
-    local now = os.clock()
-    if now - lastOwnBaseGrabTime < 0.35 then return false end
-    lastOwnBaseGrabTime = now
-    pcall(function()
-        if fireproximityprompt then
-            fireproximityprompt(prompt, math.max(0.1, tonumber(prompt.HoldDuration) or 0))
-        elseif prompt.InputHoldBegin and prompt.InputHoldEnd then
-            prompt:InputHoldBegin()
-            task.wait(math.max(0.1, tonumber(prompt.HoldDuration) or 0.08))
-            prompt:InputHoldEnd()
-        end
-    end)
-    return true
+local function executeInstantSteal(prompt)
+    if not prompt or not prompt.Parent then return end
+    pcall(function() fireproximityprompt(prompt, 0) end)
 end
 
 -- ============================================================
--- get_all_pets()
--- Returns a flat list of all animals currently in allAnimalsCache
--- that belong to the local player's base
--- ============================================================
-local function get_all_pets()
-    local out = {}
-    for _, a in ipairs(allAnimalsCache) do
-        if a.genValue >= 1 and isMyBaseAnimal(a) then
-            table.insert(out, {
-                petName   = a.name,
-                mpsText   = a.genText,
-                mpsValue  = a.genValue,
-                owner     = a.owner,
-                plot      = a.plot,
-                slot      = a.slot,
-                uid       = a.uid,
-                mutation  = a.mutation,
-                animalData = a,
-            })
-        end
-    end
-    return out
-end
-
--- ============================================================
--- getNearestOwnBasePetIndex(pets)
--- Returns the index of the own-base animal closest to the player
--- ============================================================
-local function getNearestOwnBasePetIndex(pets)
-    local char = LocalPlayer.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp or not pets then return nil end
-    local bestIndex = nil
-    local bestDist  = math.huge
-    for i, p in ipairs(pets) do
-        if p and p.animalData and isMyBaseAnimal(p.animalData) then
-            local targetPart = findAdorneeGlobal(p.animalData)
-            if targetPart and targetPart:IsA("BasePart") then
-                local d = (hrp.Position - targetPart.Position).Magnitude
-                if d < bestDist then
-                    bestDist  = d
-                    bestIndex = i
-                end
-            end
-        end
-    end
-    return bestIndex
-end
-
--- ============================================================
--- scanSinglePlot(plot)
--- Reads the Synchronizer data for a plot and updates allAnimalsCache
+-- PLOT SCANNING → allAnimalsCache
+-- (Provides a sorted cache used by the fallback steal path)
 -- ============================================================
 local function getAnimalHash(al, ownerName)
     if not al then return "" end
-    local h = tostring(ownerName or "")
+    local h = ownerName or ""
     for slot, d in pairs(al) do
         if type(d) == "table" then
             h = h .. tostring(slot) .. tostring(d.Index) .. tostring(d.Mutation)
@@ -296,6 +160,7 @@ local function getAnimalHash(al, ownerName)
 end
 
 local function scanSinglePlot(plot)
+    if not Synchronizer or not AnimalsData or not AnimalsShared or not NumberUtils then return end
     pcall(function()
         local ch = Synchronizer:Get(plot.Name)
         if not ch then return end
@@ -303,7 +168,7 @@ local function scanSinglePlot(plot)
         local al    = ch:Get("AnimalList")
         local owner = ch:Get("Owner")
 
-        -- No valid owner or no animal list: clear this plot from cache
+        -- Remove entries for plots with no online owner or no animals
         if not owner or not owner.Name or not Players:FindFirstChild(owner.Name) then
             lastAnimalData[plot.Name] = nil
             for i = #allAnimalsCache, 1, -1 do
@@ -325,9 +190,7 @@ local function scanSinglePlot(plot)
         end
 
         local ownerName = owner.Name
-        local hash      = getAnimalHash(al, ownerName)
-
-        -- No change since last scan
+        local hash = getAnimalHash(al, ownerName)
         if lastAnimalData[plot.Name] == hash then return end
 
         -- Remove stale entries for this plot
@@ -337,7 +200,7 @@ local function scanSinglePlot(plot)
             end
         end
 
-        -- Insert updated entries
+        -- Insert fresh entries
         for slot, ad in pairs(al) do
             if type(ad) == "table" then
                 local aName = ad.Index
@@ -345,16 +208,13 @@ local function scanSinglePlot(plot)
                 if aInfo then
                     local mut = ad.Mutation or "None"
                     if mut == "Yin Yang" then mut = "YinYang" end
-                    local traits = (ad.Traits and #ad.Traits > 0) and table.concat(ad.Traits, ", ") or "None"
                     local gv = AnimalsShared:GetGeneration(aName, ad.Mutation, ad.Traits, nil)
                     local gt = "$" .. NumberUtils:ToString(gv) .. "/s"
-
                     table.insert(allAnimalsCache, {
                         name     = aInfo.DisplayName or aName,
                         genText  = gt,
                         genValue = gv,
                         mutation = mut,
-                        traits   = traits,
                         owner    = ownerName,
                         plot     = plot.Name,
                         slot     = tostring(slot),
@@ -365,57 +225,166 @@ local function scanSinglePlot(plot)
         end
 
         lastAnimalData[plot.Name] = hash
-
-        -- Keep cache sorted highest gen value first
-        table.sort(allAnimalsCache, function(a, b)
-            return a.genValue > b.genValue
-        end)
+        table.sort(allAnimalsCache, function(a, b) return a.genValue > b.genValue end)
     end)
 end
 
--- ============================================================
--- Plot listener: scan on changes and on a periodic timer
--- ============================================================
 local function setupPlotListener(plot)
+    if not Synchronizer then return end
     local ch, retries = nil, 0
     while not ch and retries < 50 do
         local ok, r = pcall(function() return Synchronizer:Get(plot.Name) end)
-        if ok and r then
-            ch = r
-            break
-        else
-            retries = retries + 1
-            task.wait(0.1)
-        end
+        if ok and r then ch = r; break else retries = retries + 1; task.wait(0.1) end
     end
     if not ch then return end
-
     scanSinglePlot(plot)
-    plot.DescendantAdded:Connect(function()
-        task.wait(0.1)
-        scanSinglePlot(plot)
-    end)
-    plot.DescendantRemoving:Connect(function()
-        task.wait(0.1)
-        scanSinglePlot(plot)
-    end)
+    plot.DescendantAdded:Connect(function()    task.wait(0.1); scanSinglePlot(plot) end)
+    plot.DescendantRemoving:Connect(function() task.wait(0.1); scanSinglePlot(plot) end)
     task.spawn(function()
-        while plot.Parent do
-            task.wait(5)
-            scanSinglePlot(plot)
-        end
+        while plot.Parent do task.wait(5); scanSinglePlot(plot) end
     end)
 end
 
-local plots = Workspace:WaitForChild("Plots", 8)
-if plots then
+-- ============================================================
+-- FIND PROXIMITY PROMPT VIA SLOT (PromptMemoryCache fallback)
+-- ============================================================
+local function findProximityPromptForAnimal(animalData)
+    if not animalData then return nil end
+    local cp = PromptMemoryCache[animalData.uid]
+    if cp and cp.Parent then return cp end
+
+    local plotsFolder = Workspace:FindFirstChild("Plots")
+    if not plotsFolder then return nil end
+    local plot = plotsFolder:FindFirstChild(animalData.plot)
+    if not plot then return nil end
+    local podiums = plot:FindFirstChild("AnimalPodiums")
+    if not podiums then return nil end
+
+    -- Direct slot lookup
+    local foundPodium = podiums:FindFirstChild(animalData.slot)
+
+    -- Synchronizer-based slot cross-reference (in case slot key drifted)
+    if not foundPodium and Synchronizer then
+        pcall(function()
+            local ch = Synchronizer:Get(plot.Name)
+            if not ch then return end
+            local al = ch:Get("AnimalList")
+            if not al then return end
+            local brainrotName = animalData.name and animalData.name:lower() or ""
+            for slot, ad in pairs(al) do
+                if type(ad) == "table" and tostring(slot) == animalData.slot then
+                    local aName = ad.Index
+                    local aInfo = AnimalsData and AnimalsData[aName]
+                    if aInfo and (aInfo.DisplayName or aName):lower() == brainrotName then
+                        foundPodium = podiums:FindFirstChild(tostring(slot))
+                        break
+                    end
+                end
+            end
+        end)
+    end
+
+    if not foundPodium then return nil end
+
+    local base  = foundPodium:FindFirstChild("Base")
+    local spawn = base and base:FindFirstChild("Spawn")
+    if not spawn then return nil end
+
+    -- Try PromptAttachment first
+    local attach = spawn:FindFirstChild("PromptAttachment")
+    if attach then
+        for _, p in ipairs(attach:GetChildren()) do
+            if p:IsA("ProximityPrompt") and p.Enabled then
+                PromptMemoryCache[animalData.uid] = p
+                return p
+            end
+        end
+    end
+
+    -- Spatial fallback: find nearest enabled ProximityPrompt above spawn.Y
+    local startPos = spawn.Position
+    local nearestPrompt, minDist = nil, math.huge
+    for _, desc in pairs(plot:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") and desc.Enabled then
+            local part = desc.Parent
+            local promptPos = nil
+            if part and part:IsA("BasePart") then
+                promptPos = part.Position
+            elseif part and part:IsA("Attachment") and part.Parent and part.Parent:IsA("BasePart") then
+                promptPos = part.Parent.Position
+            end
+            if promptPos then
+                local hDist = math.sqrt((promptPos.X - startPos.X)^2 + (promptPos.Z - startPos.Z)^2)
+                if hDist < 5 and promptPos.Y > startPos.Y then
+                    local yDist = promptPos.Y - startPos.Y
+                    if yDist < minDist then
+                        minDist = yDist
+                        nearestPrompt = desc
+                    end
+                end
+            end
+        end
+    end
+
+    if nearestPrompt then
+        PromptMemoryCache[animalData.uid] = nearestPrompt
+        return nearestPrompt
+    end
+
+    return nil
+end
+
+-- ============================================================
+-- FILTERED PET LIST (excludes own base, sorted by gen value)
+-- ============================================================
+local function get_all_pets()
+    local out = {}
+    for _, a in ipairs(allAnimalsCache) do
+        if a.genValue >= 1 and not isMyBaseAnimal(a) then
+            table.insert(out, {
+                petName    = a.name,
+                mpsText    = a.genText,
+                mpsValue   = a.genValue,
+                owner      = a.owner,
+                plot       = a.plot,
+                slot       = a.slot,
+                uid        = a.uid,
+                mutation   = a.mutation,
+                animalData = a,
+            })
+        end
+    end
+    return out
+end
+
+-- ============================================================
+-- STARTUP: wait for modules, then wire up plot scanning
+-- ============================================================
+task.spawn(function()
+    local timeout = os.clock() + 20
+    while not Synchronizer or not AnimalsData or not AnimalsShared or not NumberUtils do
+        if os.clock() > timeout then
+            warn("[InstantSteal] Timed out waiting for game modules — plot cache disabled.")
+            return
+        end
+        task.wait(0.2)
+    end
+
+    local plots = Workspace:WaitForChild("Plots", 10)
+    if not plots then
+        warn("[InstantSteal] Could not find Plots folder.")
+        return
+    end
+
     for _, p in ipairs(plots:GetChildren()) do
         task.spawn(setupPlotListener, p)
     end
+
     plots.ChildAdded:Connect(function(p)
         task.wait(0.5)
         task.spawn(setupPlotListener, p)
     end)
+
     plots.ChildRemoved:Connect(function(p)
         lastAnimalData[p.Name] = nil
         for i = #allAnimalsCache, 1, -1 do
@@ -424,39 +393,48 @@ if plots then
             end
         end
     end)
-end
+end)
 
 -- ============================================================
--- Heartbeat loop: find nearest own-base animal and grab it
+-- HEARTBEAT: Instant Steal loop (always active, no toggle)
 -- ============================================================
-local selectedTargetIndex = 1
-local selectedTargetUID   = nil
+local lastInstantTick = 0
 
 RunService.Heartbeat:Connect(function()
-    local pets = get_all_pets()
-    if #pets == 0 then return end
+    local now = os.clock()
+    if now - lastInstantTick < 0.05 then return end
+    lastInstantTick = now
 
-    -- Update selection to nearest own-base animal each frame
-    local ownBaseIndex = getNearestOwnBasePetIndex(pets)
-    if ownBaseIndex then
-        selectedTargetIndex = ownBaseIndex
-        selectedTargetUID   = pets[ownBaseIndex].uid
+    -- One-time delayed init: give game a moment before first steal
+    if not instantStealDidInit then
+        instantStealDidInit = true
+        task.spawn(function()
+            if not game:IsLoaded() then game.Loaded:Wait() end
+            task.wait(0.5)
+            instantStealReady = true
+        end)
     end
 
-    -- Clamp index to valid range
-    if selectedTargetIndex > #pets then selectedTargetIndex = #pets end
-    if selectedTargetIndex < 1    then selectedTargetIndex = 1     end
+    if not instantStealReady then return end
 
-    local tp = pets[selectedTargetIndex]
-    if not tp or not isMyBaseAnimal(tp.animalData) then return end
+    -- Primary: fire nearest prompt found by direct workspace scan
+    local prompt, dist, _ = findNearestPrompt_Instant()
+    if prompt and dist <= INSTANT_STEAL_RADIUS then
+        executeInstantSteal(prompt)
+        return
+    end
 
-    -- Get cached or freshly-found prompt
+    -- Fallback: use allAnimalsCache + PromptMemoryCache (highest gen-value pet)
+    local pets = get_all_pets()
+    if #pets == 0 then return end
+    local tp = pets[1]
+    if not tp then return end
+
     local pr = PromptMemoryCache[tp.uid]
     if not pr or not pr.Parent then
         pr = findProximityPromptForAnimal(tp.animalData)
     end
-
     if pr then
-        triggerOwnBaseGrab(pr, tp.uid)
+        executeInstantSteal(pr)
     end
 end)
