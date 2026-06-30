@@ -3229,6 +3229,7 @@ task.spawn(function() pcall(function()
 
 do
 -- ITSB HUB — TRUE INSTANT STEAL (BRAINROT DETECTOR + BOX FILTER)
+local SharedState = { SelectedPetData = nil }
 local CONFIG = {
     AUTO_STEAL = false,
     RADIUS = 12
@@ -3546,8 +3547,6 @@ task.spawn(function()
         CONFIG.AUTO_STEAL = anyAvailable
     end
 end)
-
-end
 
 -- ===== INSTANT STEAL TOGGLE PÉRIODIQUE (1.38s) =====
 local _instantStealActive = false
