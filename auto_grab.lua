@@ -273,6 +273,139 @@ end
 _G._hazeSetInstantSteal = setInstantSteal
 
 -- ============================================================
+-- PROGRESS BAR HUD
+-- ============================================================
+local existingHud = PlayerGui:FindFirstChild("AutoStealCurrentTargetHUD")
+if existingHud then existingHud:Destroy() end
+
+local targetHudGui = Instance.new("ScreenGui")
+targetHudGui.Name           = "AutoStealCurrentTargetHUD"
+targetHudGui.ResetOnSpawn   = false
+targetHudGui.IgnoreGuiInset = true
+targetHudGui.DisplayOrder   = 998
+targetHudGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+targetHudGui.Parent         = PlayerGui
+
+local STEALBAR = {
+    PANEL  = Color3.fromRGB(10, 18, 15),
+    TEXT   = Color3.fromRGB(225, 255, 235),
+    STROKE = Color3.fromRGB(65, 180, 105),
+    GLOW   = Color3.fromRGB(140, 240, 175),
+    TRACK  = Color3.fromRGB(35, 14, 25),
+    TRACK2 = Color3.fromRGB(45, 18, 32),
+    FILL1  = Color3.fromRGB(65, 180, 105),
+    FILL2  = Color3.fromRGB(220, 100, 150),
+}
+
+local targetHud = Instance.new("Frame", targetHudGui)
+targetHud.Name                   = "CurrentTargetHUD"
+targetHud.AnchorPoint            = Vector2.new(0.5, 1)
+targetHud.Size                   = UDim2.new(0, 230 * mobileScale, 0, 46 * mobileScale)
+targetHud.Position               = UDim2.new(0.5, 0, 1, -220)
+targetHud.BackgroundColor3       = STEALBAR.PANEL
+targetHud.BackgroundTransparency = 0.02
+targetHud.BorderSizePixel        = 0
+targetHud.ZIndex                 = 70
+Instance.new("UICorner", targetHud).CornerRadius = UDim.new(0, math.floor(12 * mobileScale))
+
+local hudStroke = Instance.new("UIStroke", targetHud)
+hudStroke.Color       = STEALBAR.STROKE
+hudStroke.Thickness   = 1
+hudStroke.Transparency = 0.35
+
+local hudGlow = Instance.new("UIStroke", targetHud)
+hudGlow.Color             = STEALBAR.GLOW
+hudGlow.Thickness         = 3
+hudGlow.Transparency      = 0.84
+hudGlow.ApplyStrokeMode   = Enum.ApplyStrokeMode.Border
+
+local hudShadow = Instance.new("ImageLabel", targetHud)
+hudShadow.AnchorPoint        = Vector2.new(0.5, 0.5)
+hudShadow.Position           = UDim2.new(0.5, 0, 0.5, 1)
+hudShadow.Size               = UDim2.new(1, 20, 1, 20)
+hudShadow.BackgroundTransparency = 1
+hudShadow.Image              = "rbxassetid://6014261993"
+hudShadow.ImageColor3        = Color3.new(0, 0, 0)
+hudShadow.ImageTransparency  = 0.72
+hudShadow.ScaleType          = Enum.ScaleType.Slice
+hudShadow.SliceCenter        = Rect.new(49, 49, 450, 450)
+hudShadow.ZIndex             = 69
+
+local hudName = Instance.new("TextLabel", targetHud)
+hudName.Name                 = "TargetName"
+hudName.Size                 = UDim2.new(1, -12, 0, 13 * mobileScale)
+hudName.Position             = UDim2.fromOffset(6 * mobileScale, 3 * mobileScale)
+hudName.BackgroundTransparency = 1
+hudName.Font                 = Enum.Font.GothamBold
+hudName.TextSize             = 11 * mobileScale
+hudName.TextColor3           = STEALBAR.TEXT
+hudName.TextXAlignment       = Enum.TextXAlignment.Center
+hudName.TextTruncate         = Enum.TextTruncate.AtEnd
+hudName.ZIndex               = 72
+hudName.Text                 = "No target"
+
+local hudProgressBg = Instance.new("Frame", targetHud)
+hudProgressBg.Name            = "ProgressBg"
+hudProgressBg.Size            = UDim2.new(1, -10 * mobileScale, 0, 18 * mobileScale)
+hudProgressBg.Position        = UDim2.fromOffset(5 * mobileScale, 18 * mobileScale)
+hudProgressBg.BackgroundColor3 = STEALBAR.TRACK
+hudProgressBg.BorderSizePixel = 0
+hudProgressBg.ZIndex          = 72
+Instance.new("UICorner", hudProgressBg).CornerRadius = UDim.new(0, math.floor(8 * mobileScale))
+
+local hudProgressBgStroke = Instance.new("UIStroke", hudProgressBg)
+hudProgressBgStroke.Color       = STEALBAR.STROKE
+hudProgressBgStroke.Thickness   = 1
+hudProgressBgStroke.Transparency = 0.55
+
+local hudInnerTrack = Instance.new("Frame", hudProgressBg)
+hudInnerTrack.Name                   = "InnerTrack"
+hudInnerTrack.Size                   = UDim2.new(1, -2, 1, -2)
+hudInnerTrack.Position               = UDim2.fromOffset(1, 1)
+hudInnerTrack.BackgroundColor3       = STEALBAR.TRACK2
+hudInnerTrack.BackgroundTransparency = 0.15
+hudInnerTrack.BorderSizePixel        = 0
+hudInnerTrack.ZIndex                 = 72
+Instance.new("UICorner", hudInnerTrack).CornerRadius = UDim.new(0, math.floor(7 * mobileScale))
+
+local hudProgressFill = Instance.new("Frame", hudProgressBg)
+hudProgressFill.Name            = "ProgressFill"
+hudProgressFill.Size            = UDim2.new(0, 0, 1, 0)
+hudProgressFill.BackgroundColor3 = STEALBAR.FILL1
+hudProgressFill.BorderSizePixel = 0
+hudProgressFill.ZIndex          = 73
+Instance.new("UICorner", hudProgressFill).CornerRadius = UDim.new(0, math.floor(8 * mobileScale))
+
+local hudProgressFillGradient = Instance.new("UIGradient", hudProgressFill)
+hudProgressFillGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, STEALBAR.FILL1),
+    ColorSequenceKeypoint.new(1, STEALBAR.FILL2),
+})
+
+local hudProgressFillStroke = Instance.new("UIStroke", hudProgressFill)
+hudProgressFillStroke.Color       = Color3.fromRGB(220, 228, 255)
+hudProgressFillStroke.Thickness   = 1
+hudProgressFillStroke.Transparency = 0.45
+
+local hudPercent = Instance.new("TextLabel", hudProgressBg)
+hudPercent.Name                 = "Percent"
+hudPercent.Size                 = UDim2.new(1, 0, 1, 0)
+hudPercent.BackgroundTransparency = 1
+hudPercent.Font                 = Enum.Font.GothamBold
+hudPercent.TextSize             = 12 * mobileScale
+hudPercent.TextColor3           = STEALBAR.TEXT
+hudPercent.TextStrokeTransparency = 0.7
+hudPercent.TextXAlignment       = Enum.TextXAlignment.Center
+hudPercent.ZIndex               = 74
+hudPercent.Text                 = "0%"
+
+-- update percent label every frame
+RunService.Heartbeat:Connect(function()
+    local pct = math.clamp(math.floor(hudProgressFill.Size.X.Scale * 100 + 0.5), 0, 100)
+    hudPercent.Text = pct .. "%"
+end)
+
+-- ============================================================
 -- BUILD TARGET CONTROLS UI
 -- ============================================================
 local existingTC = PlayerGui:FindFirstChild("AutoStealTargetControls")
@@ -656,7 +789,13 @@ RunService.Heartbeat:Connect(function()
     -- Always use nearest-prompt strategy (fastest)
     local prompt, dist = findNearestPrompt_Instant()
     if prompt and dist <= INSTANT_STEAL_RADIUS then
+        -- Fill bar to 100% instantly when firing
+        hudProgressFill.Size = UDim2.new(1, 0, 1, 0)
         executeInstantSteal(prompt)
+    else
+        -- No target: drain bar back to 0
+        hudProgressFill.Size = UDim2.new(0, 0, 1, 0)
+        hudName.Text = "No target"
     end
 end)
 
