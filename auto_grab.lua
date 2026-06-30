@@ -55,6 +55,12 @@ local Config = {
 }
 
 -- ============================================================
+-- SCALE
+-- ============================================================
+local mobileScale       = IS_MOBILE and 0.6 or 1
+local mobileButtonScale = IS_MOBILE and 1.3 or 1
+
+-- ============================================================
 -- SHARED STATE (for mobile scale — mirrors original)
 -- ============================================================
 local SharedState = {
@@ -418,9 +424,6 @@ targetControlsGui.IgnoreGuiInset = true
 targetControlsGui.DisplayOrder   = 999
 targetControlsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 targetControlsGui.Parent         = PlayerGui
-
-local mobileScale       = IS_MOBILE and 0.6  or 1
-local mobileButtonScale = IS_MOBILE and 1.3  or 1
 
 local targetControlsFrame = Instance.new("Frame", targetControlsGui)
 targetControlsFrame.Name                   = "TargetControlsFrame"
