@@ -1940,7 +1940,7 @@ local function goToBrainrot(petData)
     if isThirdFloor then
         snapY = exactPos.Y - 8
     elseif _f2mode then
-        snapY = exactPos.Y - 3   -- approche par en dessous (logique floor1 pour 2e étage)
+        snapY = exactPos.Y - 7   -- approche par en dessous (logique floor1 pour 2e étage)
     else
         snapY = exactPos.Y + 3.5
     end
