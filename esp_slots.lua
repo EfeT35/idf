@@ -73,7 +73,7 @@ local function makeHighlight(adornee, color)
     h.FillTransparency    = FILL_TRANSPARENCY
     h.OutlineTransparency = OUTLINE_TRANSPARENCY
     h.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-    h.Parent              = espFolder
+    h.Parent              = Workspace  -- doit être dans Workspace, pas dans un Folder
     return h
 end
 
