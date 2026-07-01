@@ -165,7 +165,8 @@ local function scanPlot(plot)
 
             local offset  = floorOffsets[floorIdx] or 0
             local newCF   = ref.CFrame + Vector3.new(0, offset, 0)
-            local newSize = Vector3.new(ref.Size.X, ref.Size.Y, ref.Size.Z)
+            local sq      = math.max(ref.Size.X, ref.Size.Z)
+            local newSize = Vector3.new(sq, 0.2, sq)
 
             if existing then
                 existing.pad.Color3        = color
