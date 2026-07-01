@@ -1913,17 +1913,18 @@ local function goToBrainrot(petData)
 
     _enableAntiDie()
 
-    equipCarpet()
+    local snapPart = findAdorneeGlobal(petData)
+    local _isHighPet = snapPart and snapPart.Position.Y > 22
+    -- N'équipe le carpet que pour les pets au sol (2ème étage = pas besoin de flotter)
+    if not _isHighPet then
+        equipCarpet()
+    end
     if not hrp or not hrp.Parent then _G.TPStatus = "goto_brainrot_lost_char"; return end
 
-    local snapPart = findAdorneeGlobal(petData)
-    -- PATCH: activer le float tot si le brainrot est en hauteur
-    if snapPart then
-        local _earlyY = snapPart.Position.Y
-        if _earlyY > 22 and _G.FloatToggle and not _G._floatActive then
-            pcall(_G.FloatToggle)
-            _G._autoFloatPending = true
-        end
+    -- Float uniquement pour les pets en hauteur
+    if snapPart and _isHighPet and _G.FloatToggle and not _G._floatActive then
+        pcall(_G.FloatToggle)
+        _G._autoFloatPending = true
     end
     if not snapPart then
         _G.TPStatus = "goto_brainrot_no_part"
@@ -1937,38 +1938,22 @@ local function goToBrainrot(petData)
     -- Land exactly on the spawn position on all floors.
     local snapPos = Vector3.new(exactPos.X, snapY, exactPos.Z)
 
-    -- Activer le float automatiquement pour tout brainrot (haut ou bas)
-    if not _G._floatActive then
-        if _G.setFloatEnabled then pcall(_G.setFloatEnabled, true)
-        elseif _G.FloatToggle then pcall(_G.FloatToggle) end
-    end
-    _G._autoFloatPending = true
-
-    -- Désactiver le float après le grab (fin du steal)
-    task.spawn(function()
-        local _deadline = tick() + 10
-        repeat task.wait(0.1) until (not LP:GetAttribute("Stealing")) or tick() > _deadline
-        task.wait(0.3)
-        if _G._autoFloatPending then
-            _G._autoFloatPending = false
-            if _G.unpinFloat then pcall(_G.unpinFloat) end
-            if _G.setFloatEnabled then pcall(_G.setFloatEnabled, false)
-            elseif _G.FloatToggle then pcall(_G.FloatToggle) end
+    local _verticalDiff = exactPos.Y - hrp.Position.Y
+    if _verticalDiff > 2 then
+        _G._autoFloatPending = true
+        -- Auto Clone si le toggle est actif et le pet est en hauteur
+        if _G._autoCloneOnHighSteal then
+            task.spawn(function()
+                task.wait(0.1)
+                local VIM = game:GetService("VirtualInputManager")
+                local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
+                if cloneKey then
+                    pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
+                    task.wait(0.05)
+                    pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
+                end
+            end)
         end
-    end)
-
-    -- Auto Clone si le toggle est actif
-    if _G._autoCloneOnHighSteal then
-        task.spawn(function()
-            task.wait(0.1)
-            local VIM = game:GetService("VirtualInputManager")
-            local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
-            if cloneKey then
-                pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
-                task.wait(0.05)
-                pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
-            end
-        end)
     end
 
     local _healDone = false
@@ -2138,19 +2123,9 @@ local function doVelocityTP()
 
         -- PATCH: adapter la vitesse du TP selon le ping
         pcall(function()
-            local ping = LocalPlayer:GetNetworkPing() * 1000  -- en ms
             local fe = _G.FlashExtra
-            if fe then
-                if ping > 100 then
-                    -- Ping eleve: vitesses reduites pour arriver correctement
-                    local factor = math.clamp(1 - (ping - 100) / 400, 0.4, 0.85)
-                    fe.tpSpeed           = math.floor(400 * factor)  -- ex: 200-340
-                    fe.brainrotSnapSpeed = math.floor(300 * factor)  -- ex: 120-255
-                else
-                    -- Ping normal: vitesses par defaut
-                    fe.tpSpeed           = 400
-                    fe.brainrotSnapSpeed = 300
-                end
+            if fe and Config and Config.TpSettings and Config.TpSettings.GrappleBypassSpeed then
+                fe.tpSpeed = Config.TpSettings.GrappleBypassSpeed
             end
         end)
 
