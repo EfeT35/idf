@@ -2043,13 +2043,22 @@ local function goToBrainrot(petData)
     _healDone = true
     _localHealConn:Disconnect()
 
-    -- Fixer la plateforme exactement sous le perso à l'arrivée
-    if _G._floatActive and _G.pinFloatAt then
-        char = LP.Character
-        hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            _G.pinFloatAt(hrp.Position.Y - 3.35)
-        end
+    -- Ancrer le HRP pendant tout le steal pour ne pas tomber
+    char = LP.Character
+    hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and hrp.Parent then
+        pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
+        hrp.Anchored = true
+        task.spawn(function()
+            local _deadline = tick() + 10
+            repeat task.wait(0.05) until (not LP:GetAttribute("Stealing")) or tick() > _deadline
+            local _c2 = LP.Character
+            local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
+            if _hrp2 and _hrp2.Parent then
+                _hrp2.AssemblyLinearVelocity = Vector3.zero
+                _hrp2.Anchored = false
+            end
+        end)
     end
 
     -- PATCH: garder antiDie actif pendant le steal
