@@ -25,7 +25,15 @@ local PLATFORM_TRANSPARENCY = 0.35
 local OUTLINE_THICKNESS     = 0.12
 local UPDATE_RATE           = 1.5
 local TOTAL_SLOTS           = 27
-local FLOOR_HEIGHT_DEFAULT  = 5
+
+-- ============================================================
+-- HAUTEURS DES ÉTAGES (à ajuster si les placeholders sont mal placés)
+-- 0 = rez-de-chaussée (slots 1-9)  → pas de décalage
+-- FLOOR_1_OFFSET = hauteur entre étage 0 et étage 1 (slots 10-18)
+-- FLOOR_2_OFFSET = hauteur entre étage 0 et étage 2 (slots 19-27)
+-- ============================================================
+local FLOOR_1_OFFSET = 5    -- studs au dessus du rez-de-chaussée
+local FLOOR_2_OFFSET = 10   -- studs au dessus du rez-de-chaussée
 
 -- ============================================================
 -- FOLDER
@@ -127,20 +135,7 @@ local function scanPlot(plot)
         end
     end
 
-    -- 2. Détecter la hauteur entre étages en cherchant un slot sur l'étage 2 (10-18)
-    local floorHeight = FLOOR_HEIGHT_DEFAULT
-    if podiums then
-        for s = 10, 18 do
-            local pod  = podiums:FindFirstChild(tostring(s))
-            local base = getSlotBase(pod)
-            local bp   = getBasePart(base)
-            local ref  = floor0[s - 9]
-            if bp and ref then
-                local h = math.abs(bp.Position.Y - ref.Position.Y)
-                if h > 0.5 then floorHeight = h break end
-            end
-        end
-    end
+    local floorOffsets = { [0] = 0, [1] = FLOOR_1_OFFSET, [2] = FLOOR_2_OFFSET }
 
     -- 3. Itérer les 27 slots
     for slot = 1, TOTAL_SLOTS do
@@ -178,8 +173,9 @@ local function scanPlot(plot)
             local ref = floor0[localSlot]
             if not ref then continue end  -- pas de référence → skip
 
-            local newCF   = ref.CFrame + Vector3.new(0, floorHeight * floorIdx, 0)
-            local newSize = ref.Size
+            local offset  = floorOffsets[floorIdx] or (floorIdx * FLOOR_1_OFFSET)
+            local newCF   = ref.CFrame + Vector3.new(0, offset, 0)
+            local newSize = Vector3.new(ref.Size.X, 0.2, ref.Size.Z)  -- plat
 
             if existing then
                 existing.pad.Color3        = color
