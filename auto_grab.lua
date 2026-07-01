@@ -403,7 +403,19 @@ local function findNearestPrompt_Instant()
             local att = spawn:FindFirstChild("PromptAttachment"); if not att then continue end
             local prompt = att:FindFirstChildOfClass("ProximityPrompt")
             if prompt and prompt.Parent and prompt.Enabled then
-                bestPrompt=prompt; bestDist=dist; bestName=pod.Name
+                -- récupérer le vrai nom depuis Synchronizer
+                local realName = nil
+                pcall(function()
+                    local ok, ch = pcall(function() return Synchronizer:Get(plot.Name) end)
+                    if ok and ch then
+                        local al = ch:Get("AnimalList")
+                        if al and al[tonumber(pod.Name)] then
+                            local aInfo = AnimalsData[al[tonumber(pod.Name)].Index]
+                            if aInfo then realName = aInfo.DisplayName end
+                        end
+                    end
+                end)
+                bestPrompt=prompt; bestDist=dist; bestName=realName or pod.Name
             end
         end
     end
@@ -712,9 +724,6 @@ RunService.Heartbeat:Connect(function()
         local now = os.clock()
         if now - lastInstantTick < 0.05 then return end
         lastInstantTick = now
-        if activeProgressTween then activeProgressTween:Cancel(); activeProgressTween=nil end
-        progressBarFill.Size = UDim2.new(1,0,1,0)
-        progressBarFill.BackgroundTransparency = 0
         if not instantStealDidInit then
             instantStealDidInit = true
             task.spawn(function()
@@ -723,13 +732,15 @@ RunService.Heartbeat:Connect(function()
             end)
         end
         if instantStealReady then
+            local fired = false
             if stealNearestEnabled then
                 local prompt, dist, name = findNearestPrompt_Instant()
                 if prompt and dist <= INSTANT_STEAL_RADIUS then
                     hudName.Text = name or "Target"
+                    progressBarFill.Size = UDim2.new(1,0,1,0)
+                    progressBarFill.BackgroundTransparency = 0
                     executeInstantSteal(prompt)
-                else
-                    hudName.Text = "No target"
+                    fired = true
                 end
             else
                 local pets = get_all_pets()
@@ -738,21 +749,32 @@ RunService.Heartbeat:Connect(function()
                     if selectedTargetIndex < 1    then selectedTargetIndex = 1 end
                     local tp = pets[selectedTargetIndex]
                     if tp and (Config.AutoGrabOwnBase or not isMyBaseAnimal(tp.animalData)) then
-                        hudName.Text = tp.petName or "Target"
                         local pr = PromptMemoryCache[tp.uid]
                         if not pr or not pr.Parent then pr = findProximityPromptForAnimal(tp.animalData) end
-                        if pr then executeInstantSteal(pr) end
+                        if pr then
+                            hudName.Text = tp.petName or "Target"
+                            progressBarFill.Size = UDim2.new(1,0,1,0)
+                            progressBarFill.BackgroundTransparency = 0
+                            executeInstantSteal(pr)
+                            fired = true
+                        end
                     end
-                else
+                end
+                if not fired then
                     -- fallback scan direct
                     local prompt, dist, name = findNearestPrompt_Instant()
                     if prompt and dist <= INSTANT_STEAL_RADIUS then
                         hudName.Text = name or "Target"
+                        progressBarFill.Size = UDim2.new(1,0,1,0)
+                        progressBarFill.BackgroundTransparency = 0
                         executeInstantSteal(prompt)
-                    else
-                        hudName.Text = "No target"
+                        fired = true
                     end
                 end
+            end
+            if not fired then
+                hudName.Text = "No target"
+                progressBarFill.Size = UDim2.new(0,0,1,0)
             end
         end
         return
