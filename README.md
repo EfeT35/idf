@@ -990,6 +990,23 @@ local function fireGrappleV2(fireAtOwnBase)
 end
 _G.FlashFireGrapple = fireGrappleV2
 
+-- ═══ Grapple StopTrying blocker ═══
+-- Bloque le RemoteEvent "StopTrying" que le jeu envoie pour annuler l'effet du grapin.
+-- Sans ce hook, le serveur coupe le grapin immédiatement et le TP ne fonctionne pas.
+pcall(function()
+    local _orig_fire
+    _orig_fire = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
+        local args = {...}
+        local arg1 = args[1]
+        if #self.Name == 67 and arg1 and typeof(arg1) == "string" then
+            if string.find(arg1, "StopTrying") then
+                return  -- bloquer
+            end
+        end
+        return _orig_fire(self, ...)
+    end))
+end)
+
 -- ═══ Grapple rope/beam hider ═══
 -- Cache le fil du grapin des qu'il apparait (Beam, RopeConstraint, Trail)
 -- en le rendant totalement transparent. Surveille le character en continu.
