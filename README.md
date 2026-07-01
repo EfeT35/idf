@@ -2043,49 +2043,27 @@ local function goToBrainrot(petData)
     _healDone = true
     _localHealConn:Disconnect()
 
-    -- Ancrer le HRP à snapPos pendant 5s pour ne pas tomber pendant le steal
-    char = LP.Character
-    hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp and hrp.Parent then
-        pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
-        hrp.Anchored = true
-        _G._stealAnchorActive = true
-        task.spawn(function()
-            local _UIS = game:GetService("UserInputService")
-            local _moveKeys = {
-                [Enum.KeyCode.W]=true,[Enum.KeyCode.A]=true,
-                [Enum.KeyCode.S]=true,[Enum.KeyCode.D]=true,
-                [Enum.KeyCode.Up]=true,[Enum.KeyCode.Down]=true,
-                [Enum.KeyCode.Left]=true,[Enum.KeyCode.Right]=true,
-            }
-            local function _playerMoving()
-                for kc in pairs(_moveKeys) do
-                    if _UIS:IsKeyDown(kc) then return true end
-                end
-                return false
-            end
-
-            local _t0 = tick()
-            local _graceEnd = tick() + 1.5  -- 1.5s avant de vérifier le mouvement
-            while _G._stealAnchorActive and isTeleporting and tick() - _t0 < 8 do
-                -- Après la grace period, libérer si le joueur bouge
-                if tick() > _graceEnd and _playerMoving() then break end
-                local _c2 = LP.Character
-                local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
-                if not _hrp2 or not _hrp2.Parent then break end
-                if not _hrp2.Anchored then _hrp2.Anchored = true end
-                _hrp2.AssemblyLinearVelocity = Vector3.zero
-                task.wait(0.05)
-            end
-            _G._stealAnchorActive = false
-            local _c2 = LP.Character
-            local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
-            if _hrp2 and _hrp2.Parent then
-                _hrp2.AssemblyLinearVelocity = Vector3.zero
-                _hrp2.Anchored = false
-            end
+    -- Plateforme temporaire sous le brainrot (3s max)
+    task.spawn(function()
+        pcall(function()
+            local _c = LP.Character
+            local _hrp = _c and _c:FindFirstChild("HumanoidRootPart")
+            if not _hrp then return end
+            local _p = Instance.new("Part")
+            _p.Name = "_StealPlatform"
+            _p.Size = Vector3.new(8, 0.5, 8)
+            _p.CFrame = CFrame.new(_hrp.Position.X, _hrp.Position.Y - 3, _hrp.Position.Z)
+            _p.Anchored = true
+            _p.CanCollide = true
+            _p.CanTouch = false
+            _p.CanQuery = false
+            _p.Transparency = 1
+            _p.CastShadow = false
+            _p.Parent = workspace
+            task.wait(3)
+            pcall(function() _p:Destroy() end)
         end)
-    end
+    end)
 
     -- PATCH: garder antiDie actif pendant le steal
 
@@ -17115,15 +17093,6 @@ do
 	local function executeReset()
 		if resetting then return end
 		resetting = true
-
-		-- Libérer l'ancre du steal si active
-		_G._stealAnchorActive = false
-		pcall(function()
-			local _c = _LP.Character
-			local _h = _c and _c:FindFirstChild("HumanoidRootPart")
-			if _h then _h.Anchored = false end
-		end)
-		task.wait(0.05)
 
 		_G._manualResetActive = true
 		local prevAntiDie = _G.AntiDieDisabled
