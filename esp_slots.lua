@@ -66,14 +66,13 @@ local function getSlotPart(pod)
 end
 
 local function makeHighlight(adornee, color)
-    local h = Instance.new("Highlight")
-    h.Adornee             = adornee
-    h.FillColor           = color
-    h.OutlineColor        = color
-    h.FillTransparency    = FILL_TRANSPARENCY
-    h.OutlineTransparency = OUTLINE_TRANSPARENCY
-    h.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-    h.Parent              = Workspace  -- doit être dans Workspace, pas dans un Folder
+    local h = Instance.new("SelectionBox")
+    h.Adornee        = adornee
+    h.Color3         = color
+    h.SurfaceColor3  = color
+    h.SurfaceTransparency = FILL_TRANSPARENCY
+    h.LineThickness  = 0.05
+    h.Parent         = Workspace
     return h
 end
 
