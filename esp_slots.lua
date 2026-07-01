@@ -165,7 +165,7 @@ local function scanPlot(plot)
 
             local offset  = floorOffsets[floorIdx] or 0
             local newCF   = ref.CFrame + Vector3.new(0, offset, 0)
-            local sq      = math.max(ref.Size.X, ref.Size.Z) * 3
+            local sq      = math.max(ref.Size.X, ref.Size.Z) * 10
             local newSize = Vector3.new(sq, 0.2, sq)
 
             if existing then
@@ -204,26 +204,5 @@ end
 task.wait(1)
 pcall(scanAll)
 
-task.spawn(function()
-    while espFolder.Parent do
-        task.wait(UPDATE_RATE)
-        pcall(scanAll)
-    end
-end)
-
-local plots = Workspace:WaitForChild("Plots", 8)
-if plots then
-    plots.ChildAdded:Connect(function(plot)
-        task.wait(0.5)
-        pcall(scanPlot, plot)
-    end)
-    plots.ChildRemoved:Connect(function(plot)
-        for key in pairs(highlights) do
-            if key:sub(1, #plot.Name + 1) == plot.Name .. "_" then
-                removeSlot(key)
-            end
-        end
-    end)
-end
 
 print("[ESP SLOTS] Actif — rouge=occupé, vert=libre, bleu=ta base")
