@@ -2043,15 +2043,24 @@ local function goToBrainrot(petData)
     _healDone = true
     _localHealConn:Disconnect()
 
-    -- Ancrer le HRP pendant tout le steal pour ne pas tomber
+    -- Ancrer le HRP à snapPos pendant 5s pour ne pas tomber pendant le steal
     char = LP.Character
     hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if hrp and hrp.Parent then
         pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
         hrp.Anchored = true
         task.spawn(function()
-            local _deadline = tick() + 10
-            repeat task.wait(0.05) until (not LP:GetAttribute("Stealing")) or tick() > _deadline
+            -- Maintenir la position en boucle (re-ancrer si le jeu force le déancrage)
+            local _t0 = tick()
+            local _stayPos = snapPos
+            while tick() - _t0 < 5 do
+                local _c2 = LP.Character
+                local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
+                if not _hrp2 or not _hrp2.Parent then break end
+                if not _hrp2.Anchored then _hrp2.Anchored = true end
+                _hrp2.AssemblyLinearVelocity = Vector3.zero
+                task.wait(0.05)
+            end
             local _c2 = LP.Character
             local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
             if _hrp2 and _hrp2.Parent then
