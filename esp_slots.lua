@@ -1,77 +1,81 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Workspace   = game:GetService("Workspace")
-local Players     = game:GetService("Players")
+local Players          = game:GetService("Players")
+local ReplicatedStorage= game:GetService("ReplicatedStorage")
+local Workspace        = game:GetService("Workspace")
+
 local LocalPlayer = Players.LocalPlayer
+
+-- ============================================================
+-- MODULES
+-- ============================================================
+local Packages    = ReplicatedStorage:WaitForChild("Packages")
+local Datas       = ReplicatedStorage:WaitForChild("Datas")
+
+local Synchronizer = require(Packages:WaitForChild("Synchronizer"))
+local AnimalsData  = require(Datas:WaitForChild("Animals"))
 
 -- ============================================================
 -- CONFIG
 -- ============================================================
-local COLOR_OCCUPIED       = Color3.fromRGB(255, 50,  50)
-local COLOR_EMPTY          = Color3.fromRGB(50,  220, 80)
-local COLOR_OWN            = Color3.fromRGB(80,  150, 255)
-local FILL_TRANSPARENCY    = 0.35
-local UPDATE_RATE          = 2
-local FLOOR_HEIGHT_DEFAULT = 5   -- hauteur entre étages si non détectable
+local COLOR_OCCUPIED        = Color3.fromRGB(255, 50,  50)
+local COLOR_EMPTY           = Color3.fromRGB(50,  220, 80)
+local COLOR_OWN             = Color3.fromRGB(80,  150, 255)
+local PLATFORM_TRANSPARENCY = 0.35
+local OUTLINE_THICKNESS     = 0.12
+local UPDATE_RATE           = 1.5
+local TOTAL_SLOTS           = 27
+local FLOOR_HEIGHT_DEFAULT  = 5
 
 -- ============================================================
--- FOLDER ESP
+-- FOLDER
 -- ============================================================
 local espFolder = Workspace:FindFirstChild("__ESP_SLOTS")
 if espFolder then espFolder:Destroy() end
 espFolder = Instance.new("Folder", Workspace)
 espFolder.Name = "__ESP_SLOTS"
 
--- slotData[key] = { box = SelectionBox, placeholder = Part|nil }
-local slotData = {}
-
 -- ============================================================
 -- HELPERS
 -- ============================================================
-local function isMyPlot(plot)
-    local v = plot:FindFirstChild("Owner", true)
-    if not v then return false end
-    if v:IsA("ObjectValue") and v.Value and v.Value:IsA("Player") then
-        return v.Value.UserId == LocalPlayer.UserId
-    elseif v:IsA("StringValue") then
-        return v.Value == LocalPlayer.Name or v.Value == tostring(LocalPlayer.UserId)
+local highlights = {}  -- [key] = { pad, ph }
+
+local function isMyPlot(plotName)
+    local ok, ch = pcall(function() return Synchronizer:Get(plotName) end)
+    if not ok or not ch then return false end
+    local owner = ch:Get("Owner")
+    if not owner then return false end
+    if typeof(owner) == "Instance" and owner:IsA("Player") then
+        return owner.UserId == LocalPlayer.UserId
+    elseif typeof(owner) == "table" and owner.UserId then
+        return owner.UserId == LocalPlayer.UserId
     end
     return false
 end
 
-local function isOccupied(pod)
-    if not pod then return false end
-    for _, c in ipairs(pod:GetChildren()) do
-        if c:IsA("Model") then return true end
-    end
-    return false
+local function isOccupied(plotName, slot)
+    local ok, ch = pcall(function() return Synchronizer:Get(plotName) end)
+    if not ok or not ch then return false end
+    local al = ch:Get("AnimalList")
+    if not al then return false end
+    local ad = al[tonumber(slot)]
+    return ad ~= nil and type(ad) == "table"
 end
 
-local function getSlotPart(pod)
+local function getSlotBase(pod)
     if not pod then return nil end
-    local base = pod:FindFirstChild("Base")
-    if base then
-        local spawn = base:FindFirstChild("Spawn")
-        if spawn and spawn:IsA("BasePart") then return spawn end
-        local bp = base:FindFirstChildWhichIsA("BasePart")
-        if bp then return bp end
-        if base:IsA("BasePart") then return base end
-    end
-    for _, d in ipairs(pod:GetDescendants()) do
-        if d:IsA("BasePart") then return d end
-    end
-    return nil
+    return pod:FindFirstChild("Base")
 end
 
-local function makeBox(adornee, color)
-    local h = Instance.new("SelectionBox")
-    h.Adornee         = adornee
-    h.Color3          = color
-    h.SurfaceColor3   = color
-    h.SurfaceTransparency = FILL_TRANSPARENCY
-    h.LineThickness   = 0.05
-    h.Parent          = Workspace
-    return h
+local function makePad(adornee, color)
+    local pad = Instance.new("SelectionBox")
+    pad.Adornee           = adornee
+    pad.Color3            = color
+    pad.SurfaceColor3     = color
+    pad.SurfaceTransparency = PLATFORM_TRANSPARENCY
+    pad.LineThickness     = OUTLINE_THICKNESS
+    pad.Parent            = Workspace
+    return pad
 end
 
 local function makePlaceholder(cf, size)
@@ -88,104 +92,103 @@ local function makePlaceholder(cf, size)
 end
 
 local function removeSlot(key)
-    local d = slotData[key]
-    if not d then return end
-    if d.box         then d.box:Destroy() end
-    if d.placeholder then d.placeholder:Destroy() end
-    slotData[key] = nil
+    local h = highlights[key]
+    if not h then return end
+    if h.pad and h.pad.Parent then h.pad:Destroy() end
+    if h.ph  and h.ph.Parent  then h.ph:Destroy()  end
+    highlights[key] = nil
 end
 
 -- ============================================================
--- SCAN
+-- SCAN UN PLOT
 -- ============================================================
 local function scanPlot(plot)
     local podiums = plot:FindFirstChild("AnimalPodiums")
-    local myPlot  = isMyPlot(plot)
+    local myPlot  = isMyPlot(plot.Name)
     local seen    = {}
 
-    -- Collecter les CFrames et tailles réelles des slots du 1er étage (1-9)
-    local floor0 = {}  -- slot local (1-9) → { cf=CFrame, size=Vector3 }
+    -- 1. Collecter les bases réelles du rez-de-chaussée (slots 1-9)
+    local floor0 = {}  -- localSlot(1-9) → BasePart "Base"
     if podiums then
-        for slot = 1, 9 do
-            local pod  = podiums:FindFirstChild(tostring(slot))
-            local part = getSlotPart(pod)
-            if part then
-                floor0[slot] = { cf = part.CFrame, size = part.Size }
-            end
+        for s = 1, 9 do
+            local pod  = podiums:FindFirstChild(tostring(s))
+            local base = getSlotBase(pod)
+            if base then floor0[s] = base end
         end
     end
 
-    -- Détecter la hauteur entre étages depuis les vrais slots
+    -- 2. Détecter la hauteur entre étages
     local floorHeight = FLOOR_HEIGHT_DEFAULT
     if podiums then
-        -- chercher un slot d'étage 2 (10-18) pour mesurer la hauteur
-        for slot = 10, 18 do
-            local pod  = podiums:FindFirstChild(tostring(slot))
-            local part = getSlotPart(pod)
-            local ref  = floor0[slot - 9]
-            if part and ref then
-                floorHeight = math.abs(part.Position.Y - ref.cf.Position.Y)
-                if floorHeight > 0.5 then break end
+        for s = 10, 18 do
+            local pod  = podiums:FindFirstChild(tostring(s))
+            local base = getSlotBase(pod)
+            local ref  = floor0[s - 9]
+            if base and ref and base:IsA("BasePart") and ref:IsA("BasePart") then
+                local h = math.abs(base.Position.Y - ref.Position.Y)
+                if h > 0.5 then floorHeight = h break end
             end
         end
     end
 
-    for slot = 1, 27 do
-        local key = plot.Name .. "_" .. slot
-        seen[key] = true
-
-        local floorIdx  = math.floor((slot - 1) / 9)   -- 0, 1 ou 2
+    -- 3. Itérer les 27 slots
+    for slot = 1, TOTAL_SLOTS do
+        local key       = plot.Name .. "_" .. slot
+        seen[key]       = true
+        local floorIdx  = math.floor((slot - 1) / 9)   -- 0, 1, 2
         local localSlot = ((slot - 1) % 9) + 1          -- 1-9
 
         local pod  = podiums and podiums:FindFirstChild(tostring(slot))
-        local part = getSlotPart(pod)
+        local base = getSlotBase(pod)
 
-        local color = myPlot and COLOR_OWN
-                   or (isOccupied(pod) and COLOR_OCCUPIED or COLOR_EMPTY)
+        local occupied = isOccupied(plot.Name, slot)
+        local color    = myPlot and COLOR_OWN
+                      or (occupied and COLOR_OCCUPIED or COLOR_EMPTY)
 
-        local d = slotData[key]
+        local existing = highlights[key]
 
-        if part then
+        if base then
             -- slot avec géométrie réelle
-            if d then
-                if d.placeholder then
-                    d.placeholder:Destroy()
-                    d.box:Destroy()
-                    slotData[key] = { box = makeBox(part, color), placeholder = nil }
+            if existing then
+                if existing.ph then
+                    existing.ph:Destroy()
+                    existing.pad:Destroy()
+                    highlights[key] = { pad = makePad(base, color), ph = nil }
                 else
-                    d.box.Color3        = color
-                    d.box.SurfaceColor3 = color
-                    d.box.Adornee       = part
+                    existing.pad.Color3        = color
+                    existing.pad.SurfaceColor3 = color
+                    existing.pad.Adornee       = base
                 end
             else
-                slotData[key] = { box = makeBox(part, color), placeholder = nil }
+                highlights[key] = { pad = makePad(base, color), ph = nil }
             end
         else
-            -- slot sans géométrie : dupliquer la position du slot correspondant
-            -- au rez-de-chaussée (floor0) décalée vers le haut
+            -- slot sans géométrie : dupliquer le slot du rez-de-chaussée décalé vers le haut
             local ref = floor0[localSlot]
-            if ref then
-                local newCF   = ref.cf + Vector3.new(0, floorHeight * floorIdx, 0)
-                local newSize = ref.size
+            if not ref then continue end  -- pas de référence → skip
 
-                if d then
-                    d.box.Color3        = color
-                    d.box.SurfaceColor3 = color
-                    if d.placeholder then
-                        d.placeholder.CFrame = newCF
-                        d.placeholder.Size   = newSize
-                    end
-                else
-                    local ph = makePlaceholder(newCF, newSize)
-                    slotData[key] = { box = makeBox(ph, color), placeholder = ph }
+            local refBase = ref:IsA("BasePart") and ref or ref:FindFirstChildWhichIsA("BasePart")
+            if not refBase then continue end
+
+            local newCF   = refBase.CFrame + Vector3.new(0, floorHeight * floorIdx, 0)
+            local newSize = refBase.Size
+
+            if existing then
+                existing.pad.Color3        = color
+                existing.pad.SurfaceColor3 = color
+                if existing.ph then
+                    existing.ph.CFrame = newCF
+                    existing.ph.Size   = newSize
                 end
+            else
+                local ph = makePlaceholder(newCF, newSize)
+                highlights[key] = { pad = makePad(ph, color), ph = ph }
             end
-            -- si pas de ref floor0 non plus → on skip ce slot
         end
     end
 
-    -- nettoyer les anciens slots
-    for key in pairs(slotData) do
+    -- 4. Nettoyer les anciens slots de ce plot
+    for key in pairs(highlights) do
         local prefix = plot.Name .. "_"
         if key:sub(1, #prefix) == prefix and not seen[key] then
             removeSlot(key)
@@ -193,6 +196,9 @@ local function scanPlot(plot)
     end
 end
 
+-- ============================================================
+-- SCAN TOUS LES PLOTS
+-- ============================================================
 local function scanAll()
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return end
@@ -201,10 +207,7 @@ local function scanAll()
     end
 end
 
--- ============================================================
--- LANCEMENT
--- ============================================================
-task.wait(2)
+task.wait(1)
 pcall(scanAll)
 
 task.spawn(function()
@@ -214,20 +217,19 @@ task.spawn(function()
     end
 end)
 
-local plots = Workspace:WaitForChild("Plots", 10)
+local plots = Workspace:WaitForChild("Plots", 8)
 if plots then
-    plots.ChildAdded:Connect(function(p)
+    plots.ChildAdded:Connect(function(plot)
         task.wait(0.5)
-        pcall(scanPlot, p)
+        pcall(scanPlot, plot)
     end)
-    plots.ChildRemoved:Connect(function(p)
-        local prefix = p.Name .. "_"
-        for key in pairs(slotData) do
-            if key:sub(1, #prefix) == prefix then
+    plots.ChildRemoved:Connect(function(plot)
+        for key in pairs(highlights) do
+            if key:sub(1, #plot.Name + 1) == plot.Name .. "_" then
                 removeSlot(key)
             end
         end
     end)
 end
 
-print("[ESP SLOTS] actif")
+print("[ESP SLOTS] Actif — rouge=occupé, vert=libre, bleu=ta base")
