@@ -27,7 +27,7 @@ local UPDATE_RATE           = 1.5
 local TOTAL_SLOTS           = 27
 
 -- hauteurs modifiables via l'UI
-local floorOffsets = { [0]=0, [1]=5, [2]=10 }
+local floorOffsets = { [0]=0, [1]=16, [2]=34 }
 
 -- ============================================================
 -- UI — réglage des hauteurs d'étage
