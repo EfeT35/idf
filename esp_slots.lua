@@ -7,13 +7,12 @@ local LocalPlayer = Players.LocalPlayer
 -- ============================================================
 -- CONFIG
 -- ============================================================
-local TOTAL_SLOTS          = 27
 local COLOR_OCCUPIED       = Color3.fromRGB(255, 50,  50)
 local COLOR_EMPTY          = Color3.fromRGB(50,  220, 80)
 local COLOR_OWN            = Color3.fromRGB(80,  150, 255)
 local FILL_TRANSPARENCY    = 0.35
-local OUTLINE_TRANSPARENCY = 0
 local UPDATE_RATE          = 2
+local FLOOR_HEIGHT_DEFAULT = 5   -- hauteur entre étages si non détectable
 
 -- ============================================================
 -- FOLDER ESP
@@ -23,7 +22,7 @@ if espFolder then espFolder:Destroy() end
 espFolder = Instance.new("Folder", Workspace)
 espFolder.Name = "__ESP_SLOTS"
 
--- slotData[key] = { highlight = Highlight, placeholder = Part|nil }
+-- slotData[key] = { box = SelectionBox, placeholder = Part|nil }
 local slotData = {}
 
 -- ============================================================
@@ -42,7 +41,6 @@ end
 
 local function isOccupied(pod)
     if not pod then return false end
-    -- un slot est occupé s'il contient un Model (l'animal)
     for _, c in ipairs(pod:GetChildren()) do
         if c:IsA("Model") then return true end
     end
@@ -65,34 +63,34 @@ local function getSlotPart(pod)
     return nil
 end
 
-local function makeHighlight(adornee, color)
+local function makeBox(adornee, color)
     local h = Instance.new("SelectionBox")
-    h.Adornee        = adornee
-    h.Color3         = color
-    h.SurfaceColor3  = color
+    h.Adornee         = adornee
+    h.Color3          = color
+    h.SurfaceColor3   = color
     h.SurfaceTransparency = FILL_TRANSPARENCY
-    h.LineThickness  = 0.05
-    h.Parent         = Workspace
+    h.LineThickness   = 0.05
+    h.Parent          = Workspace
     return h
 end
 
-local function makePlaceholder(pos)
+local function makePlaceholder(cf, size)
     local p = Instance.new("Part")
-    p.Anchored   = true
-    p.CanCollide = false
-    p.CanTouch   = false
-    p.CastShadow = false
-    p.Size       = Vector3.new(5, 0.2, 5)
-    p.CFrame     = CFrame.new(pos)
+    p.Anchored    = true
+    p.CanCollide  = false
+    p.CanTouch    = false
+    p.CastShadow  = false
+    p.Size        = size
+    p.CFrame      = cf
     p.Transparency = 1
-    p.Parent     = espFolder
+    p.Parent      = espFolder
     return p
 end
 
 local function removeSlot(key)
     local d = slotData[key]
     if not d then return end
-    if d.highlight   then d.highlight:Destroy() end
+    if d.box         then d.box:Destroy() end
     if d.placeholder then d.placeholder:Destroy() end
     slotData[key] = nil
 end
@@ -105,49 +103,39 @@ local function scanPlot(plot)
     local myPlot  = isMyPlot(plot)
     local seen    = {}
 
-    -- Collecter les positions réelles des slots existants par étage (0,1,2)
-    -- pour pouvoir extrapoler les slots manquants au bon endroit
-    local floorPositions = {}  -- floor index → liste de positions Y
-    local floorBases     = {}  -- floor index → position XZ de référence
+    -- Collecter les CFrames et tailles réelles des slots du 1er étage (1-9)
+    local floor0 = {}  -- slot local (1-9) → { cf=CFrame, size=Vector3 }
     if podiums then
-        for _, pod in ipairs(podiums:GetChildren()) do
-            local slotNum = tonumber(pod.Name)
-            if slotNum then
-                local floorIdx = math.floor((slotNum - 1) / 9)
-                local part = getSlotPart(pod)
-                if part then
-                    local pos = part.Position
-                    if not floorPositions[floorIdx] then
-                        floorPositions[floorIdx] = {}
-                        floorBases[floorIdx] = pos
-                    end
-                    table.insert(floorPositions[floorIdx], pos)
-                end
+        for slot = 1, 9 do
+            local pod  = podiums:FindFirstChild(tostring(slot))
+            local part = getSlotPart(pod)
+            if part then
+                floor0[slot] = { cf = part.CFrame, size = part.Size }
             end
         end
     end
 
-    -- hauteur moyenne par étage
-    local floorY = {}
-    for fi, positions in pairs(floorPositions) do
-        local sum = 0
-        for _, p in ipairs(positions) do sum = sum + p.Y end
-        floorY[fi] = sum / #positions
+    -- Détecter la hauteur entre étages depuis les vrais slots
+    local floorHeight = FLOOR_HEIGHT_DEFAULT
+    if podiums then
+        -- chercher un slot d'étage 2 (10-18) pour mesurer la hauteur
+        for slot = 10, 18 do
+            local pod  = podiums:FindFirstChild(tostring(slot))
+            local part = getSlotPart(pod)
+            local ref  = floor0[slot - 9]
+            if part and ref then
+                floorHeight = math.abs(part.Position.Y - ref.cf.Position.Y)
+                if floorHeight > 0.5 then break end
+            end
+        end
     end
 
-    -- si l'étage 0 existe, on peut extrapoler les autres
-    local baseY   = floorY[0] or 0
-    local floorH  = (floorY[1] and floorY[0]) and (floorY[1] - floorY[0]) or 4
-    -- position XZ de référence (étage 0 ou pivot du plot)
-    local refPos  = Vector3.new(0, 0, 0)
-    pcall(function() refPos = plot:GetPivot().Position end)
-    if floorBases[0] then
-        refPos = Vector3.new(floorBases[0].X, refPos.Y, floorBases[0].Z)
-    end
-
-    for slot = 1, TOTAL_SLOTS do
+    for slot = 1, 27 do
         local key = plot.Name .. "_" .. slot
         seen[key] = true
+
+        local floorIdx  = math.floor((slot - 1) / 9)   -- 0, 1 ou 2
+        local localSlot = ((slot - 1) % 9) + 1          -- 1-9
 
         local pod  = podiums and podiums:FindFirstChild(tostring(slot))
         local part = getSlotPart(pod)
@@ -158,44 +146,45 @@ local function scanPlot(plot)
         local d = slotData[key]
 
         if part then
+            -- slot avec géométrie réelle
             if d then
                 if d.placeholder then
                     d.placeholder:Destroy()
-                    d.highlight:Destroy()
-                    slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
+                    d.box:Destroy()
+                    slotData[key] = { box = makeBox(part, color), placeholder = nil }
                 else
-                    d.highlight.Color3        = color
-                    d.highlight.SurfaceColor3 = color
-                    d.highlight.Adornee       = part
+                    d.box.Color3        = color
+                    d.box.SurfaceColor3 = color
+                    d.box.Adornee       = part
                 end
             else
-                slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
+                slotData[key] = { box = makeBox(part, color), placeholder = nil }
             end
         else
-            -- placeholder : position calculée sur la grille 9×3
-            local col     = (slot - 1) % 9
-            local floorIdx = math.floor((slot - 1) / 9)
-            local y       = (floorY[floorIdx] or (baseY + floorIdx * floorH))
-            local pos     = Vector3.new(
-                refPos.X + (col - 4) * 6,
-                y,
-                refPos.Z
-            )
+            -- slot sans géométrie : dupliquer la position du slot correspondant
+            -- au rez-de-chaussée (floor0) décalée vers le haut
+            local ref = floor0[localSlot]
+            if ref then
+                local newCF   = ref.cf + Vector3.new(0, floorHeight * floorIdx, 0)
+                local newSize = ref.size
 
-            if d then
-                d.highlight.Color3        = color
-                d.highlight.SurfaceColor3 = color
-                if d.placeholder then
-                    d.placeholder.CFrame = CFrame.new(pos)
+                if d then
+                    d.box.Color3        = color
+                    d.box.SurfaceColor3 = color
+                    if d.placeholder then
+                        d.placeholder.CFrame = newCF
+                        d.placeholder.Size   = newSize
+                    end
+                else
+                    local ph = makePlaceholder(newCF, newSize)
+                    slotData[key] = { box = makeBox(ph, color), placeholder = ph }
                 end
-            else
-                local ph = makePlaceholder(pos)
-                slotData[key] = { highlight = makeHighlight(ph, color), placeholder = ph }
             end
+            -- si pas de ref floor0 non plus → on skip ce slot
         end
     end
 
-    -- nettoyer les slots de ce plot qui ne sont plus dans seen
+    -- nettoyer les anciens slots
     for key in pairs(slotData) do
         local prefix = plot.Name .. "_"
         if key:sub(1, #prefix) == prefix and not seen[key] then
