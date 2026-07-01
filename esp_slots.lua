@@ -160,12 +160,22 @@ local function scanPlot(plot)
             end
         else
             -- slot sans géométrie → Part solide marchable + SelectionBox
+            -- utiliser le slot correspondant ou n'importe quel slot disponible comme référence de taille
             local ref = floor0[localSlot]
+            if not ref then
+                for _, v in pairs(floor0) do ref = v break end
+            end
             if not ref then continue end
 
+            -- position : décaler depuis le slot 1 selon l'index local
+            local base1 = floor0[1] or ref
+            local spacing = base1.Size.X * 1.1
+            local xOff = (localSlot - 1) * spacing - (4 * spacing)
+
             local offset  = floorOffsets[floorIdx] or 0
-            local newCF   = ref.CFrame + Vector3.new(0, offset, 0)
-            local sq      = math.max(ref.Size.X, ref.Size.Z) * 10
+            local newCF   = floor0[localSlot] and (ref.CFrame + Vector3.new(0, offset, 0))
+                         or (base1.CFrame + Vector3.new(xOff, offset, 0))
+            local sq      = math.max(ref.Size.X, ref.Size.Z) * 5
             local newSize = Vector3.new(sq, 0.2, sq)
 
             if existing then
