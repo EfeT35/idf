@@ -8148,7 +8148,7 @@ local KEYBIND_DEFS = {
 	{ label = "Carpet Speed",   gKey = "CarpetSpeedKeybind",   attrKey = "SavedCarpetSpeedKey",   default = "Q" },
 	{ label = "KB Panel",       gKey = "KeybindPanelKeybind",  attrKey = "SavedKBPanelKey",       default = "G" },
 	{ label = "Reset",          gKey = "ResetKeybind",         attrKey = "SavedResetKey",         default = "X" },
-	{ label = "Plaque Bas",     gKey = "FloatKeybind",         attrKey = "SavedFloatKey",         default = "U" },
+	{ label = "Float",          gKey = "FloatKeybind",         attrKey = "SavedFloatKey",         default = "U" },
 }
 
 local function makeKbRow(def, rowIndex)
@@ -11730,11 +11730,8 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	end
 	if Enum.KeyCode[_G.FloatKeybind or "U"] and input.KeyCode == Enum.KeyCode[_G.FloatKeybind or "U"] then
 		task.spawn(function()
-			if _G.togglePlaqueBrainrot then
-				local ok, err = pcall(_G.togglePlaqueBrainrot)
-				if not ok then warn("[Plaque] Erreur:", err) end
-			else
-				warn("[Plaque] togglePlaqueBrainrot non defini")
+			if _G.toggleFloat then
+				pcall(_G.toggleFloat)
 			end
 		end)
 	end
