@@ -26,14 +26,106 @@ local OUTLINE_THICKNESS     = 0.12
 local UPDATE_RATE           = 1.5
 local TOTAL_SLOTS           = 27
 
+-- hauteurs modifiables via l'UI
+local floorOffsets = { [0]=0, [1]=5, [2]=10 }
+
 -- ============================================================
--- HAUTEURS DES ÉTAGES (à ajuster si les placeholders sont mal placés)
--- 0 = rez-de-chaussée (slots 1-9)  → pas de décalage
--- FLOOR_1_OFFSET = hauteur entre étage 0 et étage 1 (slots 10-18)
--- FLOOR_2_OFFSET = hauteur entre étage 0 et étage 2 (slots 19-27)
+-- UI — réglage des hauteurs d'étage
 -- ============================================================
-local FLOOR_1_OFFSET = 5    -- studs au dessus du rez-de-chaussée
-local FLOOR_2_OFFSET = 10   -- studs au dessus du rez-de-chaussée
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name            = "ESP_FLOOR_UI"
+screenGui.ResetOnSpawn    = false
+screenGui.IgnoreGuiInset  = true
+screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+screenGui.Parent          = PlayerGui
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size            = UDim2.new(0, 220, 0, 110)
+frame.Position        = UDim2.new(0, 10, 0.5, -55)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BackgroundTransparency = 0.3
+frame.BorderSizePixel = 0
+frame.Active          = true
+frame.Draggable       = true
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel", frame)
+title.Size               = UDim2.new(1, 0, 0, 24)
+title.Position           = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text               = "ESP — hauteur des étages"
+title.Font               = Enum.Font.GothamBold
+title.TextSize           = 13
+title.TextColor3         = Color3.fromRGB(220, 220, 220)
+
+local function makeRow(label, floorIdx, yPos)
+    local row = Instance.new("Frame", frame)
+    row.Size                  = UDim2.new(1, -10, 0, 26)
+    row.Position              = UDim2.new(0, 5, 0, yPos)
+    row.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size             = UDim2.new(0, 90, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text             = label
+    lbl.Font             = Enum.Font.Gotham
+    lbl.TextSize         = 12
+    lbl.TextColor3       = Color3.fromRGB(200, 200, 200)
+    lbl.TextXAlignment   = Enum.TextXAlignment.Left
+
+    local valLbl = Instance.new("TextLabel", row)
+    valLbl.Size            = UDim2.new(0, 40, 1, 0)
+    valLbl.Position        = UDim2.new(0, 90, 0, 0)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Text            = tostring(floorOffsets[floorIdx])
+    valLbl.Font            = Enum.Font.GothamBold
+    valLbl.TextSize        = 13
+    valLbl.TextColor3      = Color3.fromRGB(255, 220, 80)
+    valLbl.TextXAlignment  = Enum.TextXAlignment.Center
+
+    local function makeBtn(sign, xOff)
+        local btn = Instance.new("TextButton", row)
+        btn.Size              = UDim2.new(0, 28, 0, 22)
+        btn.Position          = UDim2.new(0, xOff, 0.5, -11)
+        btn.BackgroundColor3  = Color3.fromRGB(50, 50, 50)
+        btn.BorderSizePixel   = 0
+        btn.Text              = sign
+        btn.Font              = Enum.Font.GothamBold
+        btn.TextSize          = 14
+        btn.TextColor3        = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+        return btn
+    end
+
+    local minus = makeBtn("-", 136)
+    local plus  = makeBtn("+", 168)
+
+    minus.MouseButton1Click:Connect(function()
+        floorOffsets[floorIdx] = floorOffsets[floorIdx] - 1
+        valLbl.Text = tostring(floorOffsets[floorIdx])
+    end)
+    plus.MouseButton1Click:Connect(function()
+        floorOffsets[floorIdx] = floorOffsets[floorIdx] + 1
+        valLbl.Text = tostring(floorOffsets[floorIdx])
+    end)
+end
+
+makeRow("Étage 1 (slots 10-18)", 1, 28)
+makeRow("Étage 2 (slots 19-27)", 2, 58)
+
+local applyBtn = Instance.new("TextButton", frame)
+applyBtn.Size             = UDim2.new(1, -10, 0, 22)
+applyBtn.Position         = UDim2.new(0, 5, 0, 86)
+applyBtn.BackgroundColor3 = Color3.fromRGB(40, 130, 60)
+applyBtn.BorderSizePixel  = 0
+applyBtn.Text             = "Appliquer"
+applyBtn.Font             = Enum.Font.GothamBold
+applyBtn.TextSize         = 13
+applyBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", applyBtn).CornerRadius = UDim.new(0, 4)
 
 -- ============================================================
 -- FOLDER
@@ -135,7 +227,7 @@ local function scanPlot(plot)
         end
     end
 
-    local floorOffsets = { [0] = 0, [1] = FLOOR_1_OFFSET, [2] = FLOOR_2_OFFSET }
+    -- floorOffsets est la table globale modifiée par l'UI
 
     -- 3. Itérer les 27 slots
     for slot = 1, TOTAL_SLOTS do
@@ -210,6 +302,18 @@ local function scanAll()
         pcall(scanPlot, plot)
     end
 end
+
+applyBtn.MouseButton1Click:Connect(function()
+    -- vider tous les placeholders et rescanner avec les nouvelles hauteurs
+    for key, h in pairs(highlights) do
+        if h.ph then
+            h.pad:Destroy()
+            h.ph:Destroy()
+            highlights[key] = nil
+        end
+    end
+    pcall(scanAll)
+end)
 
 task.wait(1)
 pcall(scanAll)
