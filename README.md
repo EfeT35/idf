@@ -7991,51 +7991,117 @@ _G._autoFloatPending = false
 _G._targetFloatY = nil
 _G.FloatToggle = function() end  -- stub no-op pour compatibilite
 
--- ── Plaque bas du brainrot ────────────────────────────────────────────────────
-local _plaqueBrainrot = nil
+-- ── Float (plateforme invisible sous le perso) ───────────────────────────────
+local FLOAT_PLATFORM_NAME = "IDF_FLOAT_PLATFORM"
+local FLOAT_PLATFORM_SIZE = Vector3.new(7, 1, 7)
+local FLOAT_OFFSET_BELOW  = 3.35
+local FLOAT_MOVE_EPSILON  = 0.05
 
-local function togglePlaqueBrainrot()
-    if _plaqueBrainrot and _plaqueBrainrot.Parent then
-        _plaqueBrainrot:Destroy()
-        _plaqueBrainrot = nil
-        return
-    end
-    local lp = game:GetService("Players").LocalPlayer
-    local c = lp and lp.Character
-    local hrp = c and c:FindFirstChild("HumanoidRootPart")
-    if not hrp then warn("[Plaque] hrp introuvable"); return end
+local FloatData = {
+    platform         = nil,
+    followConnection = nil,
+    sawStealingDuringThisFloat = false,
+}
 
-    local p = Instance.new("Part")
-    p.Name = "_PlaqueBrainrot"
-    p.Size = Vector3.new(6, 0.2, 6)
-    p.Position = Vector3.new(hrp.Position.X, hrp.Position.Y - 3, hrp.Position.Z)
-    p.Anchored = true
-    p.CanCollide = false
-    p.CastShadow = false
-    p.Material = Enum.Material.Neon
-    p.Color = Color3.fromRGB(255, 79, 200)
-    p.Transparency = 0.3
-    p.Parent = workspace
-
-    local bill = Instance.new("BillboardGui")
-    bill.Size = UDim2.new(0, 120, 0, 30)
-    bill.StudsOffset = Vector3.new(0, 4, 0)
-    bill.AlwaysOnTop = true
-    bill.Parent = p
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lbl.TextStrokeTransparency = 0
-    lbl.TextScaled = true
-    lbl.Font = Enum.Font.GothamBold
-    lbl.Text = "BAS BRAINROT"
-    lbl.Parent = bill
-
-    _plaqueBrainrot = p
+local function _getFloatCharParts()
+    local lp   = game:GetService("Players").LocalPlayer
+    local char = lp and lp.Character
+    if not char then return nil, nil, nil end
+    return char, char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid")
 end
-_G.togglePlaqueBrainrot = togglePlaqueBrainrot
+
+local function removeFloatPlatform()
+    if FloatData.followConnection then
+        FloatData.followConnection:Disconnect()
+        FloatData.followConnection = nil
+    end
+    if FloatData.platform then
+        FloatData.platform:Destroy()
+        FloatData.platform = nil
+    end
+end
+
+local function updateFloatPlatformPosition()
+    local _, hrp, hum = _getFloatCharParts()
+    if not hrp or not hum or not FloatData.platform then return end
+    if hum.Health <= 0 then return end
+    local targetPos = hrp.Position - Vector3.new(0, FLOAT_OFFSET_BELOW, 0)
+    if (FloatData.platform.Position - targetPos).Magnitude > FLOAT_MOVE_EPSILON then
+        FloatData.platform.CFrame = CFrame.new(targetPos)
+    end
+end
+
+local function createFloatPlatform()
+    removeFloatPlatform()
+    local _, hrp, hum = _getFloatCharParts()
+    if not hrp or not hum then return end
+
+    local part = Instance.new("Part")
+    part.Name          = FLOAT_PLATFORM_NAME
+    part.Size          = FLOAT_PLATFORM_SIZE
+    part.Anchored      = true
+    part.CanCollide    = true
+    part.CanTouch      = false
+    part.CanQuery      = false
+    part.Transparency  = 1
+    part.CastShadow    = false
+    part.Material      = Enum.Material.SmoothPlastic
+    part.Color         = Color3.new(1, 1, 1)
+    part.TopSurface    = Enum.SurfaceType.Smooth
+    part.BottomSurface = Enum.SurfaceType.Smooth
+    part.Locked        = true
+    part.Massless      = true
+    part.CFrame        = CFrame.new(hrp.Position - Vector3.new(0, FLOAT_OFFSET_BELOW, 0))
+    part.Parent        = workspace
+
+    FloatData.platform = part
+    FloatData.followConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        if not _G._floatActive then return end
+        local _, hrpNow, humNow = _getFloatCharParts()
+        if not hrpNow or not humNow or humNow.Health <= 0 then return end
+        updateFloatPlatformPosition()
+    end)
+    updateFloatPlatformPosition()
+end
+
+local function setFloatEnabled(on)
+    on = not not on
+    _G._floatActive = on
+    if on then
+        FloatData.sawStealingDuringThisFloat = false
+        createFloatPlatform()
+    else
+        removeFloatPlatform()
+        FloatData.sawStealingDuringThisFloat = false
+    end
+end
+
+local function toggleFloat()
+    setFloatEnabled(not _G._floatActive)
+end
+
+_G.setFloatEnabled   = setFloatEnabled
+_G.toggleFloat       = toggleFloat
+_G.removeFloatPlatform = removeFloatPlatform
+
+-- Désactive le float si le joueur vole un brainrot (attribut Stealing)
+pcall(function()
+    local lp = game:GetService("Players").LocalPlayer
+    lp:GetAttributeChangedSignal("Stealing"):Connect(function()
+        if not _G._floatActive then return end
+        local isStealing = (lp:GetAttribute("Stealing") == true)
+        if isStealing then
+            FloatData.sawStealingDuringThisFloat = true
+        elseif FloatData.sawStealingDuringThisFloat then
+            setFloatEnabled(false)
+        end
+    end)
+    lp.CharacterAdded:Connect(function()
+        task.wait(0.1)
+        removeFloatPlatform()
+        if _G._floatActive then createFloatPlatform() end
+    end)
+end)
 
 -- Auto Clone on High Steal supprimé du main
 local _autoCloneOnHighSteal = false
