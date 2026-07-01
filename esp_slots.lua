@@ -118,15 +118,26 @@ local function scanPlot(plot)
     local myPlot  = isMyPlot(plot.Name)
     local seen    = {}
 
-    -- Collecter les BaseParts réelles du rez-de-chaussée (slots 1-9)
-    local floor0 = {}
+    -- Collecter les BaseParts de TOUS les étages par position locale (1-9)
+    -- pour chaque localSlot on garde la BasePart de l'étage le plus bas disponible
+    local refByLocal = {}   -- localSlot(1-9) → { bp, floorIdx }
     if podiums then
-        for s = 1, 9 do
+        for s = 1, TOTAL_SLOTS do
             local pod = podiums:FindFirstChild(tostring(s))
             local bp  = getBasePart(getSlotBase(pod))
-            if bp then floor0[s] = bp end
+            if bp then
+                local fi  = math.floor((s - 1) / 9)
+                local ls  = ((s - 1) % 9) + 1
+                if not refByLocal[ls] or fi < refByLocal[ls].fi then
+                    refByLocal[ls] = { bp = bp, fi = fi }
+                end
+            end
         end
     end
+
+    -- prendre n'importe quelle référence pour taille/espacement
+    local anyRef = nil
+    for _, v in pairs(refByLocal) do anyRef = v break end
 
     for slot = 1, TOTAL_SLOTS do
         local key       = plot.Name .. "_" .. slot
@@ -144,7 +155,7 @@ local function scanPlot(plot)
         local existing = highlights[key]
 
         if base then
-            -- slot avec géométrie réelle → SelectionBox sur la Base
+            -- slot avec géométrie réelle
             if existing then
                 if existing.ph then
                     existing.ph:Destroy()
@@ -159,22 +170,29 @@ local function scanPlot(plot)
                 highlights[key] = { pad = makePad(base, color), ph = nil }
             end
         else
-            -- slot sans géométrie → Part solide marchable + SelectionBox
-            -- utiliser le slot correspondant ou n'importe quel slot disponible comme référence de taille
-            local ref = floor0[localSlot]
-            if not ref then
-                for _, v in pairs(floor0) do ref = v break end
+            -- slot sans géométrie → placeholder
+            local entry = refByLocal[localSlot] or anyRef
+            if not entry then continue end
+
+            local ref    = entry.bp
+            local refFi  = entry.fi
+            -- décalage Y : partir de la position Y du ref + différence d'étage
+            local yDelta = (floorOffsets[floorIdx] or 0) - (floorOffsets[refFi] or 0)
+            local offset = floorOffsets[floorIdx] or 0
+
+            local newCF
+            if refByLocal[localSlot] then
+                -- on a une référence exacte pour cette colonne → juste décaler en Y
+                newCF = ref.CFrame + Vector3.new(0, yDelta, 0)
+            else
+                -- pas de référence exacte → espacer depuis le slot 1
+                local base1 = (refByLocal[1] and refByLocal[1].bp) or ref
+                local spacing = math.max(base1.Size.X, base1.Size.Z) * 5 * 1.05
+                local xOff = (localSlot - 1) * spacing - (4 * spacing)
+                local y0 = (floorOffsets[0] or 0)
+                newCF = base1.CFrame + Vector3.new(xOff, offset - (floorOffsets[refByLocal[1] and refByLocal[1].fi or 0] or 0), 0)
             end
-            if not ref then continue end
 
-            -- position : décaler depuis le slot 1 selon l'index local
-            local base1 = floor0[1] or ref
-            local spacing = base1.Size.X * 1.1
-            local xOff = (localSlot - 1) * spacing - (4 * spacing)
-
-            local offset  = floorOffsets[floorIdx] or 0
-            local newCF   = floor0[localSlot] and (ref.CFrame + Vector3.new(0, offset, 0))
-                         or (base1.CFrame + Vector3.new(xOff, offset, 0))
             local sq      = math.max(ref.Size.X, ref.Size.Z) * 5
             local newSize = Vector3.new(sq, 0.2, sq)
 
