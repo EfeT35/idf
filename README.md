@@ -2049,6 +2049,7 @@ local function goToBrainrot(petData)
     if hrp and hrp.Parent then
         pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
         hrp.Anchored = true
+        _G._stealAnchorActive = true
         task.spawn(function()
             local _UIS = game:GetService("UserInputService")
             local _moveKeys = {
@@ -2061,15 +2062,14 @@ local function goToBrainrot(petData)
                 for kc in pairs(_moveKeys) do
                     if _UIS:IsKeyDown(kc) then return true end
                 end
-                -- Mobile: thumbstick
-                local mv = _UIS:GetKeysPressed()
-                if #mv > 0 then return true end
                 return false
             end
 
             local _t0 = tick()
-            while isTeleporting and tick() - _t0 < 8 do
-                if _playerMoving() then break end
+            local _graceEnd = tick() + 1.5  -- 1.5s avant de vérifier le mouvement
+            while _G._stealAnchorActive and isTeleporting and tick() - _t0 < 8 do
+                -- Après la grace period, libérer si le joueur bouge
+                if tick() > _graceEnd and _playerMoving() then break end
                 local _c2 = LP.Character
                 local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
                 if not _hrp2 or not _hrp2.Parent then break end
@@ -2077,6 +2077,7 @@ local function goToBrainrot(petData)
                 _hrp2.AssemblyLinearVelocity = Vector3.zero
                 task.wait(0.05)
             end
+            _G._stealAnchorActive = false
             local _c2 = LP.Character
             local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
             if _hrp2 and _hrp2.Parent then
@@ -17114,6 +17115,15 @@ do
 	local function executeReset()
 		if resetting then return end
 		resetting = true
+
+		-- Libérer l'ancre du steal si active
+		_G._stealAnchorActive = false
+		pcall(function()
+			local _c = _LP.Character
+			local _h = _c and _c:FindFirstChild("HumanoidRootPart")
+			if _h then _h.Anchored = false end
+		end)
+		task.wait(0.05)
 
 		_G._manualResetActive = true
 		local prevAntiDie = _G.AntiDieDisabled
