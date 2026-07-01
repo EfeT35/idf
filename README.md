@@ -391,6 +391,59 @@ task.spawn(function()
 end)
 
 
+-- ═══ Anti-Ragdoll V1 ═══
+task.spawn(function()
+    pcall(function()
+        local _antiRagConn = nil
+
+        local function _isRagdolled()
+            local char = LocalPlayer.Character; if not char then return false end
+            local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return false end
+            local state = hum:GetState()
+            local ragStates = {
+                [Enum.HumanoidStateType.Physics]     = true,
+                [Enum.HumanoidStateType.Ragdoll]     = true,
+                [Enum.HumanoidStateType.FallingDown] = true,
+            }
+            if ragStates[state] then return true end
+            local endTime = LocalPlayer:GetAttribute("RagdollEndTime")
+            if endTime and (endTime - Workspace:GetServerTimeNow()) > 0 then return true end
+            return false
+        end
+
+        local function _stopAntiRagdoll()
+            if _antiRagConn then _antiRagConn:Disconnect(); _antiRagConn = nil end
+        end
+
+        local function _startAntiRagdoll()
+            _stopAntiRagdoll()
+            _antiRagConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character; if not char then return end
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hum or not hrp then return end
+
+                if _isRagdolled() then
+                    pcall(function() LocalPlayer:SetAttribute("RagdollEndTime", Workspace:GetServerTimeNow()) end)
+                    hum:ChangeState(Enum.HumanoidStateType.Running)
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    if Workspace.CurrentCamera.CameraSubject ~= hum then
+                        Workspace.CurrentCamera.CameraSubject = hum
+                    end
+                    for _, obj in ipairs(char:GetDescendants()) do
+                        if obj:IsA("BallSocketConstraint") or obj.Name:find("RagdollAttachment") then
+                            pcall(function() obj:Destroy() end)
+                        end
+                    end
+                end
+            end)
+        end
+
+        _startAntiRagdoll()
+        _G.AntiRagdollV1Stop  = _stopAntiRagdoll
+        _G.AntiRagdollV1Start = _startAntiRagdoll
+    end)
+end)
 
 
 -- ═══ Flash TP (velocity-based) ═══
