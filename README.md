@@ -1937,27 +1937,37 @@ local function goToBrainrot(petData)
     -- Land exactly on the spawn position on all floors.
     local snapPos = Vector3.new(exactPos.X, snapY, exactPos.Z)
 
-    -- PATCH: activer le float pour les brainrots en hauteur
-    local _verticalDiff = exactPos.Y - hrp.Position.Y
-    if _verticalDiff > 2 then
-        -- Activer le float si pas deja actif
-        if _G.FloatToggle and not _G._floatActive then
-            pcall(_G.FloatToggle)
+    -- Activer le float automatiquement pour tout brainrot (haut ou bas)
+    if not _G._floatActive then
+        if _G.setFloatEnabled then pcall(_G.setFloatEnabled, true)
+        elseif _G.FloatToggle then pcall(_G.FloatToggle) end
+    end
+    _G._autoFloatPending = true
+
+    -- Désactiver le float après le grab (fin du steal)
+    task.spawn(function()
+        local _deadline = tick() + 10
+        repeat task.wait(0.1) until (not LP:GetAttribute("Stealing")) or tick() > _deadline
+        task.wait(0.3)
+        if _G._autoFloatPending then
+            _G._autoFloatPending = false
+            if _G.setFloatEnabled then pcall(_G.setFloatEnabled, false)
+            elseif _G.FloatToggle then pcall(_G.FloatToggle) end
         end
-        _G._autoFloatPending = true
-        -- Auto Clone si le toggle est actif
-        if _G._autoCloneOnHighSteal then
-            task.spawn(function()
-                task.wait(0.1)
-                local VIM = game:GetService("VirtualInputManager")
-                local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
-                if cloneKey then
-                    pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
-                    task.wait(0.05)
-                    pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
-                end
-            end)
-        end
+    end)
+
+    -- Auto Clone si le toggle est actif
+    if _G._autoCloneOnHighSteal then
+        task.spawn(function()
+            task.wait(0.1)
+            local VIM = game:GetService("VirtualInputManager")
+            local cloneKey = Enum.KeyCode[_G.CloneKeybind or "B"]
+            if cloneKey then
+                pcall(function() VIM:SendKeyEvent(true,  cloneKey, false, game) end)
+                task.wait(0.05)
+                pcall(function() VIM:SendKeyEvent(false, cloneKey, false, game) end)
+            end
+        end)
     end
 
     local _healDone = false
