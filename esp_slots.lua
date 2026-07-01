@@ -1,18 +1,14 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local ReplicatedStorage= game:GetService("ReplicatedStorage")
-local Workspace        = game:GetService("Workspace")
+local RunService   = game:GetService("RunService")
+local Workspace    = game:GetService("Workspace")
+local Players      = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 
--- ============================================================
--- MODULES
--- ============================================================
 local Packages    = ReplicatedStorage:WaitForChild("Packages")
 local Datas       = ReplicatedStorage:WaitForChild("Datas")
-
 local Synchronizer = require(Packages:WaitForChild("Synchronizer"))
 local AnimalsData  = require(Datas:WaitForChild("Animals"))
 
@@ -22,23 +18,23 @@ local AnimalsData  = require(Datas:WaitForChild("Animals"))
 local COLOR_OCCUPIED = Color3.fromRGB(255, 50,  50)   -- rouge  = occupé
 local COLOR_EMPTY    = Color3.fromRGB(50,  220, 80)   -- vert   = libre
 local COLOR_OWN      = Color3.fromRGB(80,  150, 255)  -- bleu   = ta base
-local PLATFORM_TRANSPARENCY = 0.35
-local OUTLINE_THICKNESS     = 0.12
-local UPDATE_RATE           = 1.5  -- secondes entre chaque refresh
+local OUTLINE        = 0.10
+local SURFACE_TRANSP = 0.3
+local UPDATE_RATE    = 1.5
 
 -- ============================================================
--- FOLDER pour garder les highlights propres
+-- DOSSIER ESP
 -- ============================================================
 local espFolder = Workspace:FindFirstChild("__ESP_SLOTS")
 if espFolder then espFolder:Destroy() end
 espFolder = Instance.new("Folder", Workspace)
 espFolder.Name = "__ESP_SLOTS"
 
+local boxes = {}  -- [plotName_slot] = SelectionBox
+
 -- ============================================================
 -- HELPERS
 -- ============================================================
-local highlights = {}   -- [plotName_slot] = {highlight, label, platform}
-
 local function isMyPlot(plotName)
     local ok, ch = pcall(function() return Synchronizer:Get(plotName) end)
     if not ok or not ch then return false end
@@ -52,119 +48,82 @@ local function isMyPlot(plotName)
     return false
 end
 
-local function getAnimalName(plotName, slot)
+local function isOccupied(plotName, slot)
     local ok, ch = pcall(function() return Synchronizer:Get(plotName) end)
-    if not ok or not ch then return nil end
+    if not ok or not ch then return false end
     local al = ch:Get("AnimalList")
-    if not al then return nil end
+    if not al then return false end
     local ad = al[tonumber(slot)]
-    if not ad or type(ad) ~= "table" then return nil end
-    local aInfo = AnimalsData[ad.Index]
-    return aInfo and (aInfo.DisplayName or ad.Index) or ad.Index
+    return ad and type(ad) == "table"
 end
 
-local function makeLabel(adornee, text)
-    local bg = Instance.new("BillboardGui")
-    bg.AlwaysOnTop  = true
-    bg.Size         = UDim2.new(0, 130, 0, 28)
-    bg.StudsOffset  = Vector3.new(0, 3.5, 0)
-    bg.Adornee      = adornee
-    bg.Parent       = espFolder
-
-    local lbl = Instance.new("TextLabel", bg)
-    lbl.Size                  = UDim2.fromScale(1, 1)
-    lbl.BackgroundTransparency= 1
-    lbl.Text                  = text
-    lbl.Font                  = Enum.Font.GothamBold
-    lbl.TextSize              = 13
-    lbl.TextColor3            = Color3.fromRGB(255, 255, 255)
-    lbl.TextStrokeTransparency= 0.4
-    lbl.TextStrokeColor3      = Color3.fromRGB(0, 0, 0)
-    lbl.TextScaled            = true
-    return bg, lbl
-end
-
-local function makePlatform(base, color)
-    -- plateforme colorée sous le podium
-    local pad = Instance.new("SelectionBox")
-    pad.Adornee          = base
-    pad.Color3           = color
-    pad.LineThickness    = OUTLINE_THICKNESS
-    pad.SurfaceTransparency      = PLATFORM_TRANSPARENCY
-    pad.SurfaceColor3   = color
-    pad.Parent          = espFolder
-    return pad
-end
-
-local function upsertSlot(plotName, slotKey, base, spawn)
-    local key = plotName .. "_" .. slotKey
-    local animalName = getAnimalName(plotName, slotKey)
-    local myPlot     = isMyPlot(plotName)
-
-    local color
-    if myPlot then
-        color = COLOR_OWN
-    elseif animalName then
-        color = COLOR_OCCUPIED
-    else
-        color = COLOR_EMPTY
-    end
-
-    local labelText = animalName or "[ libre ]"
-
-    if highlights[key] then
-        -- mise à jour
-        local h = highlights[key]
-        h.pad.Color3        = color
-        h.pad.SurfaceColor3 = color
-        h.lbl.Text          = labelText
-        h.lbl.TextColor3    = color
-    else
-        -- création
-        local pad           = makePlatform(base, color)
-        local billGui, lbl  = makeLabel(spawn or base, labelText)
-        lbl.TextColor3      = color
-        highlights[key] = {pad=pad, gui=billGui, lbl=lbl}
-    end
-end
-
-local function removeSlot(key)
-    local h = highlights[key]
-    if h then
-        if h.pad and h.pad.Parent then h.pad:Destroy() end
-        if h.gui and h.gui.Parent then h.gui:Destroy() end
-        highlights[key] = nil
-    end
+local function makeBox(adornee, color)
+    local box = Instance.new("SelectionBox")
+    box.Adornee             = adornee
+    box.Color3              = color
+    box.LineThickness        = OUTLINE
+    box.SurfaceColor3       = color
+    box.SurfaceTransparency  = SURFACE_TRANSP
+    box.Parent              = espFolder
+    return box
 end
 
 -- ============================================================
--- SCAN UN PLOT
+-- SCAN
 -- ============================================================
 local function scanPlot(plot)
     local podiums = plot:FindFirstChild("AnimalPodiums")
     if not podiums then return end
 
-    local seen = {}
+    local myPlot = isMyPlot(plot.Name)
+    local seen   = {}
+
     for _, pod in ipairs(podiums:GetChildren()) do
-        local base  = pod:FindFirstChild("Base")
+        -- cherche la base même si vide
+        local base = pod:FindFirstChild("Base")
+        if not base then
+            -- fallback : premier BasePart dans le podium
+            base = pod:FindFirstChildWhichIsA("BasePart")
+            if not base then
+                for _, d in ipairs(pod:GetDescendants()) do
+                    if d:IsA("BasePart") then base = d; break end
+                end
+            end
+        end
         if not base then continue end
-        local spawn = base:FindFirstChild("Spawn") or base:FindFirstChildWhichIsA("BasePart") or base
-        local key   = plot.Name .. "_" .. pod.Name
-        seen[key]   = true
-        upsertSlot(plot.Name, pod.Name, base, spawn)
+
+        local adornee = base:FindFirstChild("Spawn") or base
+
+        local key = plot.Name .. "_" .. pod.Name
+        seen[key] = true
+
+        local color
+        if myPlot then
+            color = COLOR_OWN
+        elseif isOccupied(plot.Name, pod.Name) then
+            color = COLOR_OCCUPIED
+        else
+            color = COLOR_EMPTY
+        end
+
+        if boxes[key] and boxes[key].Parent then
+            boxes[key].Color3        = color
+            boxes[key].SurfaceColor3 = color
+        else
+            if boxes[key] then boxes[key]:Destroy() end
+            boxes[key] = makeBox(adornee, color)
+        end
     end
 
-    -- supprimer les slots qui n'existent plus pour ce plot
-    for key in pairs(highlights) do
-        if key:sub(1, #plot.Name + 1) == plot.Name .. "_" then
-            if not seen[key] then removeSlot(key) end
+    -- nettoyer les slots disparus
+    for key in pairs(boxes) do
+        if key:sub(1, #plot.Name + 1) == plot.Name .. "_" and not seen[key] then
+            if boxes[key] then boxes[key]:Destroy() end
+            boxes[key] = nil
         end
     end
 end
 
--- ============================================================
--- SCAN TOUS LES PLOTS
--- ============================================================
 local function scanAll()
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return end
@@ -173,11 +132,12 @@ local function scanAll()
     end
 end
 
--- premier scan immédiat
+-- ============================================================
+-- LANCEMENT
+-- ============================================================
 task.wait(1)
 scanAll()
 
--- refresh périodique
 task.spawn(function()
     while espFolder.Parent do
         task.wait(UPDATE_RATE)
@@ -185,21 +145,19 @@ task.spawn(function()
     end
 end)
 
--- écouter les nouveaux plots
 local plots = Workspace:WaitForChild("Plots", 8)
 if plots then
     plots.ChildAdded:Connect(function(plot)
-        task.wait(0.5)
-        pcall(scanPlot, plot)
+        task.wait(0.5); pcall(scanPlot, plot)
     end)
     plots.ChildRemoved:Connect(function(plot)
-        -- nettoyer les highlights de ce plot
-        for key in pairs(highlights) do
+        for key in pairs(boxes) do
             if key:sub(1, #plot.Name + 1) == plot.Name .. "_" then
-                removeSlot(key)
+                if boxes[key] then boxes[key]:Destroy() end
+                boxes[key] = nil
             end
         end
     end)
 end
 
-print("[ESP SLOTS] Actif — rouge=occupé, vert=libre, bleu=ta base")
+print("[ESP SLOTS] Actif")
