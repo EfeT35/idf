@@ -1,6 +1,8 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Workspace = game:GetService("Workspace")
+local Workspace   = game:GetService("Workspace")
+local Players     = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- ============================================================
 -- CONFIG
@@ -13,9 +15,6 @@ local FILL_TRANSPARENCY    = 0.35
 local OUTLINE_TRANSPARENCY = 0
 local UPDATE_RATE          = 2
 
-local Players     = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
 -- ============================================================
 -- FOLDER ESP
 -- ============================================================
@@ -24,39 +23,34 @@ if espFolder then espFolder:Destroy() end
 espFolder = Instance.new("Folder", Workspace)
 espFolder.Name = "__ESP_SLOTS"
 
-local slotHighlights = {}  -- key -> Highlight
+-- slotData[key] = { highlight = Highlight, placeholder = Part|nil }
+local slotData = {}
 
 -- ============================================================
 -- HELPERS
 -- ============================================================
-local function getOwner(plot)
-    -- cherche un StringValue ou ObjectValue "Owner" n'importe où dans le plot
-    local v = plot:FindFirstChild("Owner", true)
-    if v then
-        if v:IsA("ObjectValue") and v.Value and v.Value:IsA("Player") then
-            return v.Value
-        elseif v:IsA("StringValue") then
-            return v.Value
-        end
-    end
-    return nil
-end
-
 local function isMyPlot(plot)
-    local owner = getOwner(plot)
-    if not owner then return false end
-    if typeof(owner) == "Instance" and owner:IsA("Player") then
-        return owner.UserId == LocalPlayer.UserId
-    elseif type(owner) == "string" then
-        return owner == LocalPlayer.Name or owner == tostring(LocalPlayer.UserId)
+    local v = plot:FindFirstChild("Owner", true)
+    if not v then return false end
+    if v:IsA("ObjectValue") and v.Value and v.Value:IsA("Player") then
+        return v.Value.UserId == LocalPlayer.UserId
+    elseif v:IsA("StringValue") then
+        return v.Value == LocalPlayer.Name or v.Value == tostring(LocalPlayer.UserId)
     end
     return false
 end
 
--- trouve le premier BasePart dans un podium
+local function isOccupied(pod)
+    if not pod then return false end
+    -- un slot est occupé s'il contient un Model (l'animal)
+    for _, c in ipairs(pod:GetChildren()) do
+        if c:IsA("Model") then return true end
+    end
+    return false
+end
+
 local function getSlotPart(pod)
     if not pod then return nil end
-    -- cherche Base/Spawn en priorité
     local base = pod:FindFirstChild("Base")
     if base then
         local spawn = base:FindFirstChild("Spawn")
@@ -83,114 +77,98 @@ local function makeHighlight(adornee, color)
     return h
 end
 
-local function makePlaceholderPart(pos)
+local function makePlaceholder(pos)
     local p = Instance.new("Part")
-    p.Anchored    = true
-    p.CanCollide  = false
-    p.CanTouch    = false
-    p.CastShadow  = false
-    p.Size        = Vector3.new(5, 0.2, 5)
-    p.CFrame      = CFrame.new(pos)
+    p.Anchored   = true
+    p.CanCollide = false
+    p.CanTouch   = false
+    p.CastShadow = false
+    p.Size       = Vector3.new(5, 0.2, 5)
+    p.CFrame     = CFrame.new(pos)
     p.Transparency = 1
-    p.Parent      = espFolder
+    p.Parent     = espFolder
     return p
+end
+
+local function removeSlot(key)
+    local d = slotData[key]
+    if not d then return end
+    if d.highlight   then d.highlight:Destroy() end
+    if d.placeholder then d.placeholder:Destroy() end
+    slotData[key] = nil
 end
 
 -- ============================================================
 -- SCAN
 -- ============================================================
+local function scanPlot(plot)
+    local podiums = plot:FindFirstChild("AnimalPodiums")
+    local myPlot  = isMyPlot(plot)
+    local seen    = {}
+
+    local plotPos = Vector3.new(0, 0, 0)
+    pcall(function() plotPos = plot:GetPivot().Position end)
+
+    for slot = 1, TOTAL_SLOTS do
+        local key = plot.Name .. "_" .. slot
+        seen[key] = true
+
+        local pod  = podiums and podiums:FindFirstChild(tostring(slot))
+        local part = getSlotPart(pod)
+
+        local color = myPlot and COLOR_OWN
+                   or (isOccupied(pod) and COLOR_OCCUPIED or COLOR_EMPTY)
+
+        local d = slotData[key]
+
+        if part then
+            if d then
+                -- avait un placeholder avant → recréer
+                if d.placeholder then
+                    d.placeholder:Destroy()
+                    d.highlight:Destroy()
+                    slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
+                else
+                    d.highlight.FillColor    = color
+                    d.highlight.OutlineColor = color
+                    d.highlight.Adornee      = part
+                end
+            else
+                slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
+            end
+        else
+            -- pas de géométrie → placeholder
+            local col    = (slot - 1) % 9
+            local row    = math.floor((slot - 1) / 9)
+            local pos    = plotPos + Vector3.new(col * 6 - 24, 0.1 + row * 4, 0)
+
+            if d then
+                d.highlight.FillColor    = color
+                d.highlight.OutlineColor = color
+                if d.placeholder then
+                    d.placeholder.CFrame = CFrame.new(pos)
+                end
+            else
+                local ph = makePlaceholder(pos)
+                slotData[key] = { highlight = makeHighlight(ph, color), placeholder = ph }
+            end
+        end
+    end
+
+    -- nettoyer les slots de ce plot qui ne sont plus dans seen
+    for key in pairs(slotData) do
+        local prefix = plot.Name .. "_"
+        if key:sub(1, #prefix) == prefix and not seen[key] then
+            removeSlot(key)
+        end
+    end
+end
+
 local function scanAll()
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return end
-
-    local seen = {}
-
     for _, plot in ipairs(plots:GetChildren()) do
-        local ok = pcall(function()
-            local myPlot  = isMyPlot(plot)
-            local podiums = plot:FindFirstChild("AnimalPodiums")
-
-            -- position de base du plot pour les placeholders
-            local plotPos = Vector3.new(0, 0, 0)
-            pcall(function() plotPos = plot:GetPivot().Position end)
-
-            for slot = 1, TOTAL_SLOTS do
-                local key = plot.Name .. "_" .. slot
-                seen[key] = true
-
-                -- déterminer la couleur
-                local occupied = false
-                if not myPlot and podiums then
-                    local pod = podiums:FindFirstChild(tostring(slot))
-                    if pod then
-                        -- considéré occupé si le podium a des descendants (animal présent)
-                        local animalFolder = pod:FindFirstChild("Animal") or pod:FindFirstChild("AnimalModel")
-                        if animalFolder and #animalFolder:GetChildren() > 0 then
-                            occupied = true
-                        elseif pod:FindFirstChildWhichIsA("Model") then
-                            occupied = true
-                        end
-                    end
-                end
-
-                local color = myPlot and COLOR_OWN or (occupied and COLOR_OCCUPIED or COLOR_EMPTY)
-
-                -- trouver la géométrie
-                local pod  = podiums and podiums:FindFirstChild(tostring(slot))
-                local part = getSlotPart(pod)
-
-                local existing = slotHighlights[key]
-
-                if part then
-                    if existing then
-                        -- mettre à jour couleur
-                        if existing._placeholder then
-                            existing._placeholder:Destroy()
-                            existing._placeholder = nil
-                            existing:Destroy()
-                            existing = makeHighlight(part, color)
-                            slotHighlights[key] = existing
-                        else
-                            existing.FillColor    = color
-                            existing.OutlineColor = color
-                            existing.Adornee      = part
-                        end
-                    else
-                        local h = makeHighlight(part, color)
-                        slotHighlights[key] = h
-                    end
-                else
-                    -- pas de géométrie → placeholder
-                    local col    = (slot - 1) % 9
-                    local row    = math.floor((slot - 1) / 9)
-                    local offset = Vector3.new(col * 6 - 24, 0.1 + row * 4, 0)
-                    local pos    = plotPos + offset
-
-                    if existing then
-                        existing.FillColor    = color
-                        existing.OutlineColor = color
-                        if existing._placeholder then
-                            existing._placeholder.CFrame = CFrame.new(pos)
-                        end
-                    else
-                        local ph = makePlaceholderPart(pos)
-                        local h  = makeHighlight(ph, color)
-                        h._placeholder = ph
-                        slotHighlights[key] = h
-                    end
-                end
-            end
-        end)
-        if not ok then end
-    end
-
-    -- supprimer les highlights d'anciens plots
-    for key, h in pairs(slotHighlights) do
-        if not seen[key] then
-            if h._placeholder then h._placeholder:Destroy() end
-            h:Destroy()
-            slotHighlights[key] = nil
-        end
+        pcall(scanPlot, plot)
     end
 end
 
@@ -206,5 +184,21 @@ task.spawn(function()
         pcall(scanAll)
     end
 end)
+
+local plots = Workspace:WaitForChild("Plots", 10)
+if plots then
+    plots.ChildAdded:Connect(function(p)
+        task.wait(0.5)
+        pcall(scanPlot, p)
+    end)
+    plots.ChildRemoved:Connect(function(p)
+        local prefix = p.Name .. "_"
+        for key in pairs(slotData) do
+            if key:sub(1, #prefix) == prefix then
+                removeSlot(key)
+            end
+        end
+    end)
+end
 
 print("[ESP SLOTS] actif")
