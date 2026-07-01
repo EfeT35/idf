@@ -1951,6 +1951,7 @@ local function goToBrainrot(petData)
         task.wait(0.3)
         if _G._autoFloatPending then
             _G._autoFloatPending = false
+            if _G.unpinFloat then pcall(_G.unpinFloat) end
             if _G.setFloatEnabled then pcall(_G.setFloatEnabled, false)
             elseif _G.FloatToggle then pcall(_G.FloatToggle) end
         end
@@ -2041,6 +2042,16 @@ local function goToBrainrot(petData)
 
     _healDone = true
     _localHealConn:Disconnect()
+
+    -- Fixer la plateforme exactement sous le perso à l'arrivée
+    if _G._floatActive and _G.pinFloatAt then
+        char = LP.Character
+        hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            _G.pinFloatAt(hrp.Position.Y - 3.35)
+        end
+    end
+
     -- PATCH: garder antiDie actif pendant le steal
 
     -- PATCH: desequiper le tapis et stopper velocity SEULEMENT si float pas actif
@@ -7914,6 +7925,36 @@ local function createFloatPlatform()
         updateFloatPlatformPosition()
     end)
     updateFloatPlatformPosition()
+end
+
+-- Fixe la plateforme à une hauteur Y précise (indépendamment du HRP)
+local _floatPinnedY = nil
+local function pinFloatAt(y)
+    _floatPinnedY = y
+    if FloatData.platform then
+        local pos = FloatData.platform.Position
+        FloatData.platform.CFrame = CFrame.new(pos.X, y, pos.Z)
+    end
+end
+local function unpinFloat()
+    _floatPinnedY = nil
+end
+_G.pinFloatAt = pinFloatAt
+_G.unpinFloat = unpinFloat
+
+-- Override updateFloatPlatformPosition pour respecter le pin
+local _origUpdateFloat = updateFloatPlatformPosition
+updateFloatPlatformPosition = function()
+    if _floatPinnedY ~= nil then
+        if FloatData.platform then
+            local _, hrp2 = _getFloatCharParts()
+            if hrp2 then
+                FloatData.platform.CFrame = CFrame.new(hrp2.Position.X, _floatPinnedY, hrp2.Position.Z)
+            end
+        end
+        return
+    end
+    _origUpdateFloat()
 end
 
 local function setFloatEnabled(on)
