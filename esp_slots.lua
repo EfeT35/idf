@@ -118,16 +118,17 @@ local function scanPlot(plot)
     local myPlot  = isMyPlot(plot.Name)
     local seen    = {}
 
-    -- Collecter les BaseParts de TOUS les étages par position locale (1-9)
-    -- pour chaque localSlot on garde la BasePart de l'étage le plus bas disponible
-    local refByLocal = {}   -- localSlot(1-9) → { bp, floorIdx }
+    local SLOTS_PER_FLOOR = 10
+
+    -- Collecter les BaseParts de TOUS les étages par position locale (1-10)
+    local refByLocal = {}   -- localSlot(1-10) → { bp, fi }
     if podiums then
         for s = 1, TOTAL_SLOTS do
             local pod = podiums:FindFirstChild(tostring(s))
             local bp  = getBasePart(getSlotBase(pod))
             if bp then
-                local fi  = math.floor((s - 1) / 9)
-                local ls  = ((s - 1) % 9) + 1
+                local fi = math.floor((s - 1) / SLOTS_PER_FLOOR)
+                local ls = ((s - 1) % SLOTS_PER_FLOOR) + 1
                 if not refByLocal[ls] or fi < refByLocal[ls].fi then
                     refByLocal[ls] = { bp = bp, fi = fi }
                 end
@@ -142,8 +143,8 @@ local function scanPlot(plot)
     for slot = 1, TOTAL_SLOTS do
         local key       = plot.Name .. "_" .. slot
         seen[key]       = true
-        local floorIdx  = math.floor((slot - 1) / 9)
-        local localSlot = ((slot - 1) % 9) + 1
+        local floorIdx  = math.floor((slot - 1) / SLOTS_PER_FLOOR)
+        local localSlot = ((slot - 1) % SLOTS_PER_FLOOR) + 1
 
         local pod  = podiums and podiums:FindFirstChild(tostring(slot))
         local base = getSlotBase(pod)
