@@ -394,6 +394,10 @@ end)
 -- ═══ Anti-Ragdoll V1 ═══
 task.spawn(function()
     pcall(function()
+        local Players    = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local Workspace  = game:GetService("Workspace")
+        local LocalPlayer = Players.LocalPlayer
         local _antiRagConn = nil
 
         local function _isRagdolled()
