@@ -14,6 +14,19 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ============================================================
+-- MODULES (synchrone — bloque jusqu'au chargement)
+-- ============================================================
+local Packages    = ReplicatedStorage:WaitForChild("Packages")
+local Datas       = ReplicatedStorage:WaitForChild("Datas")
+local Shared      = ReplicatedStorage:WaitForChild("Shared")
+local Utils       = ReplicatedStorage:WaitForChild("Utils")
+
+local Synchronizer  = require(Packages:WaitForChild("Synchronizer"))
+local AnimalsData   = require(Datas:WaitForChild("Animals"))
+local AnimalsShared = require(Shared:WaitForChild("Animals"))
+local NumberUtils   = require(Utils:WaitForChild("NumberUtils"))
+
+-- ============================================================
 -- SCALE + MOBILE
 -- ============================================================
 local IS_MOBILE         = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
@@ -60,18 +73,19 @@ local SharedState = {
 }
 
 -- ============================================================
--- STATE VARIABLES
+-- STATE
 -- ============================================================
 local instantStealEnabled  = false
 local instantStealReady    = false
 local instantStealDidInit  = false
+local autoStealEnabled     = true   -- toujours true ici
 local selectedTargetIndex  = 1
 local selectedTargetUID    = nil
 local activeProgressTween  = nil
 local currentStealTargetUID= nil
 
 local stealNearestEnabled  = false
-local stealHighestEnabled  = false
+local stealHighestEnabled  = true   -- Highest par défaut comme l'original
 local stealPriorityEnabled = false
 
 local allAnimalsCache   = {}
@@ -79,34 +93,8 @@ local lastAnimalData    = {}
 local PromptMemoryCache = {}
 local InternalStealCache= {}
 
-local function syncAutoStealEnabledFromModes()
-    -- no-op: we only use instantSteal
-end
-
 -- ============================================================
--- GAME MODULES (async require)
--- ============================================================
-local Synchronizer, AnimalsData, AnimalsShared, NumberUtils
-
-task.spawn(function()
-    local ok, pkgs = pcall(function()
-        local Packages = ReplicatedStorage:WaitForChild("Packages", 15)
-        local Datas    = ReplicatedStorage:WaitForChild("Datas",    15)
-        local Shared   = ReplicatedStorage:WaitForChild("Shared",   15)
-        local Utils    = ReplicatedStorage:WaitForChild("Utils",    15)
-        return
-            require(Packages:WaitForChild("Synchronizer", 10)),
-            require(Datas:WaitForChild("Animals",         10)),
-            require(Shared:WaitForChild("Animals",        10)),
-            require(Utils:WaitForChild("NumberUtils",     10))
-    end)
-    if ok then
-        Synchronizer, AnimalsData, AnimalsShared, NumberUtils = pkgs, select(2, pkgs)
-    end
-end)
-
--- ============================================================
--- HELPER: MakeDraggable
+-- HELPERS UI
 -- ============================================================
 local function MakeDraggable(handle, target, saveKey)
     local dragging, dragInput, dragStart, startPos
@@ -122,8 +110,8 @@ local function MakeDraggable(handle, target, saveKey)
                     dragging = false
                     if saveKey then
                         Config.Positions[saveKey] = {
-                            X = target.Position.X.Scale, Y = target.Position.Y.Scale,
-                            OffsetX = target.Position.X.Offset, OffsetY = target.Position.Y.Offset,
+                            X=target.Position.X.Scale, Y=target.Position.Y.Scale,
+                            OffsetX=target.Position.X.Offset, OffsetY=target.Position.Y.Offset,
                         }
                     end
                 end
@@ -141,8 +129,7 @@ local function MakeDraggable(handle, target, saveKey)
             local delta = input.Position - dragStart
             target.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
@@ -163,20 +150,20 @@ local function AddMobileMinimize(frame, labelText)
     local header    = frame:FindFirstChildWhichIsA("Frame")
     if not header then return end
     local minimizeBtn = Instance.new("TextButton")
-    minimizeBtn.Size = UDim2.new(0,26,0,26); minimizeBtn.Position = UDim2.new(1,-30,0,6)
-    minimizeBtn.BackgroundColor3 = Theme.SurfaceHighlight; minimizeBtn.Text = "-"
-    minimizeBtn.Font = Enum.Font.GothamBlack; minimizeBtn.TextSize = 18
-    minimizeBtn.TextColor3 = Theme.TextPrimary; minimizeBtn.AutoButtonColor = false
-    minimizeBtn.Parent = header
-    Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0,8)
-    local restoreBtn = Instance.new("TextButton")
-    restoreBtn.Size = UDim2.new(0,110,0,34); restoreBtn.Position = UDim2.new(0,10,1,-44)
-    restoreBtn.BackgroundColor3 = Theme.SurfaceHighlight; restoreBtn.Text = labelText or "OPEN"
-    restoreBtn.Font = Enum.Font.GothamBold; restoreBtn.TextSize = 12
-    restoreBtn.TextColor3 = Theme.TextPrimary; restoreBtn.Visible = false
-    restoreBtn.AutoButtonColor = false; restoreBtn.Parent = guiParent
-    Instance.new("UICorner", restoreBtn).CornerRadius = UDim.new(0,10)
-    MakeDraggable(restoreBtn, restoreBtn)
+    minimizeBtn.Size=UDim2.new(0,26,0,26); minimizeBtn.Position=UDim2.new(1,-30,0,6)
+    minimizeBtn.BackgroundColor3=Theme.SurfaceHighlight; minimizeBtn.Text="-"
+    minimizeBtn.Font=Enum.Font.GothamBlack; minimizeBtn.TextSize=18
+    minimizeBtn.TextColor3=Theme.TextPrimary; minimizeBtn.AutoButtonColor=false
+    minimizeBtn.Parent=header
+    Instance.new("UICorner",minimizeBtn).CornerRadius=UDim.new(0,8)
+    local restoreBtn=Instance.new("TextButton")
+    restoreBtn.Size=UDim2.new(0,110,0,34); restoreBtn.Position=UDim2.new(0,10,1,-44)
+    restoreBtn.BackgroundColor3=Theme.SurfaceHighlight; restoreBtn.Text=labelText or "OPEN"
+    restoreBtn.Font=Enum.Font.GothamBold; restoreBtn.TextSize=12
+    restoreBtn.TextColor3=Theme.TextPrimary; restoreBtn.Visible=false
+    restoreBtn.AutoButtonColor=false; restoreBtn.Parent=guiParent
+    Instance.new("UICorner",restoreBtn).CornerRadius=UDim.new(0,10)
+    MakeDraggable(restoreBtn,restoreBtn)
     minimizeBtn.MouseButton1Click:Connect(function() frame.Visible=false; restoreBtn.Visible=true end)
     restoreBtn.MouseButton1Click:Connect(function() frame.Visible=true; restoreBtn.Visible=false end)
 end
@@ -186,18 +173,15 @@ end
 -- ============================================================
 local function isMyBaseAnimal(animalData)
     if not animalData or not animalData.plot then return false end
-    if not Synchronizer then return false end
-    local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return false end
-    local plot = plots:FindFirstChild(animalData.plot)
-    if not plot then return false end
+    local plots = Workspace:FindFirstChild("Plots"); if not plots then return false end
+    local plot  = plots:FindFirstChild(animalData.plot); if not plot then return false end
     local ok, channel = pcall(function() return Synchronizer:Get(plot.Name) end)
     if not ok or not channel then return false end
     local owner = channel:Get("Owner")
     if owner then
-        if typeof(owner) == "Instance" and owner:IsA("Player") then return owner.UserId == LocalPlayer.UserId
-        elseif typeof(owner) == "table" and owner.UserId then return owner.UserId == LocalPlayer.UserId
-        elseif typeof(owner) == "Instance" then return owner == LocalPlayer end
+        if typeof(owner)=="Instance" and owner:IsA("Player") then return owner.UserId==LocalPlayer.UserId
+        elseif typeof(owner)=="table" and owner.UserId then return owner.UserId==LocalPlayer.UserId
+        elseif typeof(owner)=="Instance" then return owner==LocalPlayer end
     end
     return false
 end
@@ -226,9 +210,12 @@ end
 local function get_all_pets()
     local out = {}
     for _, a in ipairs(allAnimalsCache) do
-        if a.genValue >= 1 and not isMyBaseAnimal(a) then
-            table.insert(out, {petName=a.name, mpsText=a.genText, mpsValue=a.genValue,
-                owner=a.owner, plot=a.plot, slot=a.slot, uid=a.uid, mutation=a.mutation, animalData=a})
+        if a.genValue >= 1 and (Config.AutoGrabOwnBase == true or not isMyBaseAnimal(a)) then
+            table.insert(out, {
+                petName=a.name, mpsText=a.genText, mpsValue=a.genValue,
+                owner=a.owner, plot=a.plot, slot=a.slot, uid=a.uid,
+                mutation=a.mutation, animalData=a
+            })
         end
     end
     return out
@@ -241,21 +228,23 @@ local function findProximityPromptForAnimal(animalData)
     if not animalData then return nil end
     local cp = PromptMemoryCache[animalData.uid]
     if cp and cp.Parent then return cp end
-    local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return nil end
-    local plot = plots:FindFirstChild(animalData.plot); if not plot then return nil end
+    local plots = Workspace:FindFirstChild("Plots"); if not plots then return nil end
+    local plot  = plots:FindFirstChild(animalData.plot); if not plot then return nil end
     local podiums = plot:FindFirstChild("AnimalPodiums"); if not podiums then return nil end
 
-    local ch = Synchronizer and pcall(function() return Synchronizer:Get(plot.Name) end) and Synchronizer:Get(plot.Name)
-    if not ch then
+    local ok, ch = pcall(function() return Synchronizer:Get(plot.Name) end)
+    if not ok or not ch then
         local podium = podiums:FindFirstChild(animalData.slot)
         if podium then
-            local spawn = podium:FindFirstChild("Base") and podium.Base:FindFirstChild("Spawn")
+            local base  = podium:FindFirstChild("Base")
+            local spawn = base and base:FindFirstChild("Spawn")
             if spawn then
                 local attach = spawn:FindFirstChild("PromptAttachment")
                 if attach then
                     for _, p in ipairs(attach:GetChildren()) do
-                        if p:IsA("ProximityPrompt") then PromptMemoryCache[animalData.uid]=p; return p end
+                        if p:IsA("ProximityPrompt") then
+                            PromptMemoryCache[animalData.uid]=p; return p
+                        end
                     end
                 end
             end
@@ -269,15 +258,17 @@ local function findProximityPromptForAnimal(animalData)
     local foundPodium  = nil
     for slot, ad in pairs(al) do
         if type(ad)=="table" and tostring(slot)==targetSlot then
-            local aInfo = AnimalsData and AnimalsData[ad.Index]
+            local aInfo = AnimalsData[ad.Index]
             if aInfo and (aInfo.DisplayName or ad.Index):lower()==brainrotName then
                 foundPodium = podiums:FindFirstChild(tostring(slot)); break
             end
         end
     end
     if not foundPodium then foundPodium = podiums:FindFirstChild(animalData.slot) end
+
     if foundPodium then
-        local spawn = foundPodium:FindFirstChild("Base") and foundPodium.Base:FindFirstChild("Spawn")
+        local base  = foundPodium:FindFirstChild("Base")
+        local spawn = base and base:FindFirstChild("Spawn")
         if spawn then
             local attach = spawn:FindFirstChild("PromptAttachment")
             if attach then
@@ -292,8 +283,8 @@ local function findProximityPromptForAnimal(animalData)
             for _, desc in pairs(plot:GetDescendants()) do
                 if desc:IsA("ProximityPrompt") and desc.Enabled then
                     local part = desc.Parent
-                    local pos  = part and part:IsA("BasePart") and part.Position
-                              or (part and part:IsA("Attachment") and part.Parent and part.Parent:IsA("BasePart") and part.Parent.Position)
+                    local pos  = (part and part:IsA("BasePart") and part.Position)
+                             or (part and part:IsA("Attachment") and part.Parent and part.Parent:IsA("BasePart") and part.Parent.Position)
                     if pos then
                         local hd = math.sqrt((pos.X-slotX)^2+(pos.Z-slotZ)^2)
                         if hd < 5 and pos.Y > spawn.Position.Y then
@@ -310,9 +301,10 @@ local function findProximityPromptForAnimal(animalData)
 end
 
 -- ============================================================
--- STEAL CALLBACKS (uses exploit getconnections)
+-- STEAL CALLBACKS
 -- ============================================================
 local STEAL_DURATION = 0.4
+local progressBarFill  -- défini après la création du HUD
 
 local function buildStealCallbacks(prompt)
     if InternalStealCache[prompt] then return end
@@ -338,25 +330,23 @@ local function runCallbackList(list)
     for _, fn in ipairs(list) do task.spawn(fn) end
 end
 
--- progressBarFill declared later after HUD build; forward reference via upvalue table
-local barRef = {}
-
 local function executeInternalStealAsync(prompt, animalUID)
     local data = InternalStealCache[prompt]
     if not data or not data.ready then return false end
     data.ready = false
     task.spawn(function()
-        local fill = barRef[1]
         if currentStealTargetUID ~= animalUID then
             if activeProgressTween then activeProgressTween:Cancel() end
-            if fill then fill.Size = UDim2.new(0,0,1,0) end
+            if progressBarFill then progressBarFill.Size = UDim2.new(0,0,1,0) end
             currentStealTargetUID = animalUID
         end
         if #data.holdCallbacks > 0 then runCallbackList(data.holdCallbacks) end
-        if fill then
-            fill.Size = UDim2.new(0,0,1,0)
-            fill.BackgroundTransparency = 0
-            activeProgressTween = TweenService:Create(fill, TweenInfo.new(STEAL_DURATION, Enum.EasingStyle.Linear), {Size=UDim2.new(1,0,1,0)})
+        if progressBarFill then
+            progressBarFill.Size = UDim2.new(0,0,1,0)
+            progressBarFill.BackgroundTransparency = 0
+            activeProgressTween = TweenService:Create(progressBarFill,
+                TweenInfo.new(STEAL_DURATION, Enum.EasingStyle.Linear),
+                {Size=UDim2.new(1,0,1,0)})
             activeProgressTween:Play()
             activeProgressTween.Completed:Wait()
         else
@@ -374,10 +364,9 @@ local function attemptSteal(prompt, animalUID)
     if not prompt or not prompt.Parent then return false end
     buildStealCallbacks(prompt)
     if not InternalStealCache[prompt] then return false end
-    local fill = barRef[1]
     if currentStealTargetUID ~= animalUID then
         if activeProgressTween then activeProgressTween:Cancel(); activeProgressTween=nil end
-        if fill then fill.Size = UDim2.new(0,0,1,0) end
+        if progressBarFill then progressBarFill.Size = UDim2.new(0,0,1,0) end
     end
     return executeInternalStealAsync(prompt, animalUID)
 end
@@ -396,7 +385,7 @@ local function isMyPlot_Instant(plotName)
 end
 
 local function findNearestPrompt_Instant()
-    local hrp   = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil, math.huge, nil end
     local plots = Workspace:FindFirstChild("Plots"); if not plots then return nil, math.huge, nil end
     local bestPrompt, bestDist, bestName = nil, math.huge, nil
@@ -411,7 +400,7 @@ local function findNearestPrompt_Instant()
             local spawn = base and base:FindFirstChild("Spawn"); if not spawn then continue end
             local dist  = (spawn.Position - hrp.Position).Magnitude
             if dist > INSTANT_STEAL_RADIUS or dist >= bestDist then continue end
-            local att    = spawn:FindFirstChild("PromptAttachment"); if not att then continue end
+            local att = spawn:FindFirstChild("PromptAttachment"); if not att then continue end
             local prompt = att:FindFirstChildOfClass("ProximityPrompt")
             if prompt and prompt.Parent and prompt.Enabled then
                 bestPrompt=prompt; bestDist=dist; bestName=pod.Name
@@ -429,13 +418,13 @@ end
 -- ============================================================
 -- setInstantSteal
 -- ============================================================
-local updateUI  -- forward ref
+local updateUI -- forward ref
 local function setInstantSteal(state)
     instantStealEnabled = state
     if not state then instantStealReady=false; instantStealDidInit=false end
     Config.InstantSteal = state
     _G.NEAREST_INSTANT_MODE = (stealNearestEnabled and state)
-    if updateUI then updateUI() end
+    if updateUI then pcall(updateUI) end
 end
 _G._hazeSetInstantSteal = setInstantSteal
 
@@ -451,14 +440,10 @@ targetHudGui.IgnoreGuiInset=true; targetHudGui.DisplayOrder=998
 targetHudGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; targetHudGui.Parent=PlayerGui
 
 local STEALBAR = {
-    PANEL  = Color3.fromRGB(10, 18, 15),
-    TEXT   = Color3.fromRGB(225, 255, 235),
-    STROKE = Color3.fromRGB(65, 180, 105),
-    GLOW   = Color3.fromRGB(140, 240, 175),
-    TRACK  = Color3.fromRGB(35, 14, 25),
-    TRACK2 = Color3.fromRGB(45, 18, 32),
-    FILL1  = Color3.fromRGB(65, 180, 105),
-    FILL2  = Color3.fromRGB(220, 100, 150),
+    PANEL=Color3.fromRGB(10,18,15),   TEXT=Color3.fromRGB(225,255,235),
+    STROKE=Color3.fromRGB(65,180,105), GLOW=Color3.fromRGB(140,240,175),
+    TRACK=Color3.fromRGB(35,14,25),   TRACK2=Color3.fromRGB(45,18,32),
+    FILL1=Color3.fromRGB(65,180,105), FILL2=Color3.fromRGB(220,100,150),
 }
 
 local targetHud = Instance.new("Frame", targetHudGui)
@@ -468,10 +453,8 @@ targetHud.Position=UDim2.new(0.5,0,1,-220)
 targetHud.BackgroundColor3=STEALBAR.PANEL; targetHud.BackgroundTransparency=0.02
 targetHud.BorderSizePixel=0; targetHud.ZIndex=70
 Instance.new("UICorner",targetHud).CornerRadius=UDim.new(0,math.floor(12*mobileScale))
-
 local hudStroke=Instance.new("UIStroke",targetHud); hudStroke.Color=STEALBAR.STROKE; hudStroke.Thickness=1; hudStroke.Transparency=0.35
 local hudGlow=Instance.new("UIStroke",targetHud); hudGlow.Color=STEALBAR.GLOW; hudGlow.Thickness=3; hudGlow.Transparency=0.84; hudGlow.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-
 local hudShadow=Instance.new("ImageLabel",targetHud); hudShadow.AnchorPoint=Vector2.new(0.5,0.5)
 hudShadow.Position=UDim2.new(0.5,0,0.5,1); hudShadow.Size=UDim2.new(1,20,1,20)
 hudShadow.BackgroundTransparency=1; hudShadow.Image="rbxassetid://6014261993"
@@ -490,20 +473,19 @@ hudProgressBg.Position=UDim2.fromOffset(5*mobileScale,18*mobileScale)
 hudProgressBg.BackgroundColor3=STEALBAR.TRACK; hudProgressBg.BorderSizePixel=0; hudProgressBg.ZIndex=72
 Instance.new("UICorner",hudProgressBg).CornerRadius=UDim.new(0,math.floor(8*mobileScale))
 local bgStroke=Instance.new("UIStroke",hudProgressBg); bgStroke.Color=STEALBAR.STROKE; bgStroke.Thickness=1; bgStroke.Transparency=0.55
-
 local hudInnerTrack=Instance.new("Frame",hudProgressBg); hudInnerTrack.Name="InnerTrack"
 hudInnerTrack.Size=UDim2.new(1,-2,1,-2); hudInnerTrack.Position=UDim2.fromOffset(1,1)
 hudInnerTrack.BackgroundColor3=STEALBAR.TRACK2; hudInnerTrack.BackgroundTransparency=0.15
 hudInnerTrack.BorderSizePixel=0; hudInnerTrack.ZIndex=72
 Instance.new("UICorner",hudInnerTrack).CornerRadius=UDim.new(0,math.floor(7*mobileScale))
 
-local hudProgressFill=Instance.new("Frame",hudProgressBg); hudProgressFill.Name="ProgressFill"
-hudProgressFill.Size=UDim2.new(0,0,1,0); hudProgressFill.BackgroundColor3=STEALBAR.FILL1
-hudProgressFill.BorderSizePixel=0; hudProgressFill.ZIndex=73
-Instance.new("UICorner",hudProgressFill).CornerRadius=UDim.new(0,math.floor(8*mobileScale))
-local fillGrad=Instance.new("UIGradient",hudProgressFill)
+local fill=Instance.new("Frame",hudProgressBg); fill.Name="ProgressFill"
+fill.Size=UDim2.new(0,0,1,0); fill.BackgroundColor3=STEALBAR.FILL1
+fill.BorderSizePixel=0; fill.ZIndex=73
+Instance.new("UICorner",fill).CornerRadius=UDim.new(0,math.floor(8*mobileScale))
+local fillGrad=Instance.new("UIGradient",fill)
 fillGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,STEALBAR.FILL1),ColorSequenceKeypoint.new(1,STEALBAR.FILL2)})
-local fillStroke=Instance.new("UIStroke",hudProgressFill); fillStroke.Color=Color3.fromRGB(220,228,255); fillStroke.Thickness=1; fillStroke.Transparency=0.45
+local fillStroke=Instance.new("UIStroke",fill); fillStroke.Color=Color3.fromRGB(220,228,255); fillStroke.Thickness=1; fillStroke.Transparency=0.45
 
 local hudPercent=Instance.new("TextLabel",hudProgressBg); hudPercent.Name="Percent"
 hudPercent.Size=UDim2.new(1,0,1,0); hudPercent.BackgroundTransparency=1
@@ -511,11 +493,11 @@ hudPercent.Font=Enum.Font.GothamBold; hudPercent.TextSize=12*mobileScale
 hudPercent.TextColor3=STEALBAR.TEXT; hudPercent.TextStrokeTransparency=0.7
 hudPercent.TextXAlignment=Enum.TextXAlignment.Center; hudPercent.ZIndex=74; hudPercent.Text="0%"
 
-barRef[1] = hudProgressFill  -- connect to forward reference
+-- connecter la forward reference
+progressBarFill = fill
 
--- percent label updater
 RunService.Heartbeat:Connect(function()
-    local pct = math.clamp(math.floor(hudProgressFill.Size.X.Scale*100+0.5), 0, 100)
+    local pct = math.clamp(math.floor(fill.Size.X.Scale*100+0.5),0,100)
     hudPercent.Text = pct.."%"
 end)
 
@@ -525,99 +507,72 @@ end)
 local existingTC = PlayerGui:FindFirstChild("AutoStealTargetControls")
 if existingTC then existingTC:Destroy() end
 
-local targetControlsGui = Instance.new("ScreenGui")
-targetControlsGui.Name="AutoStealTargetControls"; targetControlsGui.ResetOnSpawn=false
-targetControlsGui.IgnoreGuiInset=true; targetControlsGui.DisplayOrder=999
-targetControlsGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; targetControlsGui.Parent=PlayerGui
+local tcGui = Instance.new("ScreenGui")
+tcGui.Name="AutoStealTargetControls"; tcGui.ResetOnSpawn=false
+tcGui.IgnoreGuiInset=true; tcGui.DisplayOrder=999
+tcGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; tcGui.Parent=PlayerGui
 
-local targetControlsFrame = Instance.new("Frame", targetControlsGui)
-targetControlsFrame.Name="TargetControlsFrame"; targetControlsFrame.AutomaticSize=Enum.AutomaticSize.Y
-targetControlsFrame.Size=UDim2.new(0,240*mobileScale,0,0)
-targetControlsFrame.Position=UDim2.new(
+local tcFrame = Instance.new("Frame", tcGui)
+tcFrame.Name="TargetControlsFrame"; tcFrame.AutomaticSize=Enum.AutomaticSize.Y
+tcFrame.Size=UDim2.new(0,240*mobileScale,0,0)
+tcFrame.Position=UDim2.new(
     Config.Positions.TargetControls.X or 0.26, Config.Positions.TargetControls.OffsetX or 15,
     Config.Positions.TargetControls.Y or 0.35, Config.Positions.TargetControls.OffsetY or 0)
-targetControlsFrame.BackgroundColor3=Color3.fromRGB(15,15,18); targetControlsFrame.BackgroundTransparency=0
-targetControlsFrame.BorderSizePixel=0; targetControlsFrame.ClipsDescendants=false; targetControlsFrame.ZIndex=100
+tcFrame.BackgroundColor3=Color3.fromRGB(15,15,18); tcFrame.BackgroundTransparency=0
+tcFrame.BorderSizePixel=0; tcFrame.ClipsDescendants=false; tcFrame.ZIndex=100
 
-ApplyViewportUIScale(targetControlsFrame,300,250,0.45,0.8)
-AddMobileMinimize(targetControlsFrame,"TARGET CONTROLS")
+ApplyViewportUIScale(tcFrame,300,250,0.45,0.8)
+AddMobileMinimize(tcFrame,"TARGET CONTROLS")
 
 local MTC = {
-    BG=Color3.fromRGB(15,15,18), SURF=Color3.fromRGB(28,28,32), SURF2=Color3.fromRGB(45,45,50),
-    TEXT=Color3.fromRGB(245,245,250), GREEN1=Color3.fromRGB(18,88,58), GREEN2=Color3.fromRGB(21,120,76),
-    GREEN_STROKE=Color3.fromRGB(60,185,120), OFF_BG=Color3.fromRGB(35,35,40),
-    OFF_TEXT=Color3.fromRGB(140,140,150), AQUA_STROKE=Color3.fromRGB(190,190,200),
+    SURF=Color3.fromRGB(28,28,32), SURF2=Color3.fromRGB(45,45,50),
+    TEXT=Color3.fromRGB(245,245,250), GREEN1=Color3.fromRGB(18,88,58),
+    GREEN2=Color3.fromRGB(21,120,76), GREEN_STROKE=Color3.fromRGB(60,185,120),
+    OFF_BG=Color3.fromRGB(35,35,40), OFF_TEXT=Color3.fromRGB(140,140,150),
+    AQUA_STROKE=Color3.fromRGB(190,190,200),
 }
 
 local function miniRound(obj,r) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r); c.Parent=obj; return c end
 local function miniStroke(obj,col,th,tr) local s=Instance.new("UIStroke"); s.Color=col; s.Thickness=th or 1; s.Transparency=tr or 0; s.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; s.Parent=obj; return s end
 local function miniTween(obj,t,props) TweenService:Create(obj,TweenInfo.new(t or 0.2,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),props):Play() end
-local function miniGradient(parent,c1,c2,rot) local g=Instance.new("UIGradient"); g.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,c1),ColorSequenceKeypoint.new(1,c2)}); g.Rotation=rot or 0; g.Parent=parent; return g end
+local function miniGrad(p,c1,c2) local g=Instance.new("UIGradient"); g.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,c1),ColorSequenceKeypoint.new(1,c2)}); g.Parent=p; return g end
 
-miniRound(targetControlsFrame,18); miniStroke(targetControlsFrame,MTC.AQUA_STROKE,1.2,0.40)
+miniRound(tcFrame,18); miniStroke(tcFrame,MTC.AQUA_STROKE,1.2,0.40)
+local shad=Instance.new("ImageLabel"); shad.AnchorPoint=Vector2.new(0.5,0.5); shad.Position=UDim2.new(0.5,0,0.5,2); shad.Size=UDim2.new(1,24,1,24)
+shad.BackgroundTransparency=1; shad.Image="rbxassetid://6014261993"; shad.ImageColor3=Color3.new(0,0,0); shad.ImageTransparency=0.72; shad.ScaleType=Enum.ScaleType.Slice; shad.SliceCenter=Rect.new(49,49,450,450); shad.ZIndex=99; shad.Parent=tcFrame
 
-local shadow=Instance.new("ImageLabel"); shadow.AnchorPoint=Vector2.new(0.5,0.5)
-shadow.Position=UDim2.new(0.5,0,0.5,2); shadow.Size=UDim2.new(1,24,1,24)
-shadow.BackgroundTransparency=1; shadow.Image="rbxassetid://6014261993"; shadow.ImageColor3=Color3.new(0,0,0)
-shadow.ImageTransparency=0.72; shadow.ScaleType=Enum.ScaleType.Slice; shadow.SliceCenter=Rect.new(49,49,450,450)
-shadow.ZIndex=99; shadow.Parent=targetControlsFrame
+local hdr=Instance.new("Frame",tcFrame); hdr.Size=UDim2.new(1,0,0,44); hdr.BackgroundTransparency=1; hdr.ZIndex=101
+MakeDraggable(hdr,tcFrame,"TargetControls")
+local ttl=Instance.new("TextLabel",hdr); ttl.Size=UDim2.new(1,-28,0,24); ttl.Position=UDim2.new(0,14,0,10); ttl.ZIndex=102; ttl.BackgroundTransparency=1
+ttl.Text="TARGET CONTROLS"; ttl.Font=Enum.Font.GothamBlack; ttl.TextSize=18; ttl.TextColor3=MTC.TEXT; ttl.TextXAlignment=Enum.TextXAlignment.Center
+local tline=Instance.new("Frame",tcFrame); tline.AnchorPoint=Vector2.new(0.5,0); tline.Position=UDim2.new(0.5,0,0,38); tline.Size=UDim2.new(0,124,0,1); tline.BackgroundColor3=Color3.fromRGB(255,255,255); tline.BackgroundTransparency=0.15; tline.BorderSizePixel=0; tline.ZIndex=101
 
-local header=Instance.new("Frame",targetControlsFrame); header.Size=UDim2.new(1,0,0,44)
-header.BackgroundTransparency=1; header.ZIndex=101
-MakeDraggable(header,targetControlsFrame,"TargetControls")
-
-local title=Instance.new("TextLabel",header); title.Size=UDim2.new(1,-28,0,24); title.Position=UDim2.new(0,14,0,10)
-title.ZIndex=102; title.BackgroundTransparency=1; title.Text="TARGET CONTROLS"
-title.Font=Enum.Font.GothamBlack; title.TextSize=18; title.TextColor3=MTC.TEXT; title.TextXAlignment=Enum.TextXAlignment.Center
-
-local titleLine=Instance.new("Frame",targetControlsFrame); titleLine.AnchorPoint=Vector2.new(0.5,0)
-titleLine.Position=UDim2.new(0.5,0,0,38); titleLine.Size=UDim2.new(0,124,0,1)
-titleLine.BackgroundColor3=Color3.fromRGB(255,255,255); titleLine.BackgroundTransparency=0.15
-titleLine.BorderSizePixel=0; titleLine.ZIndex=101
-
-local content=Instance.new("Frame",targetControlsFrame); content.AutomaticSize=Enum.AutomaticSize.Y
-content.Size=UDim2.new(1,-20,0,0); content.Position=UDim2.fromOffset(10,48)
-content.BackgroundColor3=MTC.SURF; content.BorderSizePixel=0; content.ZIndex=101
+local content=Instance.new("Frame",tcFrame); content.AutomaticSize=Enum.AutomaticSize.Y; content.Size=UDim2.new(1,-20,0,0); content.Position=UDim2.fromOffset(10,48); content.BackgroundColor3=MTC.SURF; content.BorderSizePixel=0; content.ZIndex=101
 miniRound(content,16); miniStroke(content,MTC.AQUA_STROKE,1,0.48)
-
-local btnContainer=Instance.new("Frame",content); btnContainer.AutomaticSize=Enum.AutomaticSize.Y
-btnContainer.Size=UDim2.new(1,-10,0,0); btnContainer.Position=UDim2.fromOffset(5,5)
-btnContainer.BackgroundTransparency=1; btnContainer.ZIndex=102
-local layout=Instance.new("UIListLayout",btnContainer); layout.Padding=UDim.new(0,8); layout.SortOrder=Enum.SortOrder.LayoutOrder
+local btnCont=Instance.new("Frame",content); btnCont.AutomaticSize=Enum.AutomaticSize.Y; btnCont.Size=UDim2.new(1,-10,0,0); btnCont.Position=UDim2.fromOffset(5,5); btnCont.BackgroundTransparency=1; btnCont.ZIndex=102
+local layout=Instance.new("UIListLayout",btnCont); layout.Padding=UDim.new(0,8); layout.SortOrder=Enum.SortOrder.LayoutOrder
 
 local function createToggleRow(parent, text)
     local row=Instance.new("Frame",parent); row.Name=text:gsub("%s+","").."Row"
-    row.Size=UDim2.new(1,0,0,math.floor(36*mobileButtonScale)); row.BackgroundColor3=MTC.SURF2
-    row.BackgroundTransparency=0.02; row.BorderSizePixel=0; row.ZIndex=103
+    row.Size=UDim2.new(1,0,0,math.floor(36*mobileButtonScale)); row.BackgroundColor3=MTC.SURF2; row.BackgroundTransparency=0.02; row.BorderSizePixel=0; row.ZIndex=103
     miniRound(row,11); local rowStroke=miniStroke(row,MTC.AQUA_STROKE,1,0.52)
-    local label=Instance.new("TextLabel",row); label.BackgroundTransparency=1
-    label.Position=UDim2.fromOffset(12,0); label.Size=UDim2.new(1,-100,1,0)
-    label.Font=Enum.Font.GothamBold; label.Text=text; label.TextColor3=MTC.TEXT
-    label.TextSize=12*mobileButtonScale; label.TextXAlignment=Enum.TextXAlignment.Left; label.ZIndex=104
-    local stateBox=Instance.new("TextButton",row); stateBox.Name=text:gsub("%s+","").."Toggle"
-    stateBox.AutoButtonColor=false
-    stateBox.Size=UDim2.fromOffset(math.floor(72*mobileButtonScale),math.floor(22*mobileButtonScale))
-    stateBox.Position=UDim2.new(1,-math.floor(82*mobileButtonScale),0.5,-math.floor(11*mobileButtonScale))
-    stateBox.BackgroundColor3=MTC.OFF_BG; stateBox.BorderSizePixel=0; stateBox.Text=""; stateBox.ZIndex=104
-    miniRound(stateBox,7); local stateStroke=miniStroke(stateBox,MTC.AQUA_STROKE,1,0.55)
-    local stateFill=Instance.new("Frame",stateBox); stateFill.Size=UDim2.new(1,0,1,0)
-    stateFill.BackgroundTransparency=1; stateFill.BorderSizePixel=0; stateFill.ZIndex=104
-    miniRound(stateFill,7); miniGradient(stateFill,MTC.GREEN1,MTC.GREEN2,0)
-    local stateText=Instance.new("TextLabel",stateBox); stateText.BackgroundTransparency=1
-    stateText.Size=UDim2.fromScale(1,1); stateText.Font=Enum.Font.GothamBold
-    stateText.TextSize=11*mobileButtonScale; stateText.Text="OFF"; stateText.TextColor3=MTC.OFF_TEXT; stateText.ZIndex=105
+    local lbl=Instance.new("TextLabel",row); lbl.BackgroundTransparency=1; lbl.Position=UDim2.fromOffset(12,0); lbl.Size=UDim2.new(1,-100,1,0); lbl.Font=Enum.Font.GothamBold; lbl.Text=text; lbl.TextColor3=MTC.TEXT; lbl.TextSize=12*mobileButtonScale; lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.ZIndex=104
+    local box=Instance.new("TextButton",row); box.AutoButtonColor=false; box.Size=UDim2.fromOffset(math.floor(72*mobileButtonScale),math.floor(22*mobileButtonScale)); box.Position=UDim2.new(1,-math.floor(82*mobileButtonScale),0.5,-math.floor(11*mobileButtonScale)); box.BackgroundColor3=MTC.OFF_BG; box.BorderSizePixel=0; box.Text=""; box.ZIndex=104
+    miniRound(box,7); local boxStroke=miniStroke(box,MTC.AQUA_STROKE,1,0.55)
+    local knob=Instance.new("Frame",box); knob.Size=UDim2.new(1,0,1,0); knob.BackgroundTransparency=1; knob.BorderSizePixel=0; knob.ZIndex=104; miniRound(knob,7); miniGrad(knob,MTC.GREEN1,MTC.GREEN2)
+    local stTxt=Instance.new("TextLabel",box); stTxt.BackgroundTransparency=1; stTxt.Size=UDim2.fromScale(1,1); stTxt.Font=Enum.Font.GothamBold; stTxt.TextSize=11*mobileButtonScale; stTxt.Text="OFF"; stTxt.TextColor3=MTC.OFF_TEXT; stTxt.ZIndex=105
     row.MouseEnter:Connect(function() miniTween(row,0.14,{BackgroundColor3=Color3.fromRGB(34,39,58)}); miniTween(rowStroke,0.14,{Transparency=0.38}) end)
     row.MouseLeave:Connect(function() miniTween(row,0.14,{BackgroundColor3=MTC.SURF2}); miniTween(rowStroke,0.14,{Transparency=0.52}) end)
-    return {row=row,label=label,button=stateBox,knob=stateFill,stateLabel=stateText,stroke=stateStroke,rowStroke=rowStroke}
+    return {row=row,label=lbl,button=box,knob=knob,stateLabel=stTxt,stroke=boxStroke,rowStroke=rowStroke}
 end
 
-local nearestBtn    = createToggleRow(btnContainer,"Nearest")
-local highestBtn    = createToggleRow(btnContainer,"Highest")
-local priorityBtn   = createToggleRow(btnContainer,"Priority")
-local autoTurretBtn = createToggleRow(btnContainer,"Auto Turret")
-local autoKickBtn   = createToggleRow(btnContainer,"Auto Kick")
-local instantStealBtn = createToggleRow(btnContainer,"Instant Steal")
-local ownBaseBtn    = createToggleRow(btnContainer,"Own Base")
+local nearestBtn    = createToggleRow(btnCont,"Nearest")
+local highestBtn    = createToggleRow(btnCont,"Highest")
+local priorityBtn   = createToggleRow(btnCont,"Priority")
+local autoTurretBtn = createToggleRow(btnCont,"Auto Turret")
+local autoKickBtn   = createToggleRow(btnCont,"Auto Kick")
+local instantStealBtn = createToggleRow(btnCont,"Instant Steal")
+local ownBaseBtn    = createToggleRow(btnCont,"Own Base")
 
 local function paintToggle(ref, isOn)
     if isOn then
@@ -642,27 +597,22 @@ updateUI = function()
     paintToggle(ownBaseBtn,    Config.AutoGrabOwnBase)
 end
 
--- visual-only toggles
 nearestBtn.button.MouseButton1Click:Connect(function()    stealNearestEnabled=not stealNearestEnabled;    updateUI() end)
 highestBtn.button.MouseButton1Click:Connect(function()    stealHighestEnabled=not stealHighestEnabled;    updateUI() end)
 priorityBtn.button.MouseButton1Click:Connect(function()   stealPriorityEnabled=not stealPriorityEnabled;  updateUI() end)
 autoTurretBtn.button.MouseButton1Click:Connect(function() Config.AutoDestroyTurrets=not Config.AutoDestroyTurrets; updateUI() end)
 autoKickBtn.button.MouseButton1Click:Connect(function()   Config.AutoKickOnSteal=not Config.AutoKickOnSteal; updateUI() end)
 ownBaseBtn.button.MouseButton1Click:Connect(function()    Config.AutoGrabOwnBase=not Config.AutoGrabOwnBase; updateUI() end)
-
--- real toggle
-instantStealBtn.button.MouseButton1Click:Connect(function()
-    setInstantSteal(not instantStealEnabled)
-end)
+instantStealBtn.button.MouseButton1Click:Connect(function() setInstantSteal(not instantStealEnabled) end)
 
 updateUI()
 
 -- ============================================================
--- PLOT SCAN (brainrot cache)
+-- PLOT SCAN
 -- ============================================================
 local function getAnimalHash(al)
     if not al then return "" end
-    local h = ""
+    local h=""
     for slot, d in pairs(al) do
         if type(d)=="table" then h=h..tostring(slot)..tostring(d.Index)..tostring(d.Mutation) end
     end
@@ -670,9 +620,9 @@ local function getAnimalHash(al)
 end
 
 local function scanSinglePlot(plot)
-    if not Synchronizer then return end
     pcall(function()
-        local ch = Synchronizer:Get(plot.Name); if not ch then return end
+        local ok, ch = pcall(function() return Synchronizer:Get(plot.Name) end)
+        if not ok or not ch then return end
         local al    = ch:Get("AnimalList")
         local owner = ch:Get("Owner")
         if not owner or not owner.Name or not Players:FindFirstChild(owner.Name) then
@@ -691,13 +641,13 @@ local function scanSinglePlot(plot)
         for slot, ad in pairs(al) do
             if type(ad)=="table" then
                 local aName = ad.Index
-                local aInfo = AnimalsData and AnimalsData[aName]
+                local aInfo = AnimalsData[aName]
                 if aInfo then
                     local mut = ad.Mutation or "None"
                     if mut=="Yin Yang" then mut="YinYang" end
                     local traits = (ad.Traits and #ad.Traits>0) and table.concat(ad.Traits,", ") or "None"
-                    local gv = AnimalsShared and AnimalsShared:GetGeneration(aName, ad.Mutation, ad.Traits, nil) or 0
-                    local gt = "$"..(NumberUtils and NumberUtils:ToString(gv) or tostring(gv)).."/s"
+                    local gv = AnimalsShared:GetGeneration(aName, ad.Mutation, ad.Traits, nil)
+                    local gt = "$"..NumberUtils:ToString(gv).."/s"
                     table.insert(allAnimalsCache,{
                         name=aInfo.DisplayName or aName, genText=gt, genValue=gv,
                         mutation=mut, traits=traits, owner=owner.Name,
@@ -715,11 +665,9 @@ end
 local function setupPlotListener(plot)
     local retries=0
     while retries<50 do
-        if Synchronizer then
-            local ok,r=pcall(function() return Synchronizer:Get(plot.Name) end)
-            if ok and r then break end
-        end
-        retries=retries+1; task.wait(0.2)
+        local ok,r=pcall(function() return Synchronizer:Get(plot.Name) end)
+        if ok and r then break end
+        retries=retries+1; task.wait(0.1)
     end
     scanSinglePlot(plot)
     plot.DescendantAdded:Connect(function() task.wait(0.1); scanSinglePlot(plot) end)
@@ -727,19 +675,18 @@ local function setupPlotListener(plot)
     task.spawn(function() while plot.Parent do task.wait(5); scanSinglePlot(plot) end end)
 end
 
-task.spawn(function()
-    local plots = Workspace:WaitForChild("Plots",8)
-    if not plots then return end
+local plots = Workspace:WaitForChild("Plots",8)
+if plots then
     for _, p in ipairs(plots:GetChildren()) do task.spawn(setupPlotListener,p) end
     plots.ChildAdded:Connect(function(p) task.wait(0.5); task.spawn(setupPlotListener,p) end)
     plots.ChildRemoved:Connect(function(p)
         lastAnimalData[p.Name]=nil
         for i=#allAnimalsCache,1,-1 do if allAnimalsCache[i].plot==p.Name then table.remove(allAnimalsCache,i) end end
     end)
-end)
+end
 
 -- ============================================================
--- 1.38s PERIODIC TOGGLE
+-- 1.38s TOGGLE AUTOMATIQUE
 -- ============================================================
 task.spawn(function()
     if _G._hazeSetInstantSteal then _G._hazeSetInstantSteal(true) end
@@ -754,52 +701,74 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- HEARTBEAT — Instant Steal with brainrot cache targeting
+-- HEARTBEAT — copie exacte de la logique originale
 -- ============================================================
 local lastInstantTick = 0
 
 RunService.Heartbeat:Connect(function()
-    if not instantStealEnabled then return end
-    local now = os.clock()
-    if now - lastInstantTick < 0.05 then return end
-    lastInstantTick = now
+    if not autoStealEnabled then return end
 
-    -- progress bar full while active
-    hudProgressFill.Size = UDim2.new(1,0,1,0)
-    hudProgressFill.BackgroundTransparency = 0
-
-    if not instantStealDidInit then
-        instantStealDidInit = true
-        task.spawn(function()
-            if not game:IsLoaded() then game.Loaded:Wait() end
-            task.wait(0.5); instantStealReady = true
-        end)
-    end
-    if not instantStealReady then return end
-
-    -- try cache-based targeting first (highest gen brainrot)
-    local pets = get_all_pets()
-    if #pets > 0 then
-        if selectedTargetIndex > #pets then selectedTargetIndex = #pets end
-        if selectedTargetIndex < 1    then selectedTargetIndex = 1 end
-        local tp = pets[selectedTargetIndex]
-        if tp then
-            hudName.Text = tp.petName or "Target"
-            local pr = PromptMemoryCache[tp.uid]
-            if not pr or not pr.Parent then pr = findProximityPromptForAnimal(tp.animalData) end
-            if pr then executeInstantSteal(pr); return end
+    if instantStealEnabled then
+        local now = os.clock()
+        if now - lastInstantTick < 0.05 then return end
+        lastInstantTick = now
+        if activeProgressTween then activeProgressTween:Cancel(); activeProgressTween=nil end
+        progressBarFill.Size = UDim2.new(1,0,1,0)
+        progressBarFill.BackgroundTransparency = 0
+        if not instantStealDidInit then
+            instantStealDidInit = true
+            task.spawn(function()
+                if not game:IsLoaded() then game.Loaded:Wait() end
+                task.wait(0.5); instantStealReady = true
+            end)
         end
+        if instantStealReady then
+            if stealNearestEnabled then
+                local prompt, dist, name = findNearestPrompt_Instant()
+                if prompt and dist <= INSTANT_STEAL_RADIUS then
+                    hudName.Text = name or "Target"
+                    executeInstantSteal(prompt)
+                else
+                    hudName.Text = "No target"
+                end
+            else
+                local pets = get_all_pets()
+                if #pets > 0 then
+                    if selectedTargetIndex > #pets then selectedTargetIndex = #pets end
+                    if selectedTargetIndex < 1    then selectedTargetIndex = 1 end
+                    local tp = pets[selectedTargetIndex]
+                    if tp and (Config.AutoGrabOwnBase or not isMyBaseAnimal(tp.animalData)) then
+                        hudName.Text = tp.petName or "Target"
+                        local pr = PromptMemoryCache[tp.uid]
+                        if not pr or not pr.Parent then pr = findProximityPromptForAnimal(tp.animalData) end
+                        if pr then executeInstantSteal(pr) end
+                    end
+                else
+                    -- fallback scan direct
+                    local prompt, dist, name = findNearestPrompt_Instant()
+                    if prompt and dist <= INSTANT_STEAL_RADIUS then
+                        hudName.Text = name or "Target"
+                        executeInstantSteal(prompt)
+                    else
+                        hudName.Text = "No target"
+                    end
+                end
+            end
+        end
+        return
     end
 
-    -- fallback: nearest raw prompt scan
-    local prompt, dist, name = findNearestPrompt_Instant()
-    if prompt and dist <= INSTANT_STEAL_RADIUS then
-        hudName.Text = name or "Target"
-        executeInstantSteal(prompt)
-    else
-        hudName.Text = "No target"
-        hudProgressFill.Size = UDim2.new(0,0,1,0)
-    end
+    -- mode normal (non instant) — attemptSteal avec progress tween
+    local pets = get_all_pets()
+    if #pets == 0 then return end
+    if selectedTargetIndex > #pets then selectedTargetIndex = #pets end
+    if selectedTargetIndex < 1    then selectedTargetIndex = 1 end
+    local tp = pets[selectedTargetIndex]
+    if not tp or (not Config.AutoGrabOwnBase and isMyBaseAnimal(tp.animalData)) then return end
+    hudName.Text = tp.petName or "Target"
+    local pr = PromptMemoryCache[tp.uid]
+    if not pr or not pr.Parent then pr = findProximityPromptForAnimal(tp.animalData) end
+    if pr then attemptSteal(pr, tp.uid) end
 end)
 
-print("[AUTO_GRAB] Loaded. Instant Steal + progress bar + brainrot scan active.")
+print("[AUTO_GRAB] Script chargé.")
