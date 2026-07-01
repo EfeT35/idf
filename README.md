@@ -450,165 +450,6 @@ task.spawn(function()
 end)
 
 
--- ═══ Instant Reset ═══
-task.spawn(function()
-    pcall(function()
-        local Players     = game:GetService("Players")
-        local RunService  = game:GetService("RunService")
-        local LocalPlayer = Players.LocalPlayer
-
-        -- Balloon instant reset (via hooked RemoteEvent)
-        local BALLOON_RESET_GUID = "f888ee6e-c86d-46e1-93d7-0639d6635d42"
-        _G._balloonResetRemote   = _G._balloonResetRemote   or nil
-        _G._balloonResetCooldown = _G._balloonResetCooldown or false
-
-        if not _G._balloonResetHookInstalled then
-            _G._balloonResetHookInstalled = true
-            pcall(function()
-                local orig
-                orig = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-                    if not _G._balloonResetRemote and typeof(self) == "Instance"
-                        and self:IsA("RemoteEvent") and self.Name:sub(1, 3) == "RE/" then
-                        _G._balloonResetRemote = self
-                    end
-                    return orig(self, ...)
-                end))
-            end)
-        end
-
-        local function balloonInstaReset()
-            if _G._balloonResetCooldown then return false end
-            local remote = _G._balloonResetRemote
-            if not remote then return false end
-            _G._balloonResetCooldown = true
-            local oldChar = LocalPlayer.Character
-            task.spawn(function()
-                local deadline = tick() + 2
-                while LocalPlayer.Character == oldChar and tick() < deadline do
-                    pcall(function() remote:FireServer(BALLOON_RESET_GUID, LocalPlayer, "balloon") end)
-                    task.wait()
-                end
-                _G._balloonResetCooldown = false
-            end)
-            return true
-        end
-
-        local function executeResetWithAntiDieBypass(onAfterAntiDieRestore)
-            if _G._TpAntiDieLock == true then return end
-
-            local antiDieWasOff = _G.AntiDieDisabled == true
-            _G.AntiDieDisabled = true
-            if _G.AntiDieConnection then
-                pcall(function() _G.AntiDieConnection:Disconnect() end)
-                _G.AntiDieConnection = nil
-            end
-            if _G.AntiDieHeartbeatConnection then
-                pcall(function() _G.AntiDieHeartbeatConnection:Disconnect() end)
-                _G.AntiDieHeartbeatConnection = nil
-            end
-
-            local function restoreAntiDie()
-                if antiDieWasOff then
-                    _G.AntiDieDisabled = true
-                else
-                    _G.AntiDieDisabled = false
-                    if _G.setupAntiDie then pcall(_G.setupAntiDie) end
-                end
-                if onAfterAntiDieRestore then
-                    local cb = onAfterAntiDieRestore
-                    onAfterAntiDieRestore = nil
-                    pcall(cb)
-                end
-            end
-
-            local function armAntiDieRestoreAfterNextSpawn()
-                local conn
-                conn = LocalPlayer.CharacterAdded:Connect(function(newChar)
-                    if conn then conn:Disconnect(); conn = nil end
-                    task.defer(function()
-                        pcall(function() newChar:WaitForChild("Humanoid", 12) end)
-                        RunService.Heartbeat:Wait()
-                        restoreAntiDie()
-                    end)
-                end)
-            end
-
-            local character = LocalPlayer.Character
-            if not character then
-                armAntiDieRestoreAfterNextSpawn()
-                pcall(function() LocalPlayer:LoadCharacter() end)
-                return
-            end
-
-            pcall(function()
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                local rootPart = character:FindFirstChild("HumanoidRootPart")
-                if not (rootPart and humanoid) then return end
-                rootPart.CFrame = CFrame.new(0, 15000, 0)
-                RunService.Heartbeat:Wait()
-                humanoid = character:FindFirstChildOfClass("Humanoid")
-                rootPart = character:FindFirstChild("HumanoidRootPart")
-                if not (humanoid and rootPart) then return end
-                pcall(function() humanoid.Health = 0 end)
-                pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Dead) end)
-                if humanoid.Health > 0 then
-                    pcall(function() humanoid:TakeDamage(humanoid.MaxHealth * 99) end)
-                end
-                if humanoid.Health > 0 then
-                    pcall(function() character:BreakJoints() end)
-                end
-                humanoid = character:FindFirstChildOfClass("Humanoid")
-                rootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoid and rootPart and humanoid.Health > 0 then
-                    pcall(function()
-                        rootPart.CFrame = CFrame.new(
-                            rootPart.Position.X,
-                            workspace.FallenPartsDestroyHeight - 500,
-                            rootPart.Position.Z
-                        )
-                    end)
-                end
-            end)
-
-            armAntiDieRestoreAfterNextSpawn()
-            task.defer(function()
-                pcall(function() LocalPlayer:LoadCharacter() end)
-            end)
-        end
-
-        local function executeReset()
-            if balloonInstaReset() then return end
-            executeResetWithAntiDieBypass(nil)
-        end
-        _G.executeReset  = executeReset
-        _G._executeReset = executeReset
-
-        -- Auto balloon reset (triggered by "jump higher" server event)
-        _G.AutoBalloonResetEnabled = (_G.AutoBalloonResetEnabled ~= false)
-        if not _G._balloonAutoHooked then
-            _G._balloonAutoHooked = true
-            task.spawn(function()
-                local RS = game:GetService("ReplicatedStorage")
-                local function hookEvent(obj)
-                    if not obj:IsA("RemoteEvent") then return end
-                    obj.OnClientEvent:Connect(function(...)
-                        if not _G.AutoBalloonResetEnabled then return end
-                        for _, arg in ipairs({...}) do
-                            if type(arg) == "string" and arg:lower():find("jump higher") then
-                                balloonInstaReset()
-                                return
-                            end
-                        end
-                    end)
-                end
-                for _, obj in ipairs(RS:GetDescendants()) do hookEvent(obj) end
-                RS.DescendantAdded:Connect(hookEvent)
-            end)
-        end
-    end)
-end)
-
-
 -- ═══ Flash TP (velocity-based) ═══
 task.spawn(function()
     pcall(function()
@@ -2007,6 +1848,7 @@ local function _enableAntiDie()
     _antiDieDisabled = false
     _setupAntiDie()
 end
+_G._enableAntiDie = _enableAntiDie
 
 LP.CharacterAdded:Connect(function()
     task.wait(0.3)
@@ -17142,127 +16984,115 @@ end)
 
 print("[CNK INVIS] Chargé ! Touche " .. Config.InvisToggleKey .. " = toggle invis")
 
--- ── Balloon instant-reset (ported from dtc.txt) ─────────────────────────────
--- Captures the game's RE/* reset RemoteEvent and fires it for an instant reset
--- that bypasses normal reset cooldowns. executeReset() tries this first, then
--- falls back to the kill+respawn path below if the remote isn't captured yet.
-local BALLOON_RESET_GUID = "f888ee6e-c86d-46e1-93d7-0639d6635d42"
-_G._balloonResetRemote   = _G._balloonResetRemote or nil
-_G._balloonResetCooldown = _G._balloonResetCooldown or false
+-- ── Balloon instant-reset ────────────────────────────────────────────────────
+do
+	local _Players     = game:GetService("Players")
+	local _RunService  = game:GetService("RunService")
+	local _LP          = _Players.LocalPlayer
 
-if not _G._balloonResetHookInstalled and hookfunction and newcclosure then
-	_G._balloonResetHookInstalled = true
-	pcall(function()
-		local orig
-		orig = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-			if not _G._balloonResetRemote and typeof(self) == "Instance" and self:IsA("RemoteEvent") and self.Name:sub(1, 3) == "RE/" then
-				_G._balloonResetRemote = self
-			end
-			return orig(self, ...)
-		end))
-	end)
-end
+	local BALLOON_RESET_GUID = "f888ee6e-c86d-46e1-93d7-0639d6635d42"
+	_G._balloonResetRemote   = _G._balloonResetRemote   or nil
+	_G._balloonResetCooldown = _G._balloonResetCooldown or false
 
-local function balloonInstaReset()
-	if _G._balloonResetCooldown then return false end
-	local remote = _G._balloonResetRemote
-	if not remote then return false end
-	_G._balloonResetCooldown = true
-	local oldChar = LocalPlayer.Character
-	task.spawn(function()
-		-- PATCH: spam plus agressif, timeout raccourci a 1s
-		local deadline = tick() + 1
-		while LocalPlayer.Character == oldChar and tick() < deadline do
-			for _=1,3 do
-				pcall(function() remote:FireServer(BALLOON_RESET_GUID, LocalPlayer, "balloon") end)
-			end
-			task.wait(0.033) -- ~30fps
-		end
-		_G._balloonResetCooldown = false
-	end)
-	return true
-end
-
-local resetting = false
-
-local function executeReset()
-	if resetting then return end
-	resetting = true
-
-	-- PATCH: signaler que c'est un reset manuel pour bloquer le re-TP auto
-	_G._manualResetActive = true
-	local prevAntiDie = _G.AntiDieDisabled
-	_G.AntiDieDisabled = true
-
-	if _G.AntiDieConnection then
-		pcall(function() _G.AntiDieConnection:Disconnect() end)
-		_G.AntiDieConnection = nil
-	end
-
-	-- PATCH: mettre RespawnTime = 0 AVANT tout le reste
-	pcall(function() Players.RespawnTime = 0 end)
-	pcall(function() game:GetService("Players").RespawnTime = 0 end)
-
-	local char = LocalPlayer.Character
-	if not char then
-		pcall(function() LocalPlayer:LoadCharacter() end)
-		_G.AntiDieDisabled = prevAntiDie
-		resetting = false
-		return
-	end
-
-	-- Restore anti-die once new character spawns
-	local _respawnConn
-	_respawnConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
-		if _respawnConn then _respawnConn:Disconnect(); _respawnConn = nil end
-		task.defer(function()
-			pcall(function() newChar:WaitForChild("Humanoid", 10) end)
-			RunService.Heartbeat:Wait()
-			_G.AntiDieDisabled = prevAntiDie
-			if not prevAntiDie and _G.setupAntiDie then
-				pcall(_G.setupAntiDie)
-			end
-			pcall(_enableAntiDie)
+	if not _G._balloonResetHookInstalled and hookfunction and newcclosure then
+		_G._balloonResetHookInstalled = true
+		pcall(function()
+			local orig
+			orig = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
+				if not _G._balloonResetRemote and typeof(self) == "Instance" and self:IsA("RemoteEvent") and self.Name:sub(1, 3) == "RE/" then
+					_G._balloonResetRemote = self
+				end
+				return orig(self, ...)
+			end))
 		end)
-	end)
+	end
 
-	local hum  = char:FindFirstChildOfClass("Humanoid")
-	local root = char:FindFirstChild("HumanoidRootPart")
-
-	-- PATCH: essayer balloonInstaReset EN MEME TEMPS que les autres methodes
-	task.spawn(function() balloonInstaReset() end)
-
-	if hum and root then
-		-- Fire all kill methods en parallele (sans TP sous la map)
-		pcall(function() hum.Health = 0 end)
-		pcall(function() hum:ChangeState(Enum.HumanoidStateType.Dead) end)
-		pcall(function() hum:TakeDamage(hum.MaxHealth * 999) end)
-		pcall(function() char:BreakJoints() end)
-
-		-- LoadCharacter immediatement en parallele
+	local function balloonInstaReset()
+		if _G._balloonResetCooldown then return false end
+		local remote = _G._balloonResetRemote
+		if not remote then return false end
+		_G._balloonResetCooldown = true
+		local oldChar = _LP.Character
 		task.spawn(function()
-			pcall(function() LocalPlayer:LoadCharacter() end)
+			local deadline = tick() + 1
+			while _LP.Character == oldChar and tick() < deadline do
+				for _=1,3 do pcall(function() remote:FireServer(BALLOON_RESET_GUID, _LP, "balloon") end) end
+				task.wait(0.033)
+			end
+			_G._balloonResetCooldown = false
+		end)
+		return true
+	end
+
+	local resetting = false
+
+	local function executeReset()
+		if resetting then return end
+		resetting = true
+
+		_G._manualResetActive = true
+		local prevAntiDie = _G.AntiDieDisabled
+		_G.AntiDieDisabled = true
+
+		if _G.AntiDieConnection then
+			pcall(function() _G.AntiDieConnection:Disconnect() end)
+			_G.AntiDieConnection = nil
+		end
+
+		pcall(function() _Players.RespawnTime = 0 end)
+		pcall(function() game:GetService("Players").RespawnTime = 0 end)
+
+		local char = _LP.Character
+		if not char then
+			pcall(function() _LP:LoadCharacter() end)
+			_G.AntiDieDisabled = prevAntiDie
+			resetting = false
+			return
+		end
+
+		local _respawnConn
+		_respawnConn = _LP.CharacterAdded:Connect(function(newChar)
+			if _respawnConn then _respawnConn:Disconnect(); _respawnConn = nil end
+			task.defer(function()
+				pcall(function() newChar:WaitForChild("Humanoid", 10) end)
+				_RunService.Heartbeat:Wait()
+				_G.AntiDieDisabled = prevAntiDie
+				if not prevAntiDie and _G.setupAntiDie then pcall(_G.setupAntiDie) end
+				if _G._enableAntiDie then pcall(_G._enableAntiDie) end
+			end)
+		end)
+
+		local hum  = char:FindFirstChildOfClass("Humanoid")
+
+		task.spawn(function() balloonInstaReset() end)
+
+		if hum then
+			pcall(function() hum.Health = 0 end)
+			pcall(function() hum:ChangeState(Enum.HumanoidStateType.Dead) end)
+			pcall(function() hum:TakeDamage(hum.MaxHealth * 999) end)
+			pcall(function() char:BreakJoints() end)
+			task.spawn(function() pcall(function() _LP:LoadCharacter() end) end)
+		end
+
+		task.spawn(function()
+			local origChar = char
+			task.wait(0.05)
+			local i = 0
+			while _LP.Character == origChar and i < 20 do
+				pcall(function() _LP:LoadCharacter() end)
+				task.wait(0.033)
+				i = i + 1
+			end
+			task.wait(0.2)
+			if _respawnConn then
+				_respawnConn:Disconnect(); _respawnConn = nil
+				_G.AntiDieDisabled = prevAntiDie
+			end
+			resetting = false
 		end)
 	end
 
-	-- PATCH: loop agressive demarre apres 0.05s au lieu de 0.2s
-	task.spawn(function()
-		local origChar = char
-		task.wait(0.05)
-		local i = 0
-		while LocalPlayer.Character == origChar and i < 20 do
-			pcall(function() LocalPlayer:LoadCharacter() end)
-			task.wait(0.033)
-			i = i + 1
-		end
-		task.wait(0.2)
-		if _respawnConn then
-			_respawnConn:Disconnect(); _respawnConn = nil
-			_G.AntiDieDisabled = prevAntiDie
-		end
-		resetting = false
-	end)
+	_G._executeReset = executeReset
+	_G.executeReset  = executeReset
 end
-_G._executeReset = executeReset
-_G.executeReset   = executeReset
 
