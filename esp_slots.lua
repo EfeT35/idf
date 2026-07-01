@@ -105,8 +105,45 @@ local function scanPlot(plot)
     local myPlot  = isMyPlot(plot)
     local seen    = {}
 
-    local plotPos = Vector3.new(0, 0, 0)
-    pcall(function() plotPos = plot:GetPivot().Position end)
+    -- Collecter les positions réelles des slots existants par étage (0,1,2)
+    -- pour pouvoir extrapoler les slots manquants au bon endroit
+    local floorPositions = {}  -- floor index → liste de positions Y
+    local floorBases     = {}  -- floor index → position XZ de référence
+    if podiums then
+        for _, pod in ipairs(podiums:GetChildren()) do
+            local slotNum = tonumber(pod.Name)
+            if slotNum then
+                local floorIdx = math.floor((slotNum - 1) / 9)
+                local part = getSlotPart(pod)
+                if part then
+                    local pos = part.Position
+                    if not floorPositions[floorIdx] then
+                        floorPositions[floorIdx] = {}
+                        floorBases[floorIdx] = pos
+                    end
+                    table.insert(floorPositions[floorIdx], pos)
+                end
+            end
+        end
+    end
+
+    -- hauteur moyenne par étage
+    local floorY = {}
+    for fi, positions in pairs(floorPositions) do
+        local sum = 0
+        for _, p in ipairs(positions) do sum = sum + p.Y end
+        floorY[fi] = sum / #positions
+    end
+
+    -- si l'étage 0 existe, on peut extrapoler les autres
+    local baseY   = floorY[0] or 0
+    local floorH  = (floorY[1] and floorY[0]) and (floorY[1] - floorY[0]) or 4
+    -- position XZ de référence (étage 0 ou pivot du plot)
+    local refPos  = Vector3.new(0, 0, 0)
+    pcall(function() refPos = plot:GetPivot().Position end)
+    if floorBases[0] then
+        refPos = Vector3.new(floorBases[0].X, refPos.Y, floorBases[0].Z)
+    end
 
     for slot = 1, TOTAL_SLOTS do
         local key = plot.Name .. "_" .. slot
@@ -122,28 +159,32 @@ local function scanPlot(plot)
 
         if part then
             if d then
-                -- avait un placeholder avant → recréer
                 if d.placeholder then
                     d.placeholder:Destroy()
                     d.highlight:Destroy()
                     slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
                 else
-                    d.highlight.FillColor    = color
-                    d.highlight.OutlineColor = color
-                    d.highlight.Adornee      = part
+                    d.highlight.Color3        = color
+                    d.highlight.SurfaceColor3 = color
+                    d.highlight.Adornee       = part
                 end
             else
                 slotData[key] = { highlight = makeHighlight(part, color), placeholder = nil }
             end
         else
-            -- pas de géométrie → placeholder
-            local col    = (slot - 1) % 9
-            local row    = math.floor((slot - 1) / 9)
-            local pos    = plotPos + Vector3.new(col * 6 - 24, 0.1 + row * 4, 0)
+            -- placeholder : position calculée sur la grille 9×3
+            local col     = (slot - 1) % 9
+            local floorIdx = math.floor((slot - 1) / 9)
+            local y       = (floorY[floorIdx] or (baseY + floorIdx * floorH))
+            local pos     = Vector3.new(
+                refPos.X + (col - 4) * 6,
+                y,
+                refPos.Z
+            )
 
             if d then
-                d.highlight.FillColor    = color
-                d.highlight.OutlineColor = color
+                d.highlight.Color3        = color
+                d.highlight.SurfaceColor3 = color
                 if d.placeholder then
                     d.placeholder.CFrame = CFrame.new(pos)
                 end
