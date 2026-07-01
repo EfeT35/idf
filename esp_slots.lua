@@ -107,25 +107,36 @@ local function scanPlot(plot)
     local myPlot  = isMyPlot(plot.Name)
     local seen    = {}
 
-    -- 1. Collecter les bases réelles du rez-de-chaussée (slots 1-9)
-    local floor0 = {}  -- localSlot(1-9) → BasePart "Base"
+    -- helper : récupère la BasePart principale d'une Base Model
+    local function getBasePart(base)
+        if not base then return nil end
+        if base:IsA("BasePart") then return base end
+        local spawn = base:FindFirstChild("Spawn")
+        if spawn and spawn:IsA("BasePart") then return spawn end
+        return base:FindFirstChildWhichIsA("BasePart")
+    end
+
+    -- 1. Collecter les BaseParts réelles du rez-de-chaussée (slots 1-9)
+    local floor0 = {}  -- localSlot(1-9) → BasePart
     if podiums then
         for s = 1, 9 do
             local pod  = podiums:FindFirstChild(tostring(s))
             local base = getSlotBase(pod)
-            if base then floor0[s] = base end
+            local bp   = getBasePart(base)
+            if bp then floor0[s] = bp end
         end
     end
 
-    -- 2. Détecter la hauteur entre étages
+    -- 2. Détecter la hauteur entre étages en cherchant un slot sur l'étage 2 (10-18)
     local floorHeight = FLOOR_HEIGHT_DEFAULT
     if podiums then
         for s = 10, 18 do
             local pod  = podiums:FindFirstChild(tostring(s))
             local base = getSlotBase(pod)
+            local bp   = getBasePart(base)
             local ref  = floor0[s - 9]
-            if base and ref and base:IsA("BasePart") and ref:IsA("BasePart") then
-                local h = math.abs(base.Position.Y - ref.Position.Y)
+            if bp and ref then
+                local h = math.abs(bp.Position.Y - ref.Position.Y)
                 if h > 0.5 then floorHeight = h break end
             end
         end
@@ -167,11 +178,8 @@ local function scanPlot(plot)
             local ref = floor0[localSlot]
             if not ref then continue end  -- pas de référence → skip
 
-            local refBase = ref:IsA("BasePart") and ref or ref:FindFirstChildWhichIsA("BasePart")
-            if not refBase then continue end
-
-            local newCF   = refBase.CFrame + Vector3.new(0, floorHeight * floorIdx, 0)
-            local newSize = refBase.Size
+            local newCF   = ref.CFrame + Vector3.new(0, floorHeight * floorIdx, 0)
+            local newSize = ref.Size
 
             if existing then
                 existing.pad.Color3        = color
