@@ -2050,9 +2050,26 @@ local function goToBrainrot(petData)
         pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
         hrp.Anchored = true
         task.spawn(function()
-            -- Maintenir la position jusqu'à la fin du steal (max 8s)
+            local _UIS = game:GetService("UserInputService")
+            local _moveKeys = {
+                [Enum.KeyCode.W]=true,[Enum.KeyCode.A]=true,
+                [Enum.KeyCode.S]=true,[Enum.KeyCode.D]=true,
+                [Enum.KeyCode.Up]=true,[Enum.KeyCode.Down]=true,
+                [Enum.KeyCode.Left]=true,[Enum.KeyCode.Right]=true,
+            }
+            local function _playerMoving()
+                for kc in pairs(_moveKeys) do
+                    if _UIS:IsKeyDown(kc) then return true end
+                end
+                -- Mobile: thumbstick
+                local mv = _UIS:GetKeysPressed()
+                if #mv > 0 then return true end
+                return false
+            end
+
             local _t0 = tick()
             while isTeleporting and tick() - _t0 < 8 do
+                if _playerMoving() then break end
                 local _c2 = LP.Character
                 local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
                 if not _hrp2 or not _hrp2.Parent then break end
