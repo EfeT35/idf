@@ -24,7 +24,7 @@ local COLOR_OWN             = Color3.fromRGB(80,  150, 255)
 local PLATFORM_TRANSPARENCY = 0.35
 local OUTLINE_THICKNESS     = 0.12
 local UPDATE_RATE           = 1.5
-local TOTAL_SLOTS           = 27
+local TOTAL_SLOTS           = 30
 
 local floorOffsets = { [0]=0, [1]=16, [2]=34 }
 
