@@ -2050,10 +2050,9 @@ local function goToBrainrot(petData)
         pcall(function() hrp.CFrame = CFrame.new(snapPos) end)
         hrp.Anchored = true
         task.spawn(function()
-            -- Maintenir la position en boucle (re-ancrer si le jeu force le déancrage)
+            -- Maintenir la position jusqu'à la fin du steal (max 8s)
             local _t0 = tick()
-            local _stayPos = snapPos
-            while tick() - _t0 < 5 do
+            while isTeleporting and tick() - _t0 < 8 do
                 local _c2 = LP.Character
                 local _hrp2 = _c2 and _c2:FindFirstChild("HumanoidRootPart")
                 if not _hrp2 or not _hrp2.Parent then break end
