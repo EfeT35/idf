@@ -1,4 +1,4 @@
--- v21
+-- v22
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3938,7 +3938,7 @@ do
                         _autoBuyActive = false; _stopHover(); break
                     end
                     _fireObj(_autoBuyObj, _autoBuyIsClick)
-                    task.wait(0.08)
+                    task.wait()
                 end
             end)
         end
