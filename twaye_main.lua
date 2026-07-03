@@ -1,4 +1,4 @@
--- v32
+-- v33
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3899,13 +3899,65 @@ do
             if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end); _autoBuyWatchConn = nil end
         end
 
+        -- Hover : colle le HRP sur le brainrot (utilise le Model entier pour la position)
+        local _hoverConn = nil
+        local function _stopHover()
+            if _hoverConn then pcall(function() _hoverConn:Disconnect() end); _hoverConn = nil end
+        end
+        local function _startHover(targetPart)
+            _stopHover()
+            local RS  = game:GetService("RunService")
+            local LP2 = game:GetService("Players").LocalPlayer
+            _hoverConn = RS.Heartbeat:Connect(function()
+                if not _autoBuyActive or not targetPart or not targetPart.Parent then _stopHover(); return end
+                local char = LP2.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                pcall(function()
+                    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+            end)
+        end
 
-        -- Toggle : 1er appui = buy en boucle (sans bouger), 2ème appui = stop
+        local function _getModelCenter(obj)
+            -- Remonte jusqu'au Model parent du prompt, retourne son PrimaryPart ou centre de bounding box
+            local cur = obj.Parent
+            for _ = 1, 8 do
+                if not cur then break end
+                if cur:IsA("Model") then
+                    if cur.PrimaryPart then return cur.PrimaryPart end
+                    -- bounding box center
+                    local ok, cf, size = pcall(function() return cur:GetBoundingBox() end)
+                    if ok and cf then
+                        local part = Instance.new("Part")
+                        part.Size = Vector3.new(1,1,1)
+                        part.Anchored = true
+                        part.CFrame = cf
+                        part.Parent = workspace
+                        task.delay(0, function() part:Destroy() end)
+                        -- just return the BasePart parent of the prompt as fallback
+                    end
+                    -- fallback: first BasePart in model
+                    for _, d in ipairs(cur:GetDescendants()) do
+                        if d:IsA("BasePart") then return d end
+                    end
+                end
+                cur = cur.Parent
+            end
+            -- fallback: direct BasePart parent
+            local part = obj.Parent
+            return (part and part:IsA("Attachment") and part.Parent) or (part and part:IsA("BasePart") and part) or nil
+        end
+
+        -- Toggle : 1er appui = hover sur brainrot + buy en boucle, 2ème appui = stop
         _G.MeerkoToggleAutoBuy = function()
             if _autoBuyActive then
                 _autoBuyActive = false
                 _autoBuyObj    = nil
                 _stopWatcher()
+                _stopHover()
                 return
             end
             local obj, isClick = _findBuyTarget()
@@ -3914,13 +3966,27 @@ do
             _autoBuyActive  = true
             _startWatcher()
 
-            -- 8 threads parallèles sur la cible existante
             if obj then
+                -- Snap + hover sur le brainrot
+                local anchorPart = _getModelCenter(obj)
+                if anchorPart then
+                    local LP2 = game:GetService("Players").LocalPlayer
+                    local char = LP2 and LP2.Character
+                    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        pcall(function()
+                            hrp.CFrame = CFrame.new(anchorPart.Position + Vector3.new(0, 5, 0))
+                            hrp.AssemblyLinearVelocity = Vector3.zero
+                        end)
+                    end
+                    _startHover(anchorPart)
+                end
+                -- Buy en boucle
                 for _ = 1, 8 do
                     task.spawn(function()
                         while _autoBuyActive do
                             if not _autoBuyObj or not _autoBuyObj.Parent then
-                                _autoBuyActive = false; break
+                                _autoBuyActive = false; _stopHover(); break
                             end
                             _fireObj(_autoBuyObj, _autoBuyIsClick)
                             task.wait()
