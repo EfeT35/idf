@@ -1,4 +1,4 @@
--- v17
+-- v18
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3040,6 +3040,7 @@ do
         CarpetSpeedKey  = "Q",
         ItemDropKey     = "G",
         BrainrotDropKey = "H",
+        AutoBuyKey      = "N",
         CancelTPKey     = "X",
     }
     _G.MeerkoConfig = Config
@@ -7309,6 +7310,10 @@ end)
                         if root and root.Parent then root.Velocity = Vector3.new(0, 0, 0) end
                     end)
                 end)
+            elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
+                Config.AutoBuyCarpet = not Config.AutoBuyCarpet
+                if SaveConfig then pcall(SaveConfig) end
+                if _G.MeerkoAutoBuyCarpet then pcall(_G.MeerkoAutoBuyCarpet, Config.AutoBuyCarpet) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
@@ -9099,6 +9104,7 @@ end)
         addKeybindRow(host2, "Carpet Speed", "CarpetSpeedKey")
         addKeybindRow(host2, "Item Drop", "ItemDropKey")
         addKeybindRow(host2, "Drop Brainrot", "BrainrotDropKey")
+        addKeybindRow(host2, "Auto Buy", "AutoBuyKey")
         addKeybindRow(host2, "Cancel TP", "CancelTPKey")
         addKeybindRow(host2, "Reset", "ResetKey")
         addKeybindRow(host2, "Rejoin", "RejoinKey")
@@ -11102,6 +11108,7 @@ end)
         sBinds:AddKeybind({ Text = "Auto Clone",   Get = function() return Config.CloneKey end,       Set = function(k) Config.CloneKey = k;       if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Carpet Speed", Get = function() return Config.CarpetSpeedKey end, Set = function(k) Config.CarpetSpeedKey = k; if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Drop Brainrot", Get = function() return Config.BrainrotDropKey end, Set = function(k) Config.BrainrotDropKey = k; if SaveConfig then pcall(SaveConfig) end end })
+        sBinds:AddKeybind({ Text = "Auto Buy",      Get = function() return Config.AutoBuyKey end,      Set = function(k) Config.AutoBuyKey = k;      if SaveConfig then pcall(SaveConfig) end end })
         local sActions = tabKeys:AddSection("right", "ACTIONS")
         sActions:AddKeybind({ Text = "Reset",       Get = function() return Config.ResetKey end,  Set = function(k) Config.ResetKey = k;  if SaveConfig then pcall(SaveConfig) end end })
         sActions:AddKeybind({ Text = "Rejoin",      Get = function() return Config.RejoinKey end, Set = function(k) Config.RejoinKey = k; if SaveConfig then pcall(SaveConfig) end end })
