@@ -1,4 +1,4 @@
--- v18
+-- v19
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3810,6 +3810,64 @@ do
             Config.AutoBuyCarpet = state and true or false
             if SaveConfig then pcall(SaveConfig) end
         end
+
+        -- Scan et fire le premier prompt/click achetable dans le workspace
+        local _STEAL_NAMES = { StealHitbox=true, DeliveryHitbox=true, LaserHitbox=true }
+        local function _doBuy()
+            local LP2   = game:GetService("Players").LocalPlayer
+            local char  = LP2 and LP2.Character
+            local hrp   = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            local best, bestDist = nil, math.huge
+            for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
+                local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
+                local isClick  = obj:IsA("ClickDetector")
+                if isPrompt or isClick then
+                    local part = obj.Parent
+                    local realPart = (part and part:IsA("Attachment") and part.Parent) or part
+                    if realPart and realPart:IsA("BasePart") and not _STEAL_NAMES[realPart.Name] then
+                        local atxt = isPrompt and (obj.ActionText or ""):lower() or ""
+                        local otxt = isPrompt and (obj.ObjectText or ""):lower() or ""
+                        local pname = realPart.Name:lower()
+                        local hit = atxt:find("buy") or atxt:find("purchase") or atxt:find("shop")
+                                 or atxt:find("carpet") or atxt:find("get") or atxt:find("acheter")
+                                 or otxt:find("buy") or otxt:find("carpet") or otxt:find("shop")
+                                 or pname:find("buy") or pname:find("shop") or pname:find("carpet")
+                        if hit then
+                            local d = (hrp.Position - realPart.Position).Magnitude
+                            if d < bestDist then bestDist = d; best = { obj = obj, isClick = isClick } end
+                        end
+                    end
+                end
+            end
+
+            if not best then
+                -- fallback: fire ALL prompts/clicks nearby (within 60 studs), excluding steal hitboxes
+                for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
+                    local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
+                    local isClick  = obj:IsA("ClickDetector")
+                    if isPrompt or isClick then
+                        local part = obj.Parent
+                        local realPart = (part and part:IsA("Attachment") and part.Parent) or part
+                        if realPart and realPart:IsA("BasePart") and not _STEAL_NAMES[realPart.Name] then
+                            local d = (hrp.Position - realPart.Position).Magnitude
+                            if d < bestDist and d < 60 then bestDist = d; best = { obj = obj, isClick = isClick } end
+                        end
+                    end
+                end
+            end
+
+            if not best then return end
+            local obj = best.obj
+            if best.isClick then
+                pcall(function() if fireclickdetector then fireclickdetector(obj) end end)
+            else
+                pcall(function() if fireproximityprompt then fireproximityprompt(obj) end end)
+            end
+        end
+
+        _G.MeerkoFireAutoBuy = _doBuy
     end
 
 
@@ -7311,9 +7369,7 @@ end)
                     end)
                 end)
             elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
-                Config.AutoBuyCarpet = not Config.AutoBuyCarpet
-                if SaveConfig then pcall(SaveConfig) end
-                if _G.MeerkoAutoBuyCarpet then pcall(_G.MeerkoAutoBuyCarpet, Config.AutoBuyCarpet) end
+                if _G.MeerkoFireAutoBuy then pcall(_G.MeerkoFireAutoBuy) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
