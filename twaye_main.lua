@@ -1,4 +1,4 @@
--- v29
+-- v30
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3927,50 +3927,33 @@ do
             end)
         end
 
-        -- Toggle : 1er appui = snap + hover sur le brainrot + buy en boucle, 2ème appui = stop
+        -- Toggle : 1er appui = buy en boucle (sans bouger), 2ème appui = stop
         _G.MeerkoToggleAutoBuy = function()
             if _autoBuyActive then
                 _autoBuyActive = false
                 _autoBuyObj    = nil
-                _stopHover()
                 _stopWatcher()
                 return
             end
             local obj, isClick = _findBuyTarget()
-            -- Active même sans cible : le watcher intercepte les futurs prompts
             _autoBuyObj     = obj
             _autoBuyIsClick = isClick
             _autoBuyActive  = true
             _startWatcher()
 
-            -- Trouver la BasePart parent pour le hover
-            local part = obj.Parent
-            local targetPart = (part and part:IsA("Attachment") and part.Parent) or part
-            if targetPart and targetPart:IsA("BasePart") then
-                -- Snap immédiat dessus
-                local LP2 = game:GetService("Players").LocalPlayer
-                local char = LP2 and LP2.Character
-                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    pcall(function()
-                        hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
-                        hrp.AssemblyLinearVelocity = Vector3.zero
+            -- 8 threads parallèles sur la cible existante
+            if obj then
+                for _ = 1, 8 do
+                    task.spawn(function()
+                        while _autoBuyActive do
+                            if not _autoBuyObj or not _autoBuyObj.Parent then
+                                _autoBuyActive = false; break
+                            end
+                            _fireObj(_autoBuyObj, _autoBuyIsClick)
+                            task.wait()
+                        end
                     end)
                 end
-                _startHover(targetPart)
-            end
-
-            -- 8 threads parallèles pour maximiser les fires par seconde
-            for _ = 1, 8 do
-                task.spawn(function()
-                    while _autoBuyActive do
-                        if not _autoBuyObj or not _autoBuyObj.Parent then
-                            _autoBuyActive = false; _stopHover(); break
-                        end
-                        _fireObj(_autoBuyObj, _autoBuyIsClick)
-                        task.wait()
-                    end
-                end)
             end
         end
     end
