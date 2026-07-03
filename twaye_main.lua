@@ -1,4 +1,4 @@
--- v19
+-- v20
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3811,15 +3811,18 @@ do
             if SaveConfig then pcall(SaveConfig) end
         end
 
-        -- Scan et fire le premier prompt/click achetable dans le workspace
         local _STEAL_NAMES = { StealHitbox=true, DeliveryHitbox=true, LaserHitbox=true }
-        local function _doBuy()
-            local LP2   = game:GetService("Players").LocalPlayer
-            local char  = LP2 and LP2.Character
-            local hrp   = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
+        local _autoBuyActive = false
+        local _autoBuyObj    = nil
+        local _autoBuyIsClick = false
 
+        local function _findBuyTarget()
+            local LP2  = game:GetService("Players").LocalPlayer
+            local char = LP2 and LP2.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return nil, false end
             local best, bestDist = nil, math.huge
+            local bestClick = false
             for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
                 local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
                 local isClick  = obj:IsA("ClickDetector")
@@ -3836,14 +3839,13 @@ do
                                  or pname:find("buy") or pname:find("shop") or pname:find("carpet")
                         if hit then
                             local d = (hrp.Position - realPart.Position).Magnitude
-                            if d < bestDist then bestDist = d; best = { obj = obj, isClick = isClick } end
+                            if d < bestDist then bestDist = d; best = obj; bestClick = isClick end
                         end
                     end
                 end
             end
-
+            -- fallback: nearest prompt/click dans 60 studs
             if not best then
-                -- fallback: fire ALL prompts/clicks nearby (within 60 studs), excluding steal hitboxes
                 for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
                     local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
                     local isClick  = obj:IsA("ClickDetector")
@@ -3852,22 +3854,47 @@ do
                         local realPart = (part and part:IsA("Attachment") and part.Parent) or part
                         if realPart and realPart:IsA("BasePart") and not _STEAL_NAMES[realPart.Name] then
                             local d = (hrp.Position - realPart.Position).Magnitude
-                            if d < bestDist and d < 60 then bestDist = d; best = { obj = obj, isClick = isClick } end
+                            if d < bestDist and d < 60 then bestDist = d; best = obj; bestClick = isClick end
                         end
                     end
                 end
             end
-
-            if not best then return end
-            local obj = best.obj
-            if best.isClick then
-                pcall(function() if fireclickdetector then fireclickdetector(obj) end end)
-            else
-                pcall(function() if fireproximityprompt then fireproximityprompt(obj) end end)
-            end
+            return best, bestClick
         end
 
-        _G.MeerkoFireAutoBuy = _doBuy
+        local function _fireObj(obj, isClick)
+            if not obj or not obj.Parent then return false end
+            if isClick then
+                pcall(function() if fireclickdetector then fireclickdetector(obj) end end)
+            else
+                if not obj.Enabled then return false end
+                pcall(function() if fireproximityprompt then fireproximityprompt(obj) end end)
+            end
+            return true
+        end
+
+        -- Toggle : 1er appui = lock sur le brainrot et buy en boucle, 2ème appui = stop
+        _G.MeerkoToggleAutoBuy = function()
+            if _autoBuyActive then
+                _autoBuyActive = false
+                _autoBuyObj    = nil
+                return
+            end
+            local obj, isClick = _findBuyTarget()
+            if not obj then return end
+            _autoBuyObj    = obj
+            _autoBuyIsClick = isClick
+            _autoBuyActive = true
+            task.spawn(function()
+                while _autoBuyActive do
+                    if not _autoBuyObj or not _autoBuyObj.Parent then
+                        _autoBuyActive = false; break
+                    end
+                    _fireObj(_autoBuyObj, _autoBuyIsClick)
+                    task.wait(0.08)
+                end
+            end)
+        end
     end
 
 
@@ -7369,7 +7396,7 @@ end)
                     end)
                 end)
             elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
-                if _G.MeerkoFireAutoBuy then pcall(_G.MeerkoFireAutoBuy) end
+                if _G.MeerkoToggleAutoBuy then pcall(_G.MeerkoToggleAutoBuy) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
