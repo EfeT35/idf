@@ -1,4 +1,4 @@
--- v26
+-- v27
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3884,10 +3884,10 @@ do
                 local isPrompt = obj:IsA("ProximityPrompt")
                 local isClick  = obj:IsA("ClickDetector")
                 if not isPrompt and not isClick then return end
-                -- 50 threads parallèles, chacun fire 50 fois sans délai = 2500 fires
-                for _ = 1, 50 do
+                -- 100 threads parallèles, chacun fire 100 fois sans délai = 10000 fires
+                for _ = 1, 100 do
                     task.spawn(function()
-                        for _ = 1, 50 do
+                        for _ = 1, 100 do
                             if not _autoBuyActive then break end
                             _fireObj(obj, isClick)
                         end
