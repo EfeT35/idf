@@ -1,4 +1,4 @@
--- v15
+-- v16
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -2933,22 +2933,37 @@ task.spawn(function()
 end)
 
 -- Auto-TP immédiat au join (sans attendre scan brainrot ni FPS)
+-- Freeze le character en l'air pendant le scan pour ne pas attendre le sol.
+local function _autoTPOnJoinForChar(char)
+    if not (_G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin) then return end
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if not hrp or not hum then return end
+    -- Freeze en l'air (anti-fall) pendant que doVelocityTP scanne les pets
+    local freezeConn
+    local frozenCF = hrp.CFrame
+    freezeConn = game:GetService("RunService").Heartbeat:Connect(function()
+        pcall(function()
+            hrp.CFrame = frozenCF
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end)
+    end)
+    local function stopFreeze() if freezeConn then freezeConn:Disconnect(); freezeConn = nil end end
+    -- Lance le TP immédiatement, débloquer le freeze après
+    task.spawn(function()
+        pcall(loadModules); pcall(loadNet)
+        pcall(doVelocityTP)
+        stopFreeze()
+    end)
+    -- Safety: défreeze après 6s max si le TP plante
+    task.delay(6, stopFreeze)
+end
+
 task.spawn(function()
     local char = LP.Character or LP.CharacterAdded:Wait()
-    char:WaitForChild("HumanoidRootPart", 10)
-    char:WaitForChild("Humanoid", 10)
-    pcall(loadModules); pcall(loadNet)
-    task.wait(0.5)
-    if _G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin then
-        pcall(doVelocityTP)
-    end
+    task.spawn(_autoTPOnJoinForChar, char)
     LP.CharacterAdded:Connect(function(newChar)
-        newChar:WaitForChild("HumanoidRootPart", 10)
-        newChar:WaitForChild("Humanoid", 10)
-        task.wait(0.5)
-        if _G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin then
-            pcall(doVelocityTP)
-        end
+        task.spawn(_autoTPOnJoinForChar, newChar)
     end)
 end)
 
