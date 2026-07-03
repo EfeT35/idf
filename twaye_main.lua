@@ -1,4 +1,4 @@
--- v13
+-- v14
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -2977,7 +2977,7 @@ do
         InvisRotation   = 225,
         InvisDepth      = 7,
         InvisWalkSpeed  = 16,
-        AutoBuyCarpet   = false,
+        AutoBuyCarpet   = true,
         AutoBuyMinGen   = 1000000,
         AutoKickOnSteal = false,
         AutoTPOnJoin    = false,
