@@ -1,4 +1,4 @@
--- v23
+-- v24
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3873,6 +3873,31 @@ do
             return true
         end
 
+        -- Watcher : dès qu'un nouveau ProximityPrompt/ClickDetector apparaît dans le workspace,
+        -- si le auto buy est actif et que c'est le même objet locké, on fire immédiatement.
+        -- Ça intercepte le prompt avant n'importe qui d'autre.
+        local _autoBuyWatchConn = nil
+        local function _startWatcher()
+            if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end) end
+            _autoBuyWatchConn = game:GetService("Workspace").DescendantAdded:Connect(function(obj)
+                if not _autoBuyActive then return end
+                local isPrompt = obj:IsA("ProximityPrompt")
+                local isClick  = obj:IsA("ClickDetector")
+                if not isPrompt and not isClick then return end
+                -- Fire immédiatement 5 fois dès l'apparition
+                task.spawn(function()
+                    for _ = 1, 5 do
+                        if not _autoBuyActive then break end
+                        _fireObj(obj, isClick)
+                        task.wait()
+                    end
+                end)
+            end)
+        end
+        local function _stopWatcher()
+            if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end); _autoBuyWatchConn = nil end
+        end
+
         local _autoBuyHoverConn = nil
         local function _stopHover()
             if _autoBuyHoverConn then
@@ -3907,6 +3932,7 @@ do
                 _autoBuyActive = false
                 _autoBuyObj    = nil
                 _stopHover()
+                _stopWatcher()
                 return
             end
             local obj, isClick = _findBuyTarget()
@@ -3914,6 +3940,7 @@ do
             _autoBuyObj     = obj
             _autoBuyIsClick = isClick
             _autoBuyActive  = true
+            _startWatcher()
 
             -- Trouver la BasePart parent pour le hover
             local part = obj.Parent
