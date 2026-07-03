@@ -1,4 +1,4 @@
--- v30
+-- v31
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3899,33 +3899,6 @@ do
             if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end); _autoBuyWatchConn = nil end
         end
 
-        local _autoBuyHoverConn = nil
-        local function _stopHover()
-            if _autoBuyHoverConn then
-                pcall(function() _autoBuyHoverConn:Disconnect() end)
-                _autoBuyHoverConn = nil
-            end
-        end
-
-        local function _startHover(targetPart)
-            _stopHover()
-            local RS = game:GetService("RunService")
-            local LP2 = game:GetService("Players").LocalPlayer
-            _autoBuyHoverConn = RS.Heartbeat:Connect(function()
-                if not _autoBuyActive or not targetPart or not targetPart.Parent then
-                    _stopHover(); return
-                end
-                local char = LP2.Character
-                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-                local dest = targetPart.Position + Vector3.new(0, 5, 0)
-                pcall(function()
-                    hrp.CFrame = CFrame.new(dest, dest + hrp.CFrame.LookVector)
-                    hrp.AssemblyLinearVelocity  = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                end)
-            end)
-        end
 
         -- Toggle : 1er appui = buy en boucle (sans bouger), 2ème appui = stop
         _G.MeerkoToggleAutoBuy = function()
