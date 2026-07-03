@@ -1,4 +1,4 @@
--- v28
+-- v29
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3942,17 +3942,6 @@ do
             _autoBuyIsClick = isClick
             _autoBuyActive  = true
             _startWatcher()
-            -- Fire immédiatement si on a déjà une cible
-            if obj then
-                for _ = 1, 100 do
-                    task.spawn(function()
-                        for _ = 1, 100 do
-                            if not _autoBuyActive then break end
-                            _fireObj(obj, isClick)
-                        end
-                    end)
-                end
-            end
 
             -- Trouver la BasePart parent pour le hover
             local part = obj.Parent
