@@ -1,4 +1,4 @@
--- v22
+-- v23
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3932,15 +3932,18 @@ do
                 _startHover(targetPart)
             end
 
-            task.spawn(function()
-                while _autoBuyActive do
-                    if not _autoBuyObj or not _autoBuyObj.Parent then
-                        _autoBuyActive = false; _stopHover(); break
+            -- 8 threads parallèles pour maximiser les fires par seconde
+            for _ = 1, 8 do
+                task.spawn(function()
+                    while _autoBuyActive do
+                        if not _autoBuyObj or not _autoBuyObj.Parent then
+                            _autoBuyActive = false; _stopHover(); break
+                        end
+                        _fireObj(_autoBuyObj, _autoBuyIsClick)
+                        task.wait()
                     end
-                    _fireObj(_autoBuyObj, _autoBuyIsClick)
-                    task.wait()
-                end
-            end)
+                end)
+            end
         end
     end
 
