@@ -1,3 +1,4 @@
+-- v11
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -22,6 +23,31 @@ local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS        = game:GetService("UserInputService")
 local RS         = game:GetService("ReplicatedStorage")
+
+-- Game Stretcher
+local _STRETCH_MAT  = CFrame.new(0, 0, 0, 1, 0, 0, 0, 0.8, 0, 0, 0, 1)
+local _stretchBound = false
+local function _bindStretch()
+    if _stretchBound then return end
+    _stretchBound = true
+    pcall(function()
+        RunService:BindToRenderStep("MeerkoGameStretch", 2001, function()
+            if not (_G.MeerkoConfig and _G.MeerkoConfig.GameStretcher) then
+                pcall(function() RunService:UnbindFromRenderStep("MeerkoGameStretch") end)
+                _stretchBound = false
+                return
+            end
+            local cam = workspace.CurrentCamera
+            if cam then cam.CFrame = cam.CFrame * _STRETCH_MAT end
+        end)
+    end)
+end
+local function _unbindStretch()
+    _stretchBound = false
+    pcall(function() RunService:UnbindFromRenderStep("MeerkoGameStretch") end)
+end
+_G.MeerkoStretchEnable  = _bindStretch
+_G.MeerkoStretchDisable = _unbindStretch
 
 
 local LP = Players.LocalPlayer
@@ -2906,6 +2932,26 @@ task.spawn(function()
     end
 end)
 
+-- Auto-TP immédiat au join (sans attendre scan brainrot ni FPS)
+task.spawn(function()
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    char:WaitForChild("HumanoidRootPart", 10)
+    char:WaitForChild("Humanoid", 10)
+    pcall(loadModules); pcall(loadNet)
+    task.wait(0.5)
+    if _G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin then
+        pcall(doVelocityTP)
+    end
+    LP.CharacterAdded:Connect(function(newChar)
+        newChar:WaitForChild("HumanoidRootPart", 10)
+        newChar:WaitForChild("Humanoid", 10)
+        task.wait(0.5)
+        if _G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin then
+            pcall(doVelocityTP)
+        end
+    end)
+end)
+
 -- Manual trigger is handled by the Side-TP UI panel's rebindable keybind
 -- (default T), so the old hardcoded handler is removed to avoid a conflict.
 
@@ -2934,6 +2980,11 @@ do
         AutoBuyCarpet   = false,
         AutoBuyMinGen   = 1000000,
         AutoKickOnSteal = false,
+        AutoTPOnJoin    = false,
+        GameStretcher   = false,
+        AutoTPToPSOnSteal = false,
+        PSLinkCode      = "",
+        PSPlaceId       = "",
         ShowAdminPanel  = false,
         ClickToAP       = false,
         ProximityAP     = false,
@@ -3002,6 +3053,7 @@ do
         Config.MenuKey = "LeftControl"
     end
     _G.MeerkoCarpetTool = Config.CarpetTool or "Auto"
+    if Config.GameStretcher then _bindStretch() end
 
     -- animations on/off (TP kills them by default; this flag restores them)
     _G.MeerkoAnimations = Config.Animations == true
@@ -3496,6 +3548,7 @@ do
             end
             invisOldHRP = nil; invisClone = nil; invisOrigWalkSpeed = nil
             _G.VanishInvisActive = false
+            _G.MeerkoInvisOldHRP = nil
         end
 
         startInvisSteal = function()
@@ -3519,6 +3572,7 @@ do
             invisHipHeight = hum.HipHeight
             invisOldHRP = char:FindFirstChild("HumanoidRootPart")
             if not invisOldHRP or not invisOldHRP.Parent then return false end
+            _G.MeerkoInvisOldHRP = invisOldHRP
             local tempParent = Instance.new("Model"); tempParent.Parent = game
             char.Parent = tempParent
             invisClone = invisOldHRP:Clone(); invisClone.Parent = char
@@ -4111,8 +4165,20 @@ do
         MK_PlayerGui.DescendantAdded:Connect(function(desc)
             if not (desc:IsA("TextLabel") or desc:IsA("TextButton")) then return end
             local txt = desc.Text
-            if Config.AutoKickOnSteal and type(txt) == "string" and string.find(txt, "You stole", 1, true) then
-                kickPlayer()
+            if type(txt) == "string" and string.find(txt, "You stole", 1, true) then
+                if Config.AutoKickOnSteal then
+                    kickPlayer()
+                elseif Config.AutoTPToPSOnSteal then
+                    pcall(function()
+                        local code = (Config.PSLinkCode and Config.PSLinkCode ~= "") and Config.PSLinkCode or nil
+                        local pid = (Config.PSPlaceId and Config.PSPlaceId ~= "") and tonumber(Config.PSPlaceId) or game.PlaceId
+                        if code then
+                            game:GetService("ExperienceService"):LaunchExperience({ placeId = pid, linkCode = code })
+                        else
+                            game:GetService("TeleportService"):Teleport(pid, MK_LP)
+                        end
+                    end)
+                end
             end
         end)
     end)
@@ -7485,6 +7551,49 @@ end)
                 end
             elseif Config.CarpetSpeedKey and Config.CarpetSpeedKey ~= "" and kn == Config.CarpetSpeedKey then
                 if _G.MeerkoSetCarpetSpeed then _G.MeerkoSetCarpetSpeed(not (Config.CarpetSpeed == true)) end
+            elseif Config.BrainrotDropKey and Config.BrainrotDropKey ~= "" and kn == Config.BrainrotDropKey then
+                task.spawn(function()
+                    pcall(function()
+                        local flinging = true
+                        task.delay(0.3, function() flinging = false end)
+                        while flinging do
+                            MK_Run.Heartbeat:Wait()
+                            local character = MK_LP.Character
+                            local hum = character and character:FindFirstChildOfClass("Humanoid")
+                            local root = hum and hum.RootPart
+                            local realRoot = _G.MeerkoInvisOldHRP
+                            while flinging and not (character and character.Parent and root and root.Parent) do
+                                MK_Run.Heartbeat:Wait()
+                                character = MK_LP.Character
+                                hum = character and character:FindFirstChildOfClass("Humanoid")
+                                root = hum and hum.RootPart
+                                realRoot = _G.MeerkoInvisOldHRP
+                            end
+                            if not (root and root.Parent) then break end
+                            local vel = root.Velocity
+                            root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                            if realRoot and realRoot.Parent then
+                                realRoot.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                            end
+                            MK_Run.RenderStepped:Wait()
+                            if character and character.Parent and root and root.Parent then
+                                root.Velocity = vel
+                                if realRoot and realRoot.Parent then realRoot.Velocity = vel end
+                            end
+                            MK_Run.Stepped:Wait()
+                            if character and character.Parent and root and root.Parent then
+                                root.Velocity = vel + Vector3.new(0, 0.1, 0)
+                                if realRoot and realRoot.Parent then realRoot.Velocity = vel + Vector3.new(0, 0.1, 0) end
+                            end
+                        end
+                        local character = MK_LP.Character
+                        local hum = character and character:FindFirstChildOfClass("Humanoid")
+                        local root = hum and hum.RootPart
+                        local realRoot = _G.MeerkoInvisOldHRP
+                        if root and root.Parent then root.Velocity = Vector3.new(0, 0, 0) end
+                        if realRoot and realRoot.Parent then realRoot.Velocity = Vector3.new(0, 0, 0) end
+                    end)
+                end)
             elseif Config.ItemDropKey and Config.ItemDropKey ~= "" and kn == Config.ItemDropKey then
                 task.spawn(function()
                     pcall(function()
@@ -7523,16 +7632,6 @@ end)
                         local hum = character and character:FindFirstChildOfClass("Humanoid")
                         local root = hum and hum.RootPart
                         if root and root.Parent then root.Velocity = Vector3.new(0, 0, 0) end
-                    end)
-                end)
-            elseif Config.BrainrotDropKey and Config.BrainrotDropKey ~= "" and kn == Config.BrainrotDropKey then
-                task.spawn(function()
-                    pcall(function()
-                        local character = MK_LP.Character
-                        local hum = character and character:FindFirstChildOfClass("Humanoid")
-                        if hum then
-                            hum:UnequipTools()
-                        end
                     end)
                 end)
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
@@ -11293,7 +11392,18 @@ end)
         toggleRow(sProt, "AutoDestroyTurrets", "Auto-Destroy Turrets")
         local sAuto = tabMisc:AddSection("right", "AUTO")
         toggleRow(sAuto, "AutoBuyCarpet",   "Auto Buy Carpet")
+        toggleRow(sAuto, "AutoTPOnJoin",    "TP Immédiat au Join")
         toggleRow(sAuto, "AutoKickOnSteal", "Auto-Kick on Steal")
+        toggleRow(sAuto, "AutoTPToPSOnSteal", "Auto-Join PS on Steal")
+        do
+            local stretchToggle = sAuto:AddToggle({ Text = "Game Stretcher", Default = Config.GameStretcher or false, Callback = function(v)
+                Config.GameStretcher = v
+                if SaveConfig then pcall(SaveConfig) end
+                if v then _G.MeerkoStretchEnable() else _G.MeerkoStretchDisable() end
+            end })
+        end
+        sAuto:AddInput({ Text = Config.PSLinkCode or "", Placeholder = "PS Link Code", Callback = function(v) Config.PSLinkCode = v; if SaveConfig then pcall(SaveConfig) end end })
+        sAuto:AddInput({ Text = Config.PSPlaceId or "", Placeholder = "PS Place ID (optionnel)", Callback = function(v) Config.PSPlaceId = v; if SaveConfig then pcall(SaveConfig) end end })
         local sDisplay = tabMisc:AddSection("right", "DISPLAY")
         local uiScaleSlider = sDisplay:AddSliderF({
             Text = "UI Scale", Min = 0.7, Max = 1.4, Step = 0.01,
@@ -11316,6 +11426,7 @@ end)
         sBinds:AddKeybind({ Text = "Manual TP",    Get = function() return _G._stp_tpKeyName or "T" end, Set = function(k) _G._stp_tpKeyName = k; if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end end })
         sBinds:AddKeybind({ Text = "Auto Clone",   Get = function() return Config.CloneKey end,       Set = function(k) Config.CloneKey = k;       if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Carpet Speed", Get = function() return Config.CarpetSpeedKey end, Set = function(k) Config.CarpetSpeedKey = k; if SaveConfig then pcall(SaveConfig) end end })
+        sBinds:AddKeybind({ Text = "Drop Brainrot", Get = function() return Config.BrainrotDropKey end, Set = function(k) Config.BrainrotDropKey = k; if SaveConfig then pcall(SaveConfig) end end })
         local sActions = tabKeys:AddSection("right", "ACTIONS")
         sActions:AddKeybind({ Text = "Reset",       Get = function() return Config.ResetKey end,  Set = function(k) Config.ResetKey = k;  if SaveConfig then pcall(SaveConfig) end end })
         sActions:AddKeybind({ Text = "Rejoin",      Get = function() return Config.RejoinKey end, Set = function(k) Config.RejoinKey = k; if SaveConfig then pcall(SaveConfig) end end })
