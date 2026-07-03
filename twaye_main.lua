@@ -1,4 +1,4 @@
--- v31
+-- v32
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -7430,7 +7430,7 @@ end)
                     end)
                 end)
             elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
-                if _G.MeerkoToggleAutoBuy then pcall(_G.MeerkoToggleAutoBuy) end
+                if Config.AutoBuyCarpet and _G.MeerkoToggleAutoBuy then pcall(_G.MeerkoToggleAutoBuy) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
