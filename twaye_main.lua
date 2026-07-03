@@ -1,4 +1,4 @@
--- v11
+-- v13
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3910,41 +3910,56 @@ do
         end
         _G.MeerkoAutoBuyDebug = debugScanDump
 
+        local _STEAL_NAMES = { StealHitbox=true, DeliveryHitbox=true, LaserHitbox=true }
+        local function _isScanPart(obj)
+            local part = obj.Parent
+            local realPart = (part and part:IsA("Attachment") and part.Parent) or part
+            if not realPart or not realPart:IsA("BasePart") then return false, nil, nil end
+            if _STEAL_NAMES[realPart.Name] then return false, nil, nil end
+            local model, cur = nil, realPart
+            for _ = 1, 8 do
+                if cur and cur:IsA("Model") then model = cur; break end
+                cur = cur and cur.Parent
+            end
+            return true, realPart, model
+        end
+
         local function scanConveyorCarpet()
             local results = {}
+            local fallback = {}
             local root = getScanRoot()
             for _, obj in ipairs(root:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") and obj.Enabled then
-                    local atxt = (obj.ActionText or ""):lower()
-                    local otxt = (obj.ObjectText or ""):lower()
+                local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
+                local isClick  = obj:IsA("ClickDetector")
+                if isPrompt or isClick then
+                    local atxt = isPrompt and (obj.ActionText or ""):lower() or ""
+                    local otxt = isPrompt and (obj.ObjectText or ""):lower() or ""
+                    local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
                     local hit = atxt:find("buy") or atxt:find("purchase") or atxt:find("comprar")
-                              or atxt:find("shop") or atxt:find("acquire")
+                              or atxt:find("shop") or atxt:find("acquire") or atxt:find("obtenir")
+                              or atxt:find("acheter") or atxt:find("get") or atxt:find("carpet")
                               or otxt:find("buy") or otxt:find("purchase") or otxt:find("comprar")
-                    if hit then
-                        local part = obj.Parent
-                        local realPart = (part and part:IsA("Attachment") and part.Parent) or part
-                        if realPart and realPart:IsA("BasePart") then
-                            local model, cur = nil, realPart
-                            for _ = 1, 8 do
-                                if cur and cur:IsA("Model") then model = cur; break end
-                                cur = cur and cur.Parent
-                            end
-                            -- Use the REAL AnimalsShared:GetGeneration value first;
-                            -- only fall back to BillboardGui parsing if that misses.
-                            local genValue, genText, name = resolveGen(model)
-                            if genValue == 0 then
-                                local n2, g2 = readModelInfo(model)
-                                if n2 ~= "" then name = n2 end
-                                if g2 ~= "" then genText = g2; genValue = parseGen(g2) end
-                            end
-                            results[#results+1] = {
-                                name = name, genText = genText, genValue = genValue,
-                                prompt = obj, part = realPart, model = model,
-                            }
+                              or otxt:find("carpet") or otxt:find("shop")
+                              or parentName:find("buy") or parentName:find("shop") or parentName:find("carpet")
+                    local ok, realPart, model = _isScanPart(obj)
+                    if ok then
+                        local genValue, genText, name = resolveGen(model)
+                        if genValue == 0 then
+                            local n2, g2 = readModelInfo(model)
+                            if n2 ~= "" then name = n2 end
+                            if g2 ~= "" then genText = g2; genValue = parseGen(g2) end
+                        end
+                        local entry = { name = name, genText = genText, genValue = genValue, prompt = obj, isClick = isClick, part = realPart, model = model }
+                        if hit then
+                            results[#results+1] = entry
+                        else
+                            fallback[#fallback+1] = entry
                         end
                     end
                 end
             end
+            -- if keyword scan found nothing, fall back to ALL prompts/clicks (except steal hitboxes)
+            if #results == 0 then return fallback end
             return results
         end
 
@@ -3966,15 +3981,38 @@ do
             return purchaseRemote
         end
 
-        local function firePurchase(prompt)
-            if not prompt or not prompt.Parent or not prompt.Enabled then return end
-            pcall(function() if fireproximityprompt then fireproximityprompt(prompt) end end)
-            local remote = resolvePurchaseRemote()
-            if remote then
+        local function firePurchase(entry)
+            local obj = entry and entry.prompt
+            if not obj or not obj.Parent then return end
+            if entry.isClick then
+                -- ClickDetector: use fireclickdetector exploit function
                 pcall(function()
-                    if remote:IsA("RemoteFunction") then remote:InvokeServer(prompt.Parent)
-                    elseif remote:IsA("RemoteEvent") then remote:FireServer(prompt.Parent) end
+                    if fireclickdetector then
+                        fireclickdetector(obj)
+                    else
+                        -- fallback: fire mouse1click via VirtualInputManager
+                        local vim = game:GetService("VirtualInputManager")
+                        if vim then
+                            local part = obj.Parent
+                            if part and part:IsA("BasePart") then
+                                local pos2d = workspace.CurrentCamera:WorldToScreenPoint(part.Position)
+                                vim:SendMouseButtonEvent(pos2d.X, pos2d.Y, 0, true, game, 0)
+                                task.wait(0.05)
+                                vim:SendMouseButtonEvent(pos2d.X, pos2d.Y, 0, false, game, 0)
+                            end
+                        end
+                    end
                 end)
+            else
+                if not obj.Enabled then return end
+                pcall(function() if fireproximityprompt then fireproximityprompt(obj) end end)
+                local remote = resolvePurchaseRemote()
+                if remote then
+                    pcall(function()
+                        if remote:IsA("RemoteFunction") then remote:InvokeServer(obj.Parent)
+                        elseif remote:IsA("RemoteEvent") then remote:FireServer(obj.Parent) end
+                    end)
+                end
             end
         end
 
@@ -3998,7 +4036,9 @@ do
         -- Used by the buy loop: only fire FireServer/fireproximityprompt when the
         -- prompt is currently enabled. Independent of the lock state.
         local function promptAlive()
-            return lockedTarget and lockedTarget.prompt and lockedTarget.prompt.Parent and lockedTarget.prompt.Enabled
+            if not lockedTarget or not lockedTarget.prompt or not lockedTarget.prompt.Parent then return false end
+            if lockedTarget.isClick then return true end
+            return lockedTarget.prompt.Enabled
         end
 
         local function stopHover()
@@ -4110,8 +4150,8 @@ do
                 engageHover()
 
                 while lockAlive() do
-                    if promptAlive() then
-                        firePurchase(lockedTarget.prompt)
+                    if promptAlive() or (lockedTarget and lockedTarget.isClick) then
+                        firePurchase(lockedTarget)
                     end
                     task.wait(BUY_INTERVAL)
                 end
