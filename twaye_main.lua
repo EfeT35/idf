@@ -1,4 +1,4 @@
--- v16
+-- v17
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -2932,39 +2932,42 @@ task.spawn(function()
     end
 end)
 
--- Auto-TP immédiat au join (sans attendre scan brainrot ni FPS)
--- Freeze le character en l'air pendant le scan pour ne pas attendre le sol.
+-- Auto-TP au join : se lance une seule fois quand le character atterrit sur la zone de collecte de la base.
+local _autoTPOnJoinFired = false
 local function _autoTPOnJoinForChar(char)
+    if _autoTPOnJoinFired then return end
     if not (_G.MeerkoConfig and _G.MeerkoConfig.AutoTPOnJoin) then return end
     local hrp = char:WaitForChild("HumanoidRootPart", 5)
     local hum = char:WaitForChild("Humanoid", 5)
     if not hrp or not hum then return end
-    -- Freeze en l'air (anti-fall) pendant que doVelocityTP scanne les pets
-    local freezeConn
-    local frozenCF = hrp.CFrame
-    freezeConn = game:GetService("RunService").Heartbeat:Connect(function()
-        pcall(function()
-            hrp.CFrame = frozenCF
-            hrp.AssemblyLinearVelocity = Vector3.zero
-        end)
+
+    -- Attendre que le humanoid atterrisse (state = Landed ou Running/Swimming)
+    local landed = false
+    local conn
+    conn = hum.StateChanged:Connect(function(_, new)
+        if new == Enum.HumanoidStateType.Landed
+        or new == Enum.HumanoidStateType.Running
+        or new == Enum.HumanoidStateType.RunningNoPhysics then
+            landed = true
+            if conn then conn:Disconnect(); conn = nil end
+        end
     end)
-    local function stopFreeze() if freezeConn then freezeConn:Disconnect(); freezeConn = nil end end
-    -- Lance le TP immédiatement, débloquer le freeze après
-    task.spawn(function()
-        pcall(loadModules); pcall(loadNet)
-        pcall(doVelocityTP)
-        stopFreeze()
-    end)
-    -- Safety: défreeze après 6s max si le TP plante
-    task.delay(6, stopFreeze)
+    -- Timeout 10s au cas où StateChanged ne fire pas
+    local t0 = os.clock()
+    while not landed and os.clock() - t0 < 10 do
+        task.wait(0.05)
+    end
+    if conn then conn:Disconnect(); conn = nil end
+
+    if _autoTPOnJoinFired then return end
+    _autoTPOnJoinFired = true
+    pcall(loadModules); pcall(loadNet)
+    pcall(doVelocityTP)
 end
 
 task.spawn(function()
     local char = LP.Character or LP.CharacterAdded:Wait()
     task.spawn(_autoTPOnJoinForChar, char)
-    LP.CharacterAdded:Connect(function(newChar)
-        task.spawn(_autoTPOnJoinForChar, newChar)
-    end)
 end)
 
 -- Manual trigger is handled by the Side-TP UI panel's rebindable keybind
