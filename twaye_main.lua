@@ -1,4 +1,4 @@
--- v33
+-- v34
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -2995,8 +2995,6 @@ do
         InvisRotation   = 225,
         InvisDepth      = 7,
         InvisWalkSpeed  = 16,
-        AutoBuyCarpet   = true,
-        AutoBuyMinGen   = 1000000,
         AutoKickOnSteal = false,
         AutoTPOnJoin    = false,
         GameStretcher   = false,
@@ -3040,7 +3038,6 @@ do
         CarpetSpeedKey  = "Q",
         ItemDropKey     = "G",
         BrainrotDropKey = "H",
-        AutoBuyKey      = "N",
         CancelTPKey     = "X",
     }
     _G.MeerkoConfig = Config
@@ -3803,199 +3800,6 @@ do
         if Config.InvisOnSteal then startAutoMonitor() end
     end)
 
-    -- =================================================================
-    -- AUTO BUY CARPET  [_G.MeerkoAutoBuyCarpet]
-    do
-        _G.MeerkoAutoBuyCarpet = function(state)
-            Config.AutoBuyCarpet = state and true or false
-            if SaveConfig then pcall(SaveConfig) end
-        end
-
-        local _STEAL_NAMES = { StealHitbox=true, DeliveryHitbox=true, LaserHitbox=true }
-        local _autoBuyActive = false
-        local _autoBuyObj    = nil
-        local _autoBuyIsClick = false
-
-        local function _findBuyTarget()
-            local LP2  = game:GetService("Players").LocalPlayer
-            local char = LP2 and LP2.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return nil, false end
-            local best, bestDist = nil, math.huge
-            local bestClick = false
-            for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
-                local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
-                local isClick  = obj:IsA("ClickDetector")
-                if isPrompt or isClick then
-                    local part = obj.Parent
-                    local realPart = (part and part:IsA("Attachment") and part.Parent) or part
-                    if realPart and realPart:IsA("BasePart") and not _STEAL_NAMES[realPart.Name] then
-                        local atxt = isPrompt and (obj.ActionText or ""):lower() or ""
-                        local otxt = isPrompt and (obj.ObjectText or ""):lower() or ""
-                        local pname = realPart.Name:lower()
-                        local hit = atxt:find("buy") or atxt:find("purchase") or atxt:find("shop")
-                                 or atxt:find("carpet") or atxt:find("get") or atxt:find("acheter")
-                                 or otxt:find("buy") or otxt:find("carpet") or otxt:find("shop")
-                                 or pname:find("buy") or pname:find("shop") or pname:find("carpet")
-                        if hit then
-                            local d = (hrp.Position - realPart.Position).Magnitude
-                            if d < bestDist then bestDist = d; best = obj; bestClick = isClick end
-                        end
-                    end
-                end
-            end
-            -- fallback: nearest prompt/click dans 60 studs
-            if not best then
-                for _, obj in ipairs(game:GetService("Workspace"):GetDescendants()) do
-                    local isPrompt = obj:IsA("ProximityPrompt") and obj.Enabled
-                    local isClick  = obj:IsA("ClickDetector")
-                    if isPrompt or isClick then
-                        local part = obj.Parent
-                        local realPart = (part and part:IsA("Attachment") and part.Parent) or part
-                        if realPart and realPart:IsA("BasePart") and not _STEAL_NAMES[realPart.Name] then
-                            local d = (hrp.Position - realPart.Position).Magnitude
-                            if d < bestDist and d < 60 then bestDist = d; best = obj; bestClick = isClick end
-                        end
-                    end
-                end
-            end
-            return best, bestClick
-        end
-
-        local function _fireObj(obj, isClick)
-            if not obj or not obj.Parent then return false end
-            if isClick then
-                pcall(function() if fireclickdetector then fireclickdetector(obj) end end)
-            else
-                if not obj.Enabled then return false end
-                pcall(function() if fireproximityprompt then fireproximityprompt(obj) end end)
-            end
-            return true
-        end
-
-        -- Watcher : dès qu'un nouveau ProximityPrompt/ClickDetector apparaît dans le workspace,
-        -- si le auto buy est actif et que c'est le même objet locké, on fire immédiatement.
-        -- Ça intercepte le prompt avant n'importe qui d'autre.
-        local _autoBuyWatchConn = nil
-        local function _startWatcher()
-            if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end) end
-            _autoBuyWatchConn = game:GetService("Workspace").DescendantAdded:Connect(function(obj)
-                if not _autoBuyActive then return end
-                local isPrompt = obj:IsA("ProximityPrompt")
-                local isClick  = obj:IsA("ClickDetector")
-                if not isPrompt and not isClick then return end
-                -- 100 threads parallèles, chacun fire 100 fois sans délai = 10000 fires
-                for _ = 1, 100 do
-                    task.spawn(function()
-                        for _ = 1, 100 do
-                            if not _autoBuyActive then break end
-                            _fireObj(obj, isClick)
-                        end
-                    end)
-                end
-            end)
-        end
-        local function _stopWatcher()
-            if _autoBuyWatchConn then pcall(function() _autoBuyWatchConn:Disconnect() end); _autoBuyWatchConn = nil end
-        end
-
-        -- Hover : colle le HRP sur le brainrot (utilise le Model entier pour la position)
-        local _hoverConn = nil
-        local function _stopHover()
-            if _hoverConn then pcall(function() _hoverConn:Disconnect() end); _hoverConn = nil end
-        end
-        local function _startHover(targetPart)
-            _stopHover()
-            local RS  = game:GetService("RunService")
-            local LP2 = game:GetService("Players").LocalPlayer
-            _hoverConn = RS.Heartbeat:Connect(function()
-                if not _autoBuyActive or not targetPart or not targetPart.Parent then _stopHover(); return end
-                local char = LP2.Character
-                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-                pcall(function()
-                    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
-                    hrp.AssemblyLinearVelocity  = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                end)
-            end)
-        end
-
-        local function _getModelCenter(obj)
-            -- Remonte jusqu'au Model parent du prompt, retourne son PrimaryPart ou centre de bounding box
-            local cur = obj.Parent
-            for _ = 1, 8 do
-                if not cur then break end
-                if cur:IsA("Model") then
-                    if cur.PrimaryPart then return cur.PrimaryPart end
-                    -- bounding box center
-                    local ok, cf, size = pcall(function() return cur:GetBoundingBox() end)
-                    if ok and cf then
-                        local part = Instance.new("Part")
-                        part.Size = Vector3.new(1,1,1)
-                        part.Anchored = true
-                        part.CFrame = cf
-                        part.Parent = workspace
-                        task.delay(0, function() part:Destroy() end)
-                        -- just return the BasePart parent of the prompt as fallback
-                    end
-                    -- fallback: first BasePart in model
-                    for _, d in ipairs(cur:GetDescendants()) do
-                        if d:IsA("BasePart") then return d end
-                    end
-                end
-                cur = cur.Parent
-            end
-            -- fallback: direct BasePart parent
-            local part = obj.Parent
-            return (part and part:IsA("Attachment") and part.Parent) or (part and part:IsA("BasePart") and part) or nil
-        end
-
-        -- Toggle : 1er appui = hover sur brainrot + buy en boucle, 2ème appui = stop
-        _G.MeerkoToggleAutoBuy = function()
-            if _autoBuyActive then
-                _autoBuyActive = false
-                _autoBuyObj    = nil
-                _stopWatcher()
-                _stopHover()
-                return
-            end
-            local obj, isClick = _findBuyTarget()
-            _autoBuyObj     = obj
-            _autoBuyIsClick = isClick
-            _autoBuyActive  = true
-            _startWatcher()
-
-            if obj then
-                -- Snap + hover sur le brainrot
-                local anchorPart = _getModelCenter(obj)
-                if anchorPart then
-                    local LP2 = game:GetService("Players").LocalPlayer
-                    local char = LP2 and LP2.Character
-                    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        pcall(function()
-                            hrp.CFrame = CFrame.new(anchorPart.Position + Vector3.new(0, 5, 0))
-                            hrp.AssemblyLinearVelocity = Vector3.zero
-                        end)
-                    end
-                    _startHover(anchorPart)
-                end
-                -- Buy en boucle
-                for _ = 1, 8 do
-                    task.spawn(function()
-                        while _autoBuyActive do
-                            if not _autoBuyObj or not _autoBuyObj.Parent then
-                                _autoBuyActive = false; _stopHover(); break
-                            end
-                            _fireObj(_autoBuyObj, _autoBuyIsClick)
-                            task.wait()
-                        end
-                    end)
-                end
-            end
-        end
-    end
 
 
 
@@ -7495,8 +7299,6 @@ end)
                         if root and root.Parent then root.Velocity = Vector3.new(0, 0, 0) end
                     end)
                 end)
-            elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
-                if Config.AutoBuyCarpet and _G.MeerkoToggleAutoBuy then pcall(_G.MeerkoToggleAutoBuy) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
@@ -7779,7 +7581,6 @@ end)
             }},
             { title = "SERVER", items = {
                 { key = "AutoKickOnSteal", label = "Auto-Kick on Steal" },
-                { key = "AutoBuyCarpet",   label = "Auto Buy Carpet" },
             }},
             { title = "MISC", items = {
                 { key = "ShowAdminPanel",  label = "Admin Panel" },
@@ -7800,8 +7601,6 @@ end)
             elseif key == "InvisOnSteal" then
                 if val then if _G.VanishInvisAutoStart then pcall(_G.VanishInvisAutoStart) end
                 else if _G.VanishInvisAutoStop then pcall(_G.VanishInvisAutoStop) end end
-            elseif key == "AutoBuyCarpet" then
-                if _G.MeerkoAutoBuyCarpet then pcall(_G.MeerkoAutoBuyCarpet, val) end
             elseif key == "BrainrotESP" and _G.MeerkoBrainrotESPSet then
                 _G.MeerkoBrainrotESPSet(val)
             elseif key == "InfiniteJump" and _G.MeerkoSetInfiniteJump then
@@ -9287,7 +9086,6 @@ end)
         addKeybindRow(host2, "Carpet Speed", "CarpetSpeedKey")
         addKeybindRow(host2, "Item Drop", "ItemDropKey")
         addKeybindRow(host2, "Drop Brainrot", "BrainrotDropKey")
-        addKeybindRow(host2, "Auto Buy", "AutoBuyKey")
         addKeybindRow(host2, "Cancel TP", "CancelTPKey")
         addKeybindRow(host2, "Reset", "ResetKey")
         addKeybindRow(host2, "Rejoin", "RejoinKey")
@@ -11110,8 +10908,6 @@ end)
             elseif key == "InvisOnSteal" then
                 if val then if _G.VanishInvisAutoStart then pcall(_G.VanishInvisAutoStart) end
                 else if _G.VanishInvisAutoStop then pcall(_G.VanishInvisAutoStop) end end
-            elseif key == "AutoBuyCarpet" and _G.MeerkoAutoBuyCarpet then
-                pcall(_G.MeerkoAutoBuyCarpet, val)
             elseif key == "BrainrotESP" and _G.MeerkoBrainrotESPSet then
                 _G.MeerkoBrainrotESPSet(val)
             elseif key == "InfiniteJump" and _G.MeerkoSetInfiniteJump then
@@ -11255,7 +11051,6 @@ end)
         toggleRow(sProt, "AntiBodySwap",       "Anti Body Swap")
         toggleRow(sProt, "AutoDestroyTurrets", "Auto-Destroy Turrets")
         local sAuto = tabMisc:AddSection("right", "AUTO")
-        toggleRow(sAuto, "AutoBuyCarpet",   "Auto Buy Carpet")
         toggleRow(sAuto, "AutoTPOnJoin",    "TP Immédiat au Join")
         toggleRow(sAuto, "AutoKickOnSteal", "Auto-Kick on Steal")
         toggleRow(sAuto, "AutoTPToPSOnSteal", "Auto-Join PS on Steal")
@@ -11291,7 +11086,6 @@ end)
         sBinds:AddKeybind({ Text = "Auto Clone",   Get = function() return Config.CloneKey end,       Set = function(k) Config.CloneKey = k;       if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Carpet Speed", Get = function() return Config.CarpetSpeedKey end, Set = function(k) Config.CarpetSpeedKey = k; if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Drop Brainrot", Get = function() return Config.BrainrotDropKey end, Set = function(k) Config.BrainrotDropKey = k; if SaveConfig then pcall(SaveConfig) end end })
-        sBinds:AddKeybind({ Text = "Auto Buy",      Get = function() return Config.AutoBuyKey end,      Set = function(k) Config.AutoBuyKey = k;      if SaveConfig then pcall(SaveConfig) end end })
         local sActions = tabKeys:AddSection("right", "ACTIONS")
         sActions:AddKeybind({ Text = "Reset",       Get = function() return Config.ResetKey end,  Set = function(k) Config.ResetKey = k;  if SaveConfig then pcall(SaveConfig) end end })
         sActions:AddKeybind({ Text = "Rejoin",      Get = function() return Config.RejoinKey end, Set = function(k) Config.RejoinKey = k; if SaveConfig then pcall(SaveConfig) end end })
