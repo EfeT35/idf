@@ -1,4 +1,4 @@
--- v20
+-- v21
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3873,22 +3873,69 @@ do
             return true
         end
 
-        -- Toggle : 1er appui = lock sur le brainrot et buy en boucle, 2ème appui = stop
+        local _autoBuyHoverConn = nil
+        local function _stopHover()
+            if _autoBuyHoverConn then
+                pcall(function() _autoBuyHoverConn:Disconnect() end)
+                _autoBuyHoverConn = nil
+            end
+        end
+
+        local function _startHover(targetPart)
+            _stopHover()
+            local RS = game:GetService("RunService")
+            local LP2 = game:GetService("Players").LocalPlayer
+            _autoBuyHoverConn = RS.Heartbeat:Connect(function()
+                if not _autoBuyActive or not targetPart or not targetPart.Parent then
+                    _stopHover(); return
+                end
+                local char = LP2.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                local dest = targetPart.Position + Vector3.new(0, 5, 0)
+                pcall(function()
+                    hrp.CFrame = CFrame.new(dest, dest + hrp.CFrame.LookVector)
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+            end)
+        end
+
+        -- Toggle : 1er appui = snap + hover sur le brainrot + buy en boucle, 2ème appui = stop
         _G.MeerkoToggleAutoBuy = function()
             if _autoBuyActive then
                 _autoBuyActive = false
                 _autoBuyObj    = nil
+                _stopHover()
                 return
             end
             local obj, isClick = _findBuyTarget()
             if not obj then return end
-            _autoBuyObj    = obj
+            _autoBuyObj     = obj
             _autoBuyIsClick = isClick
-            _autoBuyActive = true
+            _autoBuyActive  = true
+
+            -- Trouver la BasePart parent pour le hover
+            local part = obj.Parent
+            local targetPart = (part and part:IsA("Attachment") and part.Parent) or part
+            if targetPart and targetPart:IsA("BasePart") then
+                -- Snap immédiat dessus
+                local LP2 = game:GetService("Players").LocalPlayer
+                local char = LP2 and LP2.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    pcall(function()
+                        hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 0))
+                        hrp.AssemblyLinearVelocity = Vector3.zero
+                    end)
+                end
+                _startHover(targetPart)
+            end
+
             task.spawn(function()
                 while _autoBuyActive do
                     if not _autoBuyObj or not _autoBuyObj.Parent then
-                        _autoBuyActive = false; break
+                        _autoBuyActive = false; _stopHover(); break
                     end
                     _fireObj(_autoBuyObj, _autoBuyIsClick)
                     task.wait(0.08)
