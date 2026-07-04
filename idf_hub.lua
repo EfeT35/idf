@@ -3039,7 +3039,7 @@ do
         CustomTab       = {},
         CarpetSpeed     = false,
         CarpetSpeedKey  = "Q",
-        ItemDropKey     = "G",
+        ItemDropKey     = "",
         BrainrotDropKey = "H",
         AutoBuyKey      = "N",
         CancelTPKey     = "X",
@@ -8999,170 +8999,160 @@ end)
         end)
 
         -- ============================================================
-        -- AUTO TURRET  (ported from arabic_hub v25)
-        -- Gated by Config.AutoDestroyTurrets.
+        -- AUTO TURRET
+        -- Détecte les Sentry_ ennemis, les téléporte devant le joueur
+        -- et les bat avec le Bat. Gated by Config.AutoDestroyTurrets.
         -- ============================================================
         do
-            local autoTurretActive = false
-            local autoTurretTask   = nil
-            local previousTool     = nil
+            local _atActive  = false
+            local _atConn    = nil
+            local _prevTool  = nil
+            local _atRun     = game:GetService("RunService")
 
-            local function getChar()
-                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                local hrp  = char:WaitForChild("HumanoidRootPart")
-                local hum  = char:WaitForChild("Humanoid")
-                return char, hrp, hum
+            local function _atGetHRP()
+                local char = LocalPlayer.Character
+                return char and char:FindFirstChild("HumanoidRootPart")
+            end
+            local function _atGetHum()
+                local char = LocalPlayer.Character
+                return char and char:FindFirstChildOfClass("Humanoid")
             end
 
-            local function hasExclamation(target)
-                for _, d in ipairs(target:GetDescendants()) do
-                    if d:IsA("BillboardGui") then
-                        local label = d:FindFirstChildWhichIsA("TextLabel", true)
-                        if label and label.Text:find("!") then return true end
-                    end
-                end
-                return false
-            end
-
-            local function applyVisuals(target)
-                for _, d in ipairs(target:GetDescendants()) do
-                    if d:IsA("BasePart") and d ~= target then
-                        d.Transparency = 0.5; d.CanCollide = false
-                        d.CanTouch = false; d.CanQuery = false
-                    elseif d:IsA("BillboardGui") and d.Name ~= "SentryLabel" then
-                        d:Destroy()
-                    elseif d:IsA("Decal") or d:IsA("Texture") then
-                        d.Transparency = 0.5
-                    end
-                end
-                if target:IsA("BasePart") and target.Name ~= "ProxyVisual" then
-                    target.Transparency = 1; target.CanCollide = false
-                end
-            end
-
-            -- sentry cache
-            local activeSentries = {}
-            local sentryCacheInit = false
-            local function initSentryCache()
-                if sentryCacheInit then return end
-                sentryCacheInit = true
-                Workspace.DescendantAdded:Connect(function(inst)
-                    if inst.Name and inst.Name:sub(1,7) == "Sentry_" then activeSentries[inst] = true end
-                end)
-                Workspace.DescendantRemoving:Connect(function(inst)
-                    activeSentries[inst] = nil
-                end)
-                task.spawn(function()
-                    task.wait(3)
-                    local desc = Workspace:GetDescendants()
-                    local t = os.clock()
-                    for i = 1, #desc do
-                        local inst = desc[i]
-                        if inst and inst.Name and inst.Name:sub(1,7) == "Sentry_" then
-                            activeSentries[inst] = true
-                        end
-                        if os.clock() - t > 0.005 then task.wait(); t = os.clock() end
-                    end
-                end)
-            end
-            task.spawn(initSentryCache)
-
-            local function getClosestSentry()
-                local _, hrp = getChar()
-                local closest, best = nil, math.huge
-                for inst in pairs(activeSentries) do
-                    local name = inst.Name
-                    if inst.Parent and name and name:sub(1,7) == "Sentry_" and name ~= "Sentry_"..LocalPlayer.Name then
-                        if hasExclamation(inst) then
-                            local root = inst:IsA("BasePart") and inst or inst:FindFirstChildWhichIsA("BasePart", true)
-                            if root then
-                                local d = (hrp.Position - root.Position).Magnitude
-                                if d < best then best = d; closest = inst end
+            local function _atFindSentries()
+                local hrp = _atGetHRP()
+                if not hrp then return {} end
+                local out, myId = {}, tostring(LocalPlayer.UserId)
+                for _, d in ipairs(Workspace:GetDescendants()) do
+                    if d and d.Parent and d.Name and d.Name:sub(1,7) == "Sentry_" then
+                        local ownerId = d.Name:match("Sentry_(.+)")
+                        if ownerId and ownerId ~= myId and ownerId ~= LocalPlayer.Name then
+                            local part = d:IsA("BasePart") and d or d:FindFirstChildWhichIsA("BasePart", true)
+                            if part then
+                                table.insert(out, { obj = d, part = part, dist = (hrp.Position - part.Position).Magnitude })
                             end
                         end
-                    else
-                        activeSentries[inst] = nil
                     end
                 end
-                return closest
+                table.sort(out, function(a, b) return a.dist < b.dist end)
+                return out
             end
 
-            local function unequipBatAndRestore()
-                local char, _, hum = getChar()
-                local bat = char:FindFirstChild("Bat")
-                if bat and hum then hum:UnequipTools(bat) end
-                if previousTool and previousTool.Parent then
-                    if previousTool.Parent == LocalPlayer.Backpack or previousTool.Parent == char then
-                        hum:EquipTool(previousTool)
-                    end
-                end
-                previousTool = nil
-            end
-
-            local function equipBat()
-                local char, _, hum = getChar()
+            local function _atEquipBat()
+                local char = LocalPlayer.Character
+                local hum  = _atGetHum()
+                if not char or not hum then return nil end
                 local cur = char:FindFirstChildWhichIsA("Tool")
-                if cur and cur.Name ~= "Bat" then previousTool = cur end
+                if cur and cur.Name ~= "Bat" then _prevTool = cur end
                 local bat = LocalPlayer.Backpack:FindFirstChild("Bat") or char:FindFirstChild("Bat")
-                if bat then hum:EquipTool(bat); return true end
-                return false
+                if bat then
+                    pcall(function() hum:EquipTool(bat) end)
+                    task.wait(0.05)
+                    return char:FindFirstChild("Bat")
+                end
+                return nil
+            end
+
+            local function _atRestoreTool()
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local hum  = _atGetHum()
+                    if not char or not hum then return end
+                    local bat = char:FindFirstChild("Bat")
+                    if bat then hum:UnequipTools() end
+                    if _prevTool and _prevTool.Parent then
+                        hum:EquipTool(_prevTool)
+                    end
+                end)
+                _prevTool = nil
+            end
+
+            local function _atNukeSentry(obj)
+                pcall(function()
+                    for _, d in ipairs(obj:GetDescendants()) do
+                        if d:IsA("BasePart") then
+                            d.Transparency = 1; d.CanCollide = false
+                            d.CanTouch = false; d.CanQuery = false
+                            d.Size = Vector3.new(8, 8, 8)
+                        end
+                    end
+                    if obj:IsA("BasePart") then
+                        obj.Transparency = 1; obj.CanCollide = false
+                        obj.Size = Vector3.new(8, 8, 8)
+                    end
+                end)
             end
 
             local function startAutoTurretLoop()
-                autoTurretActive = true
+                if _atConn then return end
+                _atActive = true
                 _G.autoTurretActive = true
-                if autoTurretTask then return end
-                autoTurretTask = task.spawn(function()
-                    while autoTurretActive do
-                        if LocalPlayer:GetAttribute("Stealing") == true then
-                            pcall(function()
-                                local char = LocalPlayer.Character
-                                local bat  = char and char:FindFirstChild("Bat")
-                                local hum  = char and char:FindFirstChild("Humanoid")
-                                if bat and hum then hum:UnequipTools(bat) end
-                            end)
-                            task.wait(0.1)
-                        else
-                            local target = getClosestSentry()
-                            if target and target.Parent then
-                                if equipBat() then
-                                    while target and target.Parent and autoTurretActive and LocalPlayer:GetAttribute("Stealing") ~= true do
-                                        local char, hrp, _ = getChar()
-                                        local bat = char:FindFirstChild("Bat")
-                                        if not bat then break end
-                                        applyVisuals(target)
-                                        local offset   = hrp.CFrame.LookVector * 4
-                                        local targetCF = CFrame.new(hrp.Position + offset, hrp.Position)
-                                        if target:IsA("Model") then
-                                            target:PivotTo(targetCF)
-                                        elseif target:IsA("BasePart") then
-                                            target.CFrame = targetCF
-                                        end
-                                        bat:Activate()
-                                        task.wait(0.1)
-                                        if not hasExclamation(target) then break end
-                                    end
-                                    pcall(unequipBatAndRestore)
-                                end
-                            end
-                        end
-                        task.wait(0.2)
+                local frameSkip = 0
+                local currentTarget = nil
+                local attackCd = 0
+                _atConn = _atRun.Heartbeat:Connect(function()
+                    if not _atActive then return end
+                    if LocalPlayer:GetAttribute("Stealing") == true then
+                        currentTarget = nil; return
                     end
+                    frameSkip = frameSkip + 1
+                    if frameSkip < 4 then return end
+                    frameSkip = 0
+
+                    -- refresh target if lost
+                    if not currentTarget or not currentTarget.obj.Parent then
+                        local list = _atFindSentries()
+                        currentTarget = list[1]
+                        if not currentTarget then return end
+                    end
+
+                    local hrp = _atGetHRP()
+                    if not hrp then return end
+
+                    -- move sentry in front and make it hittable
+                    local targetCF = hrp.CFrame * CFrame.new(0, 0, -3)
+                    pcall(function()
+                        _atNukeSentry(currentTarget.obj)
+                        if currentTarget.obj:IsA("Model") and currentTarget.obj.PrimaryPart then
+                            currentTarget.obj:SetPrimaryPartCFrame(targetCF)
+                        elseif currentTarget.part then
+                            currentTarget.part.CFrame = targetCF
+                        end
+                    end)
+
+                    -- equip bat and hit
+                    local now = tick()
+                    if now - attackCd < 0.05 then return end
+                    attackCd = now
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        if not char then return end
+                        local bat = char:FindFirstChild("Bat")
+                        if not bat then
+                            bat = _atEquipBat()
+                            if not bat then return end
+                        end
+                        if bat.Parent == LocalPlayer.Backpack then
+                            local hum = _atGetHum()
+                            if hum then hum:EquipTool(bat) end
+                        end
+                        if bat.Parent == char then
+                            bat:Activate()
+                        end
+                    end)
                 end)
             end
 
             local function stopAutoTurretLoop()
-                autoTurretActive = false
+                _atActive = false
                 _G.autoTurretActive = false
-                if autoTurretTask then task.cancel(autoTurretTask); autoTurretTask = nil end
-                pcall(unequipBatAndRestore)
+                if _atConn then _atConn:Disconnect(); _atConn = nil end
+                task.spawn(_atRestoreTool)
             end
 
-            _G.autoTurretActive      = autoTurretActive
-            _G.startAutoTurretLoop   = startAutoTurretLoop
-            _G.stopAutoTurretLoop    = stopAutoTurretLoop
+            _G.startAutoTurretLoop = startAutoTurretLoop
+            _G.stopAutoTurretLoop  = stopAutoTurretLoop
+            _G.autoTurretActive    = false
 
-            -- wire the existing Config toggle
             if Config.AutoDestroyTurrets then startAutoTurretLoop() end
         end
 
