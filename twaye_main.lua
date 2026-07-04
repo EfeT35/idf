@@ -1,4 +1,4 @@
--- v37
+-- v38
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3042,7 +3042,6 @@ do
         CancelTPKey     = "X",
         AutoBuyCarpet   = false,
         AutoBuyKey      = "K",
-        SpeedBoost      = 0,
     }
     _G.MeerkoConfig = Config
 
@@ -4102,56 +4101,6 @@ do
         end)
 
         if Config.AutoBuyCarpet then task.spawn(_abStartBuy) end
-    end
-
-    -- SPEED BOOST  [_G.MeerkoApplySpeedBoost]
-    do
-        local _sbConn       = nil
-        local _sbDefaultWS  = nil
-        _G._speedBoostValue   = 0
-        _G._speedBoostEnabled = false
-
-        local function _applySpeedBoost(v)
-            _G._speedBoostValue = v
-            if _sbConn then _sbConn:Disconnect(); _sbConn = nil end
-            pcall(function()
-                local c = MK_LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid")
-                if hum and _sbDefaultWS then hum.WalkSpeed = _sbDefaultWS end
-            end)
-            if v <= 0 then
-                _G._speedBoostEnabled = false
-                _sbDefaultWS = nil
-                Config.SpeedBoost = 0
-                if SaveConfig then pcall(SaveConfig) end
-                return
-            end
-            _G._speedBoostEnabled = true
-            Config.SpeedBoost = v
-            if SaveConfig then pcall(SaveConfig) end
-            pcall(function()
-                local c = MK_LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    if not _sbDefaultWS then _sbDefaultWS = hum.WalkSpeed end
-                    hum.WalkSpeed = v
-                end
-            end)
-            _sbConn = MK_Run.Heartbeat:Connect(function()
-                if not _G._speedBoostEnabled then return end
-                local c = MK_LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid")
-                if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
-            end)
-        end
-
-        MK_LP.CharacterAdded:Connect(function(char)
-            if not _G._speedBoostEnabled or (_G._speedBoostValue or 0) <= 0 then return end
-            task.wait(0.5)
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = _G._speedBoostValue end
-        end)
-
-        _G.MeerkoApplySpeedBoost = _applySpeedBoost
-
-        if (Config.SpeedBoost or 0) > 0 then _applySpeedBoost(Config.SpeedBoost) end
     end
 
     _G.VanishDesync = _G.VanishDesync or {
@@ -11402,12 +11351,6 @@ end)
         toggleRow(sMisc, "FPSBoost",       "FPS Boost")
         toggleRow(sMisc, "UnlockButtons",  "Base Unlock Buttons")
         toggleRow(sMisc, "XrayBases",      "X-Ray Bases")
-        sMisc:AddSliderF({
-            Text = "Speed Boost", Min = 0, Max = 100, Step = 1,
-            Default = Config.SpeedBoost or 0,
-            Format = function(v) return v == 0 and "OFF" or string.format("%d", v) end,
-            Callback = function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end,
-        })
         local sProt = tabMisc:AddSection("left", "PROTECTION")
         toggleRow(sProt, "AntiRagdoll",        "Anti Ragdoll")
         toggleRow(sProt, "AntiBeeDisco",       "Anti Bee & Disco")
