@@ -6305,6 +6305,7 @@ local function createSlider(parent, labelText, minVal, maxVal, defaultVal, attri
 		if attributeKey == "SavedRotation" then _G.InvisStealAngle = v end
 		if attributeKey == "SavedDepth" then _G.SinkSliderValue = v end
 		if attributeKey == "SavedFOV" then _G.SavedFOV = v; Camera.FieldOfView = v end
+		if attributeKey == "SavedWalkSpeed" and _G._applyWalkSpeed then _G._applyWalkSpeed(v) end
 	end
 
 	local sliderObj = {
@@ -6571,9 +6572,56 @@ fovCell.Position = UDim2.new(0, PAD, 0, sliderRowY)
 fovCell.BackgroundTransparency = 1
 fovCell.BorderSizePixel = 0
 createSlider(fovCell, "FOV", 30, 120, 100, "SavedFOV", true, "°", 0, true, nil, 32)
+
+local wsCell = Instance.new("Frame", MainFrame)
+wsCell.Size = UDim2.new(0, FULL_W, 0, ROW_H)
+wsCell.Position = UDim2.new(0, PAD, 0, sliderRowY + ROW_H + GAP)
+wsCell.BackgroundTransparency = 1
+wsCell.BorderSizePixel = 0
+do
+    local _wsBoostConn = nil
+    local _wsBoostEnabled = false
+    local function applyWalkSpeed(v)
+        if _wsBoostConn then _wsBoostConn:Disconnect(); _wsBoostConn = nil end
+        if v <= 0 then _wsBoostEnabled = false; return end
+        _wsBoostEnabled = true
+        local function _apply()
+            local c = LocalPlayer.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = v end
+        end
+        _apply()
+        _wsBoostConn = RunService.Heartbeat:Connect(function()
+            if not _wsBoostEnabled then return end
+            local c = LocalPlayer.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
+        end)
+    end
+    _G._applyWalkSpeed = applyWalkSpeed
+    createSlider(wsCell, "Walk Spd", 0, 100, 0, "SavedWalkSpeed", true, "", 0, true, nil, 40)
+    -- wire the SavedWalkSpeed attribute to applyWalkSpeed
+    SettingsObj:GetAttributeChangedSignal("SavedWalkSpeed"):Connect(function()
+        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
+        applyWalkSpeed(v)
+    end)
+    -- restore on spawn
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
+        if v <= 0 then return end
+        task.wait(0.5)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = v end
+    end)
+    -- apply saved value on load
+    task.defer(function()
+        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
+        applyWalkSpeed(v)
+    end)
+end
 GUI_W = _savedGUI_W
 
-local stealMinRowY = sliderRowY + ROW_H + GAP
+local stealMinRowY = sliderRowY + 2 * (ROW_H + GAP)
 do
     local row = Instance.new("Frame", MainFrame)
     row.Size = UDim2.new(0, GUI_W - PAD * 2, 0, ROW_H)
