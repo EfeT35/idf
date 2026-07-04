@@ -1487,7 +1487,7 @@ local function goToBrainrot(petPos)
     local h = petPos.Y
     local targetY = hrp.Position.Y
     if h > 23.15 then targetY = 21
-    elseif h >= 11 and h <= 23.15 then targetY = 14.5
+    elseif h >= 11 and h <= 23.15 then targetY = -4
     elseif h >= -6.9 and h <= 8.9 then targetY = -4 end
     local _to = Vector3.new(petPos.X, targetY, petPos.Z)
     -- Third floor: pre-place the platform BEFORE moving there (like xen).
