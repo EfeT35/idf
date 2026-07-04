@@ -11819,3 +11819,209 @@ end)
         end)
     end)
 end
+
+-- ═══════════════════════════════════════════════════════
+-- IDF HUB — ACTIONS PANEL
+-- Floating panel: Drop / Auto-Kick / Rejoin / Kick / Reset
+-- ═══════════════════════════════════════════════════════
+task.spawn(function()
+    pcall(function()
+        repeat task.wait() until game:IsLoaded()
+        task.wait(1)
+
+        local LP      = game:GetService("Players").LocalPlayer
+        local UIS     = game:GetService("UserInputService")
+        local RS      = game:GetService("RunService")
+        local TS      = game:GetService("TeleportService")
+
+        -- wait for PlayerGui
+        local pg = LP:WaitForChild("PlayerGui", 15)
+        if not pg then return end
+
+        -- ── colours ──────────────────────────────────────────────
+        local BG       = Color3.fromRGB(22, 22, 35)
+        local SURFACE  = Color3.fromRGB(35, 35, 52)
+        local ACCENT   = Color3.fromRGB(130, 120, 230)
+        local RED      = Color3.fromRGB(180, 55, 65)
+        local WHITE    = Color3.fromRGB(245, 245, 255)
+        local GRAY     = Color3.fromRGB(160, 160, 185)
+        local W        = 190
+        local BTN_H    = 36
+        local GAP      = 6
+        local PAD      = 10
+
+        -- ── ScreenGui ────────────────────────────────────────────
+        local sg = Instance.new("ScreenGui")
+        sg.Name            = "IDF_ActionsPanel"
+        sg.ResetOnSpawn    = false
+        sg.DisplayOrder    = 150
+        sg.IgnoreGuiInset  = true
+        pcall(function() sg.Parent = game:GetService("CoreGui") end)
+        if not sg.Parent then sg.Parent = pg end
+
+        -- ── main frame ───────────────────────────────────────────
+        local buttons = { "Drop", "Auto-Kick", "Rejoin", "Kick", "Reset" }
+        local totalH  = 54 + #buttons * (BTN_H + GAP) + PAD
+
+        local frame = Instance.new("Frame", sg)
+        frame.Size              = UDim2.fromOffset(W, totalH)
+        frame.Position          = UDim2.new(0, 20, 0.5, -totalH / 2)
+        frame.BackgroundColor3  = BG
+        frame.BorderSizePixel   = 0
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+        local mainStroke = Instance.new("UIStroke", frame)
+        mainStroke.Color       = ACCENT
+        mainStroke.Thickness   = 1.5
+        mainStroke.Transparency = 0.5
+
+        -- ── header (drag handle) ─────────────────────────────────
+        local header = Instance.new("Frame", frame)
+        header.Size             = UDim2.new(1, 0, 0, 50)
+        header.BackgroundColor3 = SURFACE
+        header.BorderSizePixel  = 0
+        Instance.new("UICorner", header).CornerRadius = UDim.new(0, 10)
+
+        -- fix bottom corners of header
+        local headerFix = Instance.new("Frame", header)
+        headerFix.Size              = UDim2.new(1, 0, 0, 10)
+        headerFix.Position          = UDim2.new(0, 0, 1, -10)
+        headerFix.BackgroundColor3  = SURFACE
+        headerFix.BorderSizePixel   = 0
+
+        local titleLbl = Instance.new("TextLabel", header)
+        titleLbl.Size               = UDim2.new(1, 0, 0, 26)
+        titleLbl.Position           = UDim2.new(0, 0, 0, 6)
+        titleLbl.BackgroundTransparency = 1
+        titleLbl.Text               = "IDF HUB"
+        titleLbl.Font               = Enum.Font.GothamBlack
+        titleLbl.TextSize           = 15
+        titleLbl.TextColor3         = ACCENT
+        titleLbl.TextXAlignment     = Enum.TextXAlignment.Center
+
+        local subLbl = Instance.new("TextLabel", header)
+        subLbl.Size                 = UDim2.new(1, 0, 0, 16)
+        subLbl.Position             = UDim2.new(0, 0, 0, 30)
+        subLbl.BackgroundTransparency = 1
+        subLbl.Text                 = "Actions"
+        subLbl.Font                 = Enum.Font.Gotham
+        subLbl.TextSize             = 11
+        subLbl.TextColor3           = GRAY
+        subLbl.TextXAlignment       = Enum.TextXAlignment.Center
+
+        -- ── drag logic ───────────────────────────────────────────
+        do
+            local dragging, dragStart, startPos
+            header.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                    dragging  = true
+                    dragStart = inp.Position
+                    startPos  = frame.Position
+                    inp.Changed:Connect(function()
+                        if inp.UserInputState == Enum.UserInputState.End then dragging = false end
+                    end)
+                end
+            end)
+            UIS.InputChanged:Connect(function(inp)
+                if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+                    local d = inp.Position - dragStart
+                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+        end
+
+        -- ── button factory ───────────────────────────────────────
+        local function makeBtn(idx, label, bgColor, isToggle)
+            local yOff = 54 + (idx - 1) * (BTN_H + GAP)
+            local btn = Instance.new("TextButton", frame)
+            btn.Size                = UDim2.new(1, -PAD * 2, 0, BTN_H)
+            btn.Position            = UDim2.new(0, PAD, 0, yOff)
+            btn.BackgroundColor3    = bgColor or SURFACE
+            btn.AutoButtonColor     = false
+            btn.Text                = label
+            btn.Font                = Enum.Font.GothamBold
+            btn.TextSize            = 13
+            btn.TextColor3          = WHITE
+            btn.BorderSizePixel     = 0
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+            local stroke = Instance.new("UIStroke", btn)
+            stroke.Color            = ACCENT
+            stroke.Thickness        = 1
+            stroke.Transparency     = 0.6
+            -- hover
+            btn.MouseEnter:Connect(function()
+                btn.BackgroundColor3 = isToggle and btn.BackgroundColor3 or Color3.fromRGB(50, 48, 80)
+                stroke.Transparency = 0.2
+            end)
+            btn.MouseLeave:Connect(function()
+                if not isToggle then btn.BackgroundColor3 = bgColor or SURFACE end
+                stroke.Transparency = 0.6
+            end)
+            return btn, stroke
+        end
+
+        -- ── buttons ──────────────────────────────────────────────
+
+        -- 1) DROP BRAINROT
+        local dropBtn = makeBtn(1, "Drop Brainrot")
+        dropBtn.MouseButton1Click:Connect(function()
+            task.spawn(function()
+                pcall(function()
+                    local flinging = true
+                    task.delay(0.3, function() flinging = false end)
+                    local run = RS
+                    while flinging do
+                        run.Heartbeat:Wait()
+                        local char  = LP.Character
+                        local hum   = char and char:FindFirstChildOfClass("Humanoid")
+                        local root  = hum and hum.RootPart
+                        if not (root and root.Parent) then break end
+                        local vel = root.Velocity
+                        root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                        run.RenderStepped:Wait()
+                        if root and root.Parent then root.Velocity = vel end
+                        run.Stepped:Wait()
+                        if root and root.Parent then root.Velocity = vel + Vector3.new(0, 0.1, 0) end
+                    end
+                end)
+            end)
+        end)
+
+        -- 2) AUTO-KICK TOGGLE
+        local autoKickOn = _G.MeerkoConfig and _G.MeerkoConfig.AutoKickOnSteal or false
+        local function autoKickColor() return autoKickOn and ACCENT or SURFACE end
+        local akBtn = makeBtn(2, autoKickOn and "Auto-Kick  ON" or "Auto-Kick  OFF", autoKickColor(), true)
+        akBtn.MouseButton1Click:Connect(function()
+            autoKickOn = not autoKickOn
+            if _G.MeerkoConfig then _G.MeerkoConfig.AutoKickOnSteal = autoKickOn end
+            akBtn.BackgroundColor3 = autoKickColor()
+            akBtn.Text = autoKickOn and "Auto-Kick  ON" or "Auto-Kick  OFF"
+        end)
+
+        -- 3) REJOIN
+        local rejoinBtn = makeBtn(3, "Rejoin")
+        rejoinBtn.MouseButton1Click:Connect(function()
+            pcall(function()
+                local ok = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
+                if not ok then TS:Teleport(game.PlaceId, LP) end
+            end)
+        end)
+
+        -- 4) KICK (leave server)
+        local kickBtn = makeBtn(4, "Kick", RED)
+        kickBtn.MouseButton1Click:Connect(function()
+            local ok = pcall(function() game:Shutdown() end)
+            if not ok then pcall(function() LP:Kick("") end) end
+        end)
+
+        -- 5) RESET
+        local resetBtn = makeBtn(5, "Reset")
+        resetBtn.MouseButton1Click:Connect(function()
+            if _G.MeerkoInstaReset then
+                task.spawn(function() pcall(_G.MeerkoInstaReset) end)
+            else
+                pcall(function() LP.Character:FindFirstChildOfClass("Humanoid").Health = 0 end)
+            end
+        end)
+
+    end)
+end)
