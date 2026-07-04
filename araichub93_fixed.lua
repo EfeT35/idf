@@ -6599,7 +6599,7 @@ do
         end)
     end
     _G._applyWalkSpeed = applyWalkSpeed
-    createSlider(wsCell, "Walk Spd", 0, 100, 0, "SavedWalkSpeed", true, "", 0, true, nil, 40)
+    createSlider(wsCell, "Walk Spd", 0, 32, 0, "SavedWalkSpeed", true, "", 0, true, nil, 40)
     -- wire the SavedWalkSpeed attribute to applyWalkSpeed
     SettingsObj:GetAttributeChangedSignal("SavedWalkSpeed"):Connect(function()
         local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
