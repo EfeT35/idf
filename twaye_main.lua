@@ -1,4 +1,4 @@
--- v35
+-- v36
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -3040,6 +3040,8 @@ do
         ItemDropKey     = "G",
         BrainrotDropKey = "H",
         CancelTPKey     = "X",
+        AutoBuyCarpet   = false,
+        AutoBuyKey      = "K",
     }
     _G.MeerkoConfig = Config
 
@@ -3877,6 +3879,228 @@ do
         end
 
         if Config.ClearError then _startClearError() end
+    end
+
+    -- AUTO BUY CARPET  [_G.MeerkoAutoBuy / _G.MeerkoStopAutoBuy]
+    do
+        _G.AutoBuyEnabled   = false
+        _G._AutoBuyTarget   = nil
+        _G._AutoBuyConns    = {}
+        _G._AutoBuyBodyPos  = nil
+
+        local _abWS = cloneref(game:GetService("Workspace"))
+        local _abRS = cloneref(game:GetService("ReplicatedStorage"))
+        local _abRun = cloneref(game:GetService("RunService"))
+
+        local function _abStopBuy()
+            _G.AutoBuyEnabled = false
+            for _, c in ipairs(_G._AutoBuyConns or {}) do pcall(function() c:Disconnect() end) end
+            _G._AutoBuyConns = {}
+            if _G._AutoBuyBodyPos then pcall(function() _G._AutoBuyBodyPos:Destroy() end); _G._AutoBuyBodyPos = nil end
+            _G._AutoBuyTarget = nil
+            Config.AutoBuyCarpet = false
+            if SaveConfig then pcall(SaveConfig) end
+        end
+
+        local function _abStartBuy()
+            _abStopBuy()
+            _G.AutoBuyEnabled = true
+            Config.AutoBuyCarpet = true
+            if SaveConfig then pcall(SaveConfig) end
+
+            local HOVER_HEIGHT = 5
+            local Datas2   = _abRS:FindFirstChild("Datas")
+            local Shared2  = _abRS:FindFirstChild("Shared")
+            local Utils2   = _abRS:FindFirstChild("Utils")
+            if not Datas2 or not Shared2 or not Utils2 then return end
+            local ok1, AnimalsData2   = pcall(function() return require(Datas2:FindFirstChild("Animals"))  end)
+            local ok2, AnimalsShared2 = pcall(function() return require(Shared2:FindFirstChild("Animals")) end)
+            local ok3, NumberUtils2   = pcall(function() return require(Utils2:FindFirstChild("NumberUtils")) end)
+            if not (ok1 and ok2 and ok3) then return end
+
+            local KN, KNL = {}, {}
+            for n, inf in pairs(AnimalsData2) do
+                KN[n]=n; KNL[n:lower()]=n
+                if inf.DisplayName then KN[inf.DisplayName]=n; KNL[inf.DisplayName:lower()]=n end
+            end
+
+            local function _abRoot(m)
+                return m.PrimaryPart or m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Head") or m:FindFirstChildWhichIsA("BasePart",true)
+            end
+            local function _abInt(m)
+                if KN[m.Name] then return KN[m.Name] end
+                if KNL[m.Name:lower()] then return KNL[m.Name:lower()] end
+                local i = m:GetAttribute("Index") or m:GetAttribute("AnimalIndex")
+                if i then if KN[i] then return KN[i] end; if KNL[i:lower()] then return KNL[i:lower()] end end
+                return nil
+            end
+
+            local function _abScan()
+                local r = {}
+                local plots = _abWS:FindFirstChild("Plots")
+                local function tr(m)
+                    if not m:IsA("Model") then return end
+                    for _, plr in ipairs(MK_Players:GetPlayers()) do if plr.Character and m:IsDescendantOf(plr.Character) then return end end
+                    if plots and m:IsDescendantOf(plots) then return end
+                    local int = _abInt(m); if not int then return end
+                    local rt  = _abRoot(m); if not rt then return end
+                    local mut = m:GetAttribute("Mutation") or "None"; if mut=="" then mut="None" end
+                    local traits = {}; local ta = m:GetAttribute("Traits"); if ta and type(ta)=="table" then traits=ta end
+                    local ok, g = pcall(function() return AnimalsShared2:GetGeneration(int,mut,traits,nil) end); g=(ok and g) or 0
+                    local inf2 = AnimalsData2[int]; local displayName=(inf2 and inf2.DisplayName) or m.Name
+                    table.insert(r,{model=m,root=rt,name=displayName,gen=g})
+                end
+                for _, fn in ipairs({"Animals","SpawnedAnimals","WildAnimals","Carpet"}) do
+                    local f = _abWS:FindFirstChild(fn); if f then for _, c in ipairs(f:GetChildren()) do pcall(tr,c) end end
+                end
+                for _, c in ipairs(_abWS:GetChildren()) do
+                    if c:IsA("Model") and c.Name~="Plots" and c.Name~="Map" and c.Name~="Terrain" and c.Name~="Camera" then pcall(tr,c) end
+                end
+                local _myHrp; do local _ch = MK_LP.Character; _myHrp = _ch and _ch:FindFirstChild("HumanoidRootPart") end
+                local _myPos = _myHrp and _myHrp.Position or Vector3.new(0,0,0)
+                for _, e in ipairs(r) do e.dist = (e.root.Position - _myPos).Magnitude end
+                table.sort(r, function(a,b) return a.dist < b.dist end)
+                return r
+            end
+
+            local function _ensureBodyPos(hrp)
+                if _G._AutoBuyBodyPos and _G._AutoBuyBodyPos.Parent == hrp then return _G._AutoBuyBodyPos end
+                if _G._AutoBuyBodyPos then pcall(function() _G._AutoBuyBodyPos:Destroy() end) end
+                local bp = Instance.new("BodyPosition", hrp)
+                bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                bp.P = 20000; bp.D = 1000; bp.Position = hrp.Position
+                _G._AutoBuyBodyPos = bp
+                return bp
+            end
+            local function _destroyBodyPos()
+                if _G._AutoBuyBodyPos then pcall(function() _G._AutoBuyBodyPos:Destroy() end); _G._AutoBuyBodyPos = nil end
+            end
+            local function _getTargetPart()
+                if not _G._AutoBuyTarget or not _G._AutoBuyTarget.model or not _G._AutoBuyTarget.model.Parent then return nil end
+                local r = _abRoot(_G._AutoBuyTarget.model)
+                return (r and r.Parent) and r or nil
+            end
+            local function _getTargetPrompt()
+                if not _G._AutoBuyTarget or not _G._AutoBuyTarget.model or not _G._AutoBuyTarget.model.Parent then return nil end
+                for _, d in ipairs(_G._AutoBuyTarget.model:GetDescendants()) do
+                    if d:IsA("ProximityPrompt") and d.Enabled then return d end
+                end
+                return nil
+            end
+
+            -- Equip carpet
+            pcall(function()
+                local ch = MK_LP.Character; local hm = ch and ch:FindFirstChildOfClass("Humanoid")
+                if hm then
+                    local carp = MK_LP.Backpack:FindFirstChild("Flying Carpet") or ch:FindFirstChild("Flying Carpet")
+                    if carp then hm:EquipTool(carp) end
+                end
+            end)
+
+            -- Initial lock
+            local list = _abScan(); if #list > 0 then _G._AutoBuyTarget = list[1] end
+
+            -- Hover loop
+            table.insert(_G._AutoBuyConns, _abRun.Heartbeat:Connect(function()
+                if not _G.AutoBuyEnabled then _destroyBodyPos(); return end
+                local tp = _getTargetPart(); if not tp then _destroyBodyPos(); return end
+                local char = MK_LP.Character; local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then _destroyBodyPos(); return end
+                local bp = _ensureBodyPos(hrp)
+                bp.Position = tp.Position + Vector3.new(0, HOVER_HEIGHT, 0)
+            end))
+
+            -- Carpet lock
+            do local _clF = 0; table.insert(_G._AutoBuyConns, _abRun.Heartbeat:Connect(function()
+                if not _G.AutoBuyEnabled then return end
+                _clF = _clF + 1; if _clF < 10 then return end; _clF = 0
+                pcall(function()
+                    local char = MK_LP.Character; local hum = char and char:FindFirstChildOfClass("Humanoid"); if not hum then return end
+                    if not char:FindFirstChild("Flying Carpet") then
+                        local tool = MK_LP.Backpack:FindFirstChild("Flying Carpet")
+                        if tool then hum:EquipTool(tool) end
+                    end
+                end)
+            end)) end
+
+            -- Purchase loop (~10/s)
+            do local _buyF = 0; table.insert(_G._AutoBuyConns, _abRun.Heartbeat:Connect(function()
+                if not _G.AutoBuyEnabled then return end
+                _buyF = _buyF + 1; if _buyF < 6 then return end; _buyF = 0
+                local prompt = _getTargetPrompt(); if not prompt then return end
+                pcall(function()
+                    local oldHold = prompt.HoldDuration; local oldDist = prompt.MaxActivationDistance; local oldLOS = prompt.RequiresLineOfSight
+                    prompt.HoldDuration = 0; prompt.MaxActivationDistance = 9999; prompt.RequiresLineOfSight = false
+                    if fireproximityprompt then fireproximityprompt(prompt) end
+                    prompt.HoldDuration = oldHold; prompt.MaxActivationDistance = oldDist; prompt.RequiresLineOfSight = oldLOS
+                end)
+            end)) end
+
+            -- Retarget
+            local function _abRetarget(l)
+                if #l > 0 then
+                    local best = l[1]; local current = _G._AutoBuyTarget
+                    if not current or not current.model or not current.model.Parent then _G._AutoBuyTarget = best
+                    elseif not _getTargetPrompt() then _G._AutoBuyTarget = best
+                    else
+                        local _ch = MK_LP.Character; local _hrp = _ch and _ch:FindFirstChild("HumanoidRootPart")
+                        if _hrp and current.model and current.model.Parent and best.model ~= current.model then
+                            local curRoot = _abRoot(current.model)
+                            if curRoot then
+                                local curDist = (curRoot.Position - _hrp.Position).Magnitude
+                                local bestDist = best.dist or ((best.root.Position - _hrp.Position).Magnitude)
+                                if bestDist < curDist - 4 then _G._AutoBuyTarget = best end
+                            end
+                        end
+                    end
+                else
+                    _G._AutoBuyTarget = nil
+                end
+            end
+
+            -- Event-driven rescan
+            for _, fn in ipairs({"Animals","SpawnedAnimals","WildAnimals","Carpet"}) do
+                local folder = _abWS:FindFirstChild(fn)
+                if folder then
+                    table.insert(_G._AutoBuyConns, folder.ChildAdded:Connect(function()
+                        if not _G.AutoBuyEnabled then return end
+                        task.defer(function() if _G.AutoBuyEnabled then _abRetarget(_abScan()) end end)
+                    end))
+                    table.insert(_G._AutoBuyConns, folder.ChildRemoved:Connect(function()
+                        if not _G.AutoBuyEnabled then return end
+                        task.defer(function() if _G.AutoBuyEnabled then _abRetarget(_abScan()) end end)
+                    end))
+                end
+            end
+            table.insert(_G._AutoBuyConns, _abWS.ChildAdded:Connect(function(child)
+                if not _G.AutoBuyEnabled then return end
+                if not child:IsA("Model") then return end
+                task.defer(function() if _G.AutoBuyEnabled then _abRetarget(_abScan()) end end)
+            end))
+
+            -- Safety poll
+            task.spawn(function()
+                while _G.AutoBuyEnabled do task.wait(0.5); if _G.AutoBuyEnabled then _abRetarget(_abScan()) end end
+            end)
+        end
+
+        _G.MeerkoAutoBuy = function(state)
+            if state then task.spawn(_abStartBuy) else task.spawn(_abStopBuy) end
+        end
+        _G.MeerkoStopAutoBuy = _abStopBuy
+
+        -- Keybind
+        local _abUIS = cloneref(game:GetService("UserInputService"))
+        _abUIS.InputBegan:Connect(function(input, processed)
+            if processed then return end
+            if _abUIS:GetFocusedTextBox() then return end
+            local key = Config.AutoBuyKey or "K"
+            if input.KeyCode == Enum.KeyCode[key] and Config.AutoBuyCarpet then
+                if _G.AutoBuyEnabled then task.spawn(_abStopBuy) else task.spawn(_abStartBuy) end
+            end
+        end)
+
+        if Config.AutoBuyCarpet then task.spawn(_abStartBuy) end
     end
 
     _G.VanishDesync = _G.VanishDesync or {
@@ -9158,6 +9382,7 @@ end)
         buildGroup(host2, "VISUALS")
         buildGroup(host2, "MISC")
         addCategory(host2, "KEYBINDS")
+        addKeybindRow(host2, "Auto Buy", "AutoBuyKey")
         addKeybindRow(host2, "Auto Clone", "CloneKey")
         addKeybindRow(host2, "Carpet Speed", "CarpetSpeedKey")
         addKeybindRow(host2, "Item Drop", "ItemDropKey")
@@ -11013,6 +11238,8 @@ end)
                 _G.AntiBodySwapEnabled = val
             elseif key == "ClearError" and _G.MeerkoClearError then
                 pcall(_G.MeerkoClearError, val)
+            elseif key == "AutoBuyCarpet" and _G.MeerkoAutoBuy then
+                pcall(_G.MeerkoAutoBuy, val)
             end
         end
 
@@ -11130,6 +11357,7 @@ end)
         toggleRow(sProt, "AntiBodySwap",       "Anti Body Swap")
         toggleRow(sProt, "AutoDestroyTurrets", "Auto-Destroy Turrets")
         local sAuto = tabMisc:AddSection("right", "AUTO")
+        toggleRow(sAuto, "AutoBuyCarpet",   "Auto Buy Carpet")
         toggleRow(sAuto, "AutoTPOnJoin",    "TP Immédiat au Join")
         toggleRow(sAuto, "AutoKickOnSteal", "Auto-Kick on Steal")
         toggleRow(sAuto, "AutoTPToPSOnSteal", "Auto-Join PS on Steal")
