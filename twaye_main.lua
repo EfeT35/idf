@@ -1,4 +1,4 @@
--- v40
+-- v41
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -11401,12 +11401,6 @@ end)
         toggleRow(sMisc, "FPSBoost",       "FPS Boost")
         toggleRow(sMisc, "UnlockButtons",  "Base Unlock Buttons")
         toggleRow(sMisc, "XrayBases",      "X-Ray Bases")
-        sMisc:AddSliderF({
-            Text = "Speed Boost", Min = 0, Max = 100, Step = 1,
-            Default = Config.SpeedBoost or 0,
-            Format = function(v) return v == 0 and "OFF" or string.format("%d", v) end,
-            Callback = function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end,
-        })
         local sProt = tabMisc:AddSection("left", "PROTECTION")
         toggleRow(sProt, "AntiRagdoll",        "Anti Ragdoll")
         toggleRow(sProt, "AntiBeeDisco",       "Anti Bee & Disco")
@@ -12048,6 +12042,9 @@ end)
                     _G.VanishInvisWalkSpeed = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
+            makeSliderRow("Speed Boost", 0, 100, 1, Config.SpeedBoost or 0,
+                function(v) return v == 0 and "OFF" or tostring(math.floor(v)) end,
+                function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end)
 
             local collapsed = false
             local function toggleCollapse()
