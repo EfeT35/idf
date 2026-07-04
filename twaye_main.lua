@@ -1,4 +1,4 @@
--- v38
+-- v39
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -8725,7 +8725,7 @@ end)
             s2.Size = UDim2.new(1, 0, 0, 38); s2.LayoutOrder = 2
             addRecLabel(s2, "rec: 5")
 
-            local s3 = makeSlider(settings, "Walk Speed", 5, 32, 1,
+            local s3 = makeSlider(settings, "Walk Speed", 5, 100, 1,
                 function() return Config.InvisWalkSpeed or 16 end,
                 function(v)
                     Config.InvisWalkSpeed = v; _G.VanishInvisWalkSpeed = v; SaveConfig()
@@ -11985,7 +11985,7 @@ end)
                     _G.VanishInvisDepth = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
-            makeSliderRow("Walk Speed", 5, 32, 1, Config.InvisWalkSpeed or 16,
+            makeSliderRow("Walk Speed", 5, 100, 1, Config.InvisWalkSpeed or 16,
                 function(v) return tostring(math.floor(v)) end,
                 function(v)
                     Config.InvisWalkSpeed = v
