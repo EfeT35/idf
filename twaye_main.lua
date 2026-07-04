@@ -1,4 +1,4 @@
--- v43
+-- v44
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -8785,6 +8785,13 @@ end)
             s3.Size = UDim2.new(1, 0, 0, 38); s3.LayoutOrder = 3
             addRecLabel(s3, "rec: 16")
 
+            local s4 = makeSlider(settings, "Spd", 0, 32, 1,
+                function() return Config.SpeedBoost or 0 end,
+                function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end,
+                function(v) return v == 0 and "OFF" or tostring(math.floor(v)) end
+            )
+            s4.Size = UDim2.new(1, 0, 0, 38); s4.LayoutOrder = 4
+
             setToggler(Config.InvisOnSteal == true, false)
             sw.MouseButton1Click:Connect(function()
                 local nv = not (Config.InvisOnSteal == true)
@@ -12042,10 +12049,6 @@ end)
                     _G.VanishInvisWalkSpeed = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
-            makeSliderRow("Spd", 0, 32, 1, Config.SpeedBoost or 0,
-                function(v) return v == 0 and "OFF" or tostring(math.floor(v)) end,
-                function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end)
-
             local collapsed = false
             local function toggleCollapse()
                 collapsed = not collapsed
