@@ -1,4 +1,4 @@
--- v34
+-- v35
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -2991,6 +2991,7 @@ do
         SubspaceMineESP = false,
         LineToBase      = false,
         LineToBrainrot  = false,
+        ClearError      = false,
         InvisOnSteal    = false,
         InvisRotation   = 225,
         InvisDepth      = 7,
@@ -3802,6 +3803,81 @@ do
 
 
 
+
+    -- =================================================================
+    -- CLEAR ERROR  [_G.MeerkoClearError]
+    do
+        local _ceActive   = false
+        local _ceHBConn   = nil
+        local _cePollConn = nil
+
+        local function _startClearError()
+            if _ceActive then return end
+            _ceActive = true
+            pcall(function()
+                local _errGS = cloneref(game:GetService("GuiService"))
+                local _errRS = cloneref(game:GetService("RunService"))
+                local _errF  = 0
+                _ceHBConn = _errRS.Heartbeat:Connect(function()
+                    _errF = _errF + 1; if _errF < 3 then return end; _errF = 0
+                    pcall(function() _errGS:ClearError() end)
+                end)
+            end)
+            pcall(function()
+                local _GuiService = (typeof(cloneref) == "function" and cloneref(game:GetService("GuiService"))) or game:GetService("GuiService")
+                local mt = getrawmetatable(_GuiService)
+                local oldIndex = mt.__index
+                setreadonly(mt, false)
+                mt.__index = newcclosure(function(self, key)
+                    if key == "SetErrorMessage" or key == "GetErrorMessage" then
+                        return newcclosure(function() return "" end)
+                    end
+                    return oldIndex(self, key)
+                end)
+                setreadonly(mt, true)
+                local ERROR_ROOTS = {ErrorPrompt=true, RobloxPromptGui=true, PromptOverlay=true}
+                local function instantHide(desc)
+                    pcall(function()
+                        if desc:IsA("GuiObject") then desc.Visible = false
+                        elseif desc:IsA("ScreenGui") then desc.Enabled = false end
+                        task.delay(2, function() pcall(function() desc:Destroy() end) end)
+                    end)
+                end
+                pcall(function()
+                    game:GetService("CoreGui").DescendantAdded:Connect(function(desc)
+                        if not _ceActive then return end
+                        if ERROR_ROOTS[desc.Name] then instantHide(desc) end
+                    end)
+                end)
+                pcall(function()
+                    local pg = MK_LP:WaitForChild("PlayerGui", 5)
+                    if pg then pg.DescendantAdded:Connect(function(desc)
+                        if not _ceActive then return end
+                        if ERROR_ROOTS[desc.Name] then instantHide(desc) end
+                    end) end
+                end)
+                task.spawn(function()
+                    while _ceActive do
+                        pcall(function() _GuiService:ClearError() end)
+                        task.wait(0.1)
+                    end
+                end)
+            end)
+        end
+
+        local function _stopClearError()
+            _ceActive = false
+            if _ceHBConn then pcall(function() _ceHBConn:Disconnect() end); _ceHBConn = nil end
+        end
+
+        _G.MeerkoClearError = function(state)
+            Config.ClearError = state and true or false
+            if SaveConfig then pcall(SaveConfig) end
+            if state then _startClearError() else _stopClearError() end
+        end
+
+        if Config.ClearError then _startClearError() end
+    end
 
     _G.VanishDesync = _G.VanishDesync or {
         setJoin = function() end, rollback = function() end,
@@ -10935,6 +11011,8 @@ end)
                 _G.MeerkoAutoKickOnSteal = val
             elseif key == "AntiBodySwap" then
                 _G.AntiBodySwapEnabled = val
+            elseif key == "ClearError" and _G.MeerkoClearError then
+                pcall(_G.MeerkoClearError, val)
             end
         end
 
@@ -11039,6 +11117,7 @@ end)
         local pageMisc = Window:AddPage({ name = "Misc" })
         local tabMisc  = pageMisc:AddTab({ Name = "misc" })
         local sMisc = tabMisc:AddSection("left", "MISC")
+        toggleRow(sMisc, "ClearError",     "Clear Error")
         toggleRow(sMisc, "InfiniteJump",   "Infinite Jump")
         toggleRow(sMisc, "ShowAdminPanel", "Admin Panel")
         toggleRow(sMisc, "Animations",     "Animations")
