@@ -2280,7 +2280,7 @@ local function doVelocityTP()
 
         -- PATCH: adapter la vitesse du TP selon le ping
         pcall(function()
-            local ping = LocalPlayer:GetNetworkPing() * 1000  -- en ms
+            local ping = LP:GetNetworkPing() * 1000  -- en ms
             local fe = _G.FlashExtra
             if fe then
                 if ping > 100 then
@@ -6219,51 +6219,6 @@ end
 local activeSliders  = {}
 local draggingSlider = nil
 
--- Speed boost (déclaré ici pour être accessible dans applyGlobal du slider)
-_G._speedBoostValue   = 0
-_G._speedBoostEnabled = false
-local _speedBoostConn = nil
-local _speedBoostDefaultWS = nil  -- sauvegarde du WalkSpeed original
-local function applySpeedBoost(v)
-    _G._speedBoostValue = v
-    if _speedBoostConn then _speedBoostConn:Disconnect(); _speedBoostConn = nil end
-    -- Restaurer le WalkSpeed original sur le character actuel
-    pcall(function()
-        local c = LocalPlayer.Character
-        local hum = c and c:FindFirstChildOfClass("Humanoid")
-        if hum and _speedBoostDefaultWS then hum.WalkSpeed = _speedBoostDefaultWS end
-    end)
-    if v <= 0 then
-        _G._speedBoostEnabled = false
-        _speedBoostDefaultWS = nil
-        return
-    end
-    _G._speedBoostEnabled = true
-    -- Appliquer immédiatement sur le character actuel
-    pcall(function()
-        local c = LocalPlayer.Character
-        local hum = c and c:FindFirstChildOfClass("Humanoid")
-        if hum then
-            if not _speedBoostDefaultWS then _speedBoostDefaultWS = hum.WalkSpeed end
-            hum.WalkSpeed = v
-        end
-    end)
-    -- Maintenir sur les respawns et si WalkSpeed est resetté
-    _speedBoostConn = RunService.Heartbeat:Connect(function()
-        if not _G._speedBoostEnabled then return end
-        local c = LocalPlayer.Character
-        local hum = c and c:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
-    end)
-end
-
--- Ré-appliquer après respawn
-LocalPlayer.CharacterAdded:Connect(function(char)
-    if not _G._speedBoostEnabled or (_G._speedBoostValue or 0) <= 0 then return end
-    task.wait(0.5)
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.WalkSpeed = _G._speedBoostValue end
-end)
 
 local function createSlider(parent, labelText, minVal, maxVal, defaultVal, attributeKey, isInteger, suffix, yPos, showReset, stepSize, labelWidthOverride, textSizeOverride, textXOffsetOverride, numberSizeOverride, rXOffsetOverride)
 	local ballSize   = 14
@@ -6350,7 +6305,6 @@ local function createSlider(parent, labelText, minVal, maxVal, defaultVal, attri
 		if attributeKey == "SavedRotation" then _G.InvisStealAngle = v end
 		if attributeKey == "SavedDepth" then _G.SinkSliderValue = v end
 		if attributeKey == "SavedFOV" then _G.SavedFOV = v; Camera.FieldOfView = v end
-		if attributeKey == "SavedSpeedBoost" then applySpeedBoost(v) end
 	end
 
 	local sliderObj = {
