@@ -7777,6 +7777,73 @@ task.defer(function()
     if _G._adminControlGui then _G._adminControlGui.Enabled = saved end
 end)
 
+-- ── Toggle: Carpet Speed ────────────────────────────────────────────────────
+do
+    local _csOn = false
+    local _csConn = nil
+    local function _setCarpetSpeed(enabled)
+        _csOn = enabled
+        if _csConn then _csConn:Disconnect(); _csConn = nil end
+        if not enabled then return end
+        _csConn = RunService.Heartbeat:Connect(function()
+            if not _csOn then return end
+            local c = LocalPlayer.Character
+            if not c then return end
+            local hum = c:FindFirstChildOfClass("Humanoid")
+            local hrp = c:FindFirstChild("HumanoidRootPart")
+            if not hum or not hrp then return end
+            local toolNames = { "Flying Carpet", "Cupid's Wings", "Santa's Sleigh", "Witch's Broom", "Magic Carpet" }
+            for _, n in ipairs(toolNames) do
+                local t = c:FindFirstChild(n) or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild(n))
+                if t then
+                    local hum2 = c:FindFirstChildOfClass("Humanoid")
+                    if hum2 then pcall(function() hum2:EquipTool(t) end) end
+                    break
+                end
+            end
+            local md = hum.MoveDirection
+            local keepY = hrp.AssemblyLinearVelocity.Y
+            if md.Magnitude > 0 then
+                hrp.AssemblyLinearVelocity = Vector3.new(md.X * 140, keepY, md.Z * 140)
+            else
+                hrp.AssemblyLinearVelocity = Vector3.new(0, keepY, 0)
+            end
+        end)
+    end
+    _G._setCarpetSpeed = _setCarpetSpeed
+
+    local csBtn, csSet = makeMainToggle("Carpet Speed", _MT_START + (_MT_ROW + _MT_GAP) * 8, false)
+    csBtn.MouseButton1Click:Connect(function()
+        _csOn = not _csOn
+        _setCarpetSpeed(_csOn)
+        csSet(_csOn)
+        pcall(function() SettingsObj:SetAttribute("SavedCarpetSpeed", _csOn) end)
+    end)
+    task.defer(function()
+        local saved = false
+        pcall(function()
+            local v = SettingsObj:GetAttribute("SavedCarpetSpeed")
+            if type(v) == "boolean" then saved = v end
+        end)
+        if saved then _csOn = true; _setCarpetSpeed(true); csSet(true) end
+    end)
+
+    -- Keybind (Q par défaut, configurable)
+    task.spawn(function()
+        game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            local wantKey = _G.CarpetSpeedKey or "Q"
+            if Enum.KeyCode[wantKey] and input.KeyCode == Enum.KeyCode[wantKey] then
+                _csOn = not _csOn
+                _setCarpetSpeed(_csOn)
+                csSet(_csOn)
+                pcall(function() SettingsObj:SetAttribute("SavedCarpetSpeed", _csOn) end)
+            end
+        end)
+    end)
+end
+
 -- ── Toggle: Float ────────────────────────────────────────────────────────────
 -- Float supprimé du main
 _G._floatActive = false
@@ -9512,7 +9579,7 @@ local KB_TOTAL_ROWS = #KEYBIND_DEFS
 local KB_CONTENT_H = _kbRowsStartY + KB_TOTAL_ROWS * (KB_ROW + KB_GAP) + KB_PAD
 
 -- Main tab: 8 toggle rows
-local _MAIN_ROWS = 8
+local _MAIN_ROWS = 9
 local _MAIN_CONTENT_H = _MT_START + _MAIN_ROWS * (_MT_ROW + _MT_GAP) + KB_PAD
 
 -- TP Settings tab: visible viewport height (cap to avoid going off-screen).
