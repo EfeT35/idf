@@ -16381,6 +16381,9 @@ task.spawn(function()
     local spdSlider = makeISSlider("Spd", 5, 40, Config.StealSpeed or SharedState.GetStealSpeed(), false, function(v)
         Config.StealSpeed = v; SharedState.SetStealSpeed(v); SaveConfig()
     end)
+    local wsISSlider = makeISSlider("Walk Spd", 0, 32, 0, true, function(v)
+        if _G._applyWalkSpeed then _G._applyWalkSpeed(v) end
+    end)
 
     makeISKeybind()
     panel.Size = UDim2.new(0, IS_W, 0, curY + 8)
