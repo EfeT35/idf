@@ -1,4 +1,4 @@
--- v41
+-- v42
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- LPH macro fallbacks (no-ops when not running under Luraph obfuscation)
@@ -12042,7 +12042,7 @@ end)
                     _G.VanishInvisWalkSpeed = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
-            makeSliderRow("Speed Boost", 0, 100, 1, Config.SpeedBoost or 0,
+            makeSliderRow("Speed Boost", 0, 32, 1, Config.SpeedBoost or 0,
                 function(v) return v == 0 and "OFF" or tostring(math.floor(v)) end,
                 function(v) if _G.MeerkoApplySpeedBoost then pcall(_G.MeerkoApplySpeedBoost, v) end end)
 
