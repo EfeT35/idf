@@ -25,7 +25,7 @@ local espData    = {}  -- [player] = { box = SelectionBox, ... }
 local function removeESP(player)
     local d = espData[player]
     if not d then return end
-    if d.box and d.box.Parent then d.box:Destroy() end
+    if d.bg and d.bg.Parent then d.bg:Destroy() end
     espData[player] = nil
 end
 
@@ -35,18 +35,42 @@ local function addESP(player)
 
     local char = player.Character
     if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
     if not root then return end
 
-    local box = Instance.new("SelectionBox")
-    box.Adornee             = char
-    box.Color3              = BOX_COLOR
-    box.SurfaceColor3       = BOX_COLOR
-    box.SurfaceTransparency = 0.7
-    box.LineThickness       = LINE_THICK
-    box.Parent              = Workspace
+    -- BillboardGui AlwaysOnTop → visible à travers les murs
+    local bg = Instance.new("BillboardGui")
+    bg.Adornee      = root
+    bg.AlwaysOnTop  = true
+    bg.Size         = UDim2.new(0, 6, 0, 80)
+    bg.StudsOffset  = Vector3.new(0, 3, 0)
+    bg.Parent       = Workspace
 
-    espData[player] = { box = box }
+    -- bordure colorée (frame vide = juste le contour)
+    local outline = Instance.new("Frame", bg)
+    outline.Size                  = UDim2.fromScale(1, 1)
+    outline.BackgroundTransparency = 1
+    outline.BorderSizePixel        = 0
+
+    local stroke = Instance.new("UIStroke", outline)
+    stroke.Color       = BOX_COLOR
+    stroke.Thickness   = 2
+    stroke.Transparency = 0
+
+    -- nom du joueur au dessus
+    local nameLbl = Instance.new("TextLabel", bg)
+    nameLbl.Size                  = UDim2.new(4, 0, 0, 18)
+    nameLbl.Position              = UDim2.new(-1.5, 0, 0, -20)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Text                  = player.Name
+    nameLbl.Font                  = Enum.Font.GothamBold
+    nameLbl.TextSize              = 13
+    nameLbl.TextColor3            = BOX_COLOR
+    nameLbl.TextStrokeTransparency = 0.4
+    nameLbl.TextStrokeColor3      = Color3.fromRGB(0,0,0)
+    nameLbl.TextScaled            = false
+
+    espData[player] = { bg = bg }
 end
 
 local function updateESP(player)
@@ -54,7 +78,8 @@ local function updateESP(player)
     if not d then return end
     local char = player.Character
     if not char then removeESP(player); return end
-    d.box.Adornee = char
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+    if root then d.bg.Adornee = root end
 end
 
 local function enableAll()
