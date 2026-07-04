@@ -16525,62 +16525,27 @@ print("[CNK INVIS] Chargé ! Touche " .. Config.InvisToggleKey .. " = toggle inv
 
 -- ═══ Walk Speed Boost (actif seulement quand brainrot en main) ═══
 task.spawn(function()
+    local RS  = game:GetService("RunService")
     local LP2 = game:GetService("Players").LocalPlayer
     local _wsVal = 0
 
-    local function isTping()
-        local s = _G.TPStatus
-        return s and s ~= "at_brainrot" and s ~= "idle" and s ~= ""
-            and not s:find("^no_") and not s:find("grapple_on_cooldown")
-    end
-
-    local function hasTool(char)
-        if not char then return false end
-        return char:FindFirstChildOfClass("Tool") ~= nil
-    end
-
-    local function setSpeed(char, speed)
-        if isTping() then return end  -- ne pas toucher au WalkSpeed pendant le TP
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = speed end
-    end
-
-    local function watchChar(char)
-        -- Applique le speed si tool déjà en main au moment du spawn
-        task.wait(0.3)
-        if _wsVal > 0 and hasTool(char) then setSpeed(char, _wsVal) end
-
-        char.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") and _wsVal > 0 then
-                setSpeed(char, _wsVal)
-            end
-        end)
-        char.ChildRemoved:Connect(function(child)
-            if child:IsA("Tool") then
-                -- Outil retiré — reset vitesse si plus aucun tool
-                task.wait(0.05)
-                if not hasTool(char) then
-                    setSpeed(char, 16)
-                end
-            end
-        end)
-    end
-
     _G._applyWalkSpeed = function(v)
         _wsVal = v
-        local char = LP2.Character
-        if not char then return end
-        if v > 0 and hasTool(char) then
-            setSpeed(char, v)
-        elseif not hasTool(char) or v <= 0 then
-            setSpeed(char, 16)
-        end
     end
 
-    LP2.CharacterAdded:Connect(function(char)
-        watchChar(char)
+    RS.Heartbeat:Connect(function()
+        if _wsVal <= 0 then return end
+        -- Pas pendant un TP actif
+        local s = _G.TPStatus
+        if s and s ~= "" and s ~= "at_brainrot"
+            and not s:find("^no_") and not s:find("grapple_on_cooldown") then
+            return
+        end
+        local char = LP2.Character
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
+        local hasTool = char:FindFirstChildOfClass("Tool") ~= nil
+        local target  = hasTool and _wsVal or 16
+        if hum.WalkSpeed ~= target then hum.WalkSpeed = target end
     end)
-    if LP2.Character then
-        watchChar(LP2.Character)
-    end
 end)
