@@ -6573,49 +6573,9 @@ fovCell.BackgroundTransparency = 1
 fovCell.BorderSizePixel = 0
 createSlider(fovCell, "FOV", 30, 120, 100, "SavedFOV", true, "°", 0, true, nil, 32)
 
-local wsCell = Instance.new("Frame", MainFrame)
-wsCell.Size = UDim2.new(0, FULL_W, 0, ROW_H)
-wsCell.Position = UDim2.new(0, PAD, 0, sliderRowY + ROW_H + GAP)
-wsCell.BackgroundTransparency = 1
-wsCell.BorderSizePixel = 0
-do
-    local _wsRS = game:GetService("RunService")
-    local _wsLP = game:GetService("Players").LocalPlayer
-    local _wsBoostConn = nil
-    local _wsBoostEnabled = false
-    local function applyWalkSpeed(v)
-        if _wsBoostConn then _wsBoostConn:Disconnect(); _wsBoostConn = nil end
-        if v <= 0 then _wsBoostEnabled = false; return end
-        _wsBoostEnabled = true
-        local c = _wsLP.Character
-        local hum = c and c:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = v end
-        _wsBoostConn = _wsRS.Heartbeat:Connect(function()
-            if not _wsBoostEnabled then return end
-            local c2 = _wsLP.Character
-            local hum2 = c2 and c2:FindFirstChildOfClass("Humanoid")
-            if hum2 and hum2.WalkSpeed ~= v then hum2.WalkSpeed = v end
-        end)
-    end
-    _G._applyWalkSpeed = applyWalkSpeed
-    createSlider(wsCell, "Walk Spd", 0, 32, 0, "SavedWalkSpeed", true, "", 0, true, nil, 40)
-    SettingsObj:GetAttributeChangedSignal("SavedWalkSpeed"):Connect(function()
-        applyWalkSpeed(SettingsObj:GetAttribute("SavedWalkSpeed") or 0)
-    end)
-    _wsLP.CharacterAdded:Connect(function(char)
-        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
-        if v <= 0 then return end
-        task.wait(0.5)
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = v end
-    end)
-    task.defer(function()
-        applyWalkSpeed(SettingsObj:GetAttribute("SavedWalkSpeed") or 0)
-    end)
-end
 GUI_W = _savedGUI_W
 
-local stealMinRowY = sliderRowY + 2 * (ROW_H + GAP)
+local stealMinRowY = sliderRowY + ROW_H + GAP
 do
     local row = Instance.new("Frame", MainFrame)
     row.Size = UDim2.new(0, GUI_W - PAD * 2, 0, ROW_H)
@@ -16562,3 +16522,33 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 print("[CNK INVIS] Chargé ! Touche " .. Config.InvisToggleKey .. " = toggle invis")
+
+-- ═══ Walk Speed Boost ═══
+task.spawn(function()
+    local RS = game:GetService("RunService")
+    local LP2 = game:GetService("Players").LocalPlayer
+    local _wsConn = nil
+    local _wsVal = 0
+    _G._applyWalkSpeed = function(v)
+        _wsVal = v
+        if _wsConn then _wsConn:Disconnect(); _wsConn = nil end
+        if v <= 0 then return end
+        local function apply()
+            local c = LP2.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = v end
+        end
+        apply()
+        _wsConn = RS.Heartbeat:Connect(function()
+            local c = LP2.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
+        end)
+    end
+    LP2.CharacterAdded:Connect(function(char)
+        if _wsVal <= 0 then return end
+        task.wait(0.5)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = _wsVal end
+    end)
+end)
