@@ -16335,7 +16335,7 @@ task.spawn(function()
     local spdSlider = makeISSlider("Spd", 5, 40, Config.StealSpeed or SharedState.GetStealSpeed(), false, function(v)
         Config.StealSpeed = v; SharedState.SetStealSpeed(v); SaveConfig()
     end)
-    local wsISSlider = makeISSlider("Walk Spd", 0, 32, 0, true, function(v)
+    local wsISSlider = makeISSlider("Walk Spd", 0, 32, 32, true, function(v)
         if _G._applyWalkSpeed then _G._applyWalkSpeed(v) end
     end)
 
@@ -16527,7 +16527,7 @@ print("[CNK INVIS] Chargé ! Touche " .. Config.InvisToggleKey .. " = toggle inv
 task.spawn(function()
     local RS  = game:GetService("RunService")
     local LP2 = game:GetService("Players").LocalPlayer
-    local _wsVal = 0
+    local _wsVal = 32
 
     _G._applyWalkSpeed = function(v)
         _wsVal = v
@@ -16549,3 +16549,54 @@ task.spawn(function()
         if hum.WalkSpeed ~= target then hum.WalkSpeed = target end
     end)
 end)
+
+-- ═══ Clean Error GUIs ═══
+do
+    local _ceEnabled = true
+    local GuiService = (cloneref and cloneref(game:GetService("GuiService"))) or game:GetService("GuiService")
+    local LP_ce = game:GetService("Players").LocalPlayer
+
+    task.spawn(function()
+        while true do
+            if _ceEnabled then pcall(function() GuiService:ClearError() end) end
+            task.wait(0.05)
+        end
+    end)
+
+    local sg2 = Instance.new("ScreenGui")
+    sg2.Name = "CleanErrorGui"
+    sg2.ResetOnSpawn = false
+    sg2.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    pcall(function()
+        sg2.Parent = (cloneref and cloneref(game:GetService("CoreGui"))) or game:GetService("CoreGui")
+    end)
+    if not sg2.Parent then sg2.Parent = LP_ce:WaitForChild("PlayerGui") end
+
+    local panel2 = Instance.new("Frame")
+    panel2.Size = UDim2.fromOffset(190, 36)
+    panel2.Position = UDim2.new(0, 10, 0.5, 46)
+    panel2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    panel2.BorderSizePixel = 0
+    panel2.Active = true
+    panel2.Parent = sg2
+    Instance.new("UICorner", panel2).CornerRadius = UDim.new(0, 8)
+
+    local btn2 = Instance.new("TextButton")
+    btn2.Size = UDim2.new(1, 0, 1, 0)
+    btn2.BackgroundTransparency = 1
+    btn2.Font = Enum.Font.GothamBold
+    btn2.TextSize = 14
+    btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn2.Parent = panel2
+
+    local function paintCE()
+        btn2.Text = _ceEnabled and "Clean Error GUIs: ON" or "Clean Error GUIs: OFF"
+        panel2.BackgroundColor3 = _ceEnabled and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(50, 50, 50)
+    end
+    paintCE()
+
+    btn2.MouseButton1Click:Connect(function()
+        _ceEnabled = not _ceEnabled
+        paintCE()
+    end)
+end
