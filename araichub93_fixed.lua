@@ -16523,32 +16523,57 @@ end)
 
 print("[CNK INVIS] Chargé ! Touche " .. Config.InvisToggleKey .. " = toggle invis")
 
--- ═══ Walk Speed Boost ═══
+-- ═══ Walk Speed Boost (actif seulement quand brainrot en main) ═══
 task.spawn(function()
-    local RS = game:GetService("RunService")
     local LP2 = game:GetService("Players").LocalPlayer
-    local _wsConn = nil
     local _wsVal = 0
-    _G._applyWalkSpeed = function(v)
-        _wsVal = v
-        if _wsConn then _wsConn:Disconnect(); _wsConn = nil end
-        if v <= 0 then return end
-        local function apply()
-            local c = LP2.Character
-            local hum = c and c:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = v end
-        end
-        apply()
-        _wsConn = RS.Heartbeat:Connect(function()
-            local c = LP2.Character
-            local hum = c and c:FindFirstChildOfClass("Humanoid")
-            if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
+
+    local function hasTool(char)
+        if not char then return false end
+        return char:FindFirstChildOfClass("Tool") ~= nil
+    end
+
+    local function setSpeed(char, speed)
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = speed end
+    end
+
+    local function watchChar(char)
+        -- Applique le speed si tool déjà en main au moment du spawn
+        task.wait(0.3)
+        if _wsVal > 0 and hasTool(char) then setSpeed(char, _wsVal) end
+
+        char.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") and _wsVal > 0 then
+                setSpeed(char, _wsVal)
+            end
+        end)
+        char.ChildRemoved:Connect(function(child)
+            if child:IsA("Tool") then
+                -- Outil retiré — reset vitesse si plus aucun tool
+                task.wait(0.05)
+                if not hasTool(char) then
+                    setSpeed(char, 16)
+                end
+            end
         end)
     end
+
+    _G._applyWalkSpeed = function(v)
+        _wsVal = v
+        local char = LP2.Character
+        if not char then return end
+        if v > 0 and hasTool(char) then
+            setSpeed(char, v)
+        elseif not hasTool(char) or v <= 0 then
+            setSpeed(char, 16)
+        end
+    end
+
     LP2.CharacterAdded:Connect(function(char)
-        if _wsVal <= 0 then return end
-        task.wait(0.5)
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = _wsVal end
+        watchChar(char)
     end)
+    if LP2.Character then
+        watchChar(LP2.Character)
+    end
 end)
