@@ -2048,8 +2048,17 @@ local function goToBrainrot(petData)
     local exactPos = snapPart.Position
     local isThirdFloor  = exactPos.Y > 22
     local isSecondFloor = exactPos.Y > 10 and not isThirdFloor
-    -- 2eme etage : se placer au 1er etage juste sous le brainrot (meme X/Z, Y - 8).
-    local snapY = (isThirdFloor or isSecondFloor) and (exactPos.Y - 8) or (exactPos.Y + 3.5)
+    -- 3eme etage : Y-8 (sous le brainrot du haut)
+    -- 2eme etage : Y=-4 (1er etage sous le brainrot du 2eme)
+    -- 1er etage  : Y=-4 (sous le brainrot du bas)
+    local snapY
+    if isThirdFloor then
+        snapY = exactPos.Y - 8
+    elseif isSecondFloor then
+        snapY = -4
+    else
+        snapY = -4
+    end
     -- Land exactly on the spawn position on all floors.
     local snapPos = Vector3.new(exactPos.X, snapY, exactPos.Z)
 
@@ -6223,7 +6232,7 @@ local function applySpeedBoost(v)
     if _speedBoostConn then _speedBoostConn:Disconnect(); _speedBoostConn = nil end
     -- Restaurer le WalkSpeed original sur le character actuel
     pcall(function()
-        local c = LP.Character
+        local c = LocalPlayer.Character
         local hum = c and c:FindFirstChildOfClass("Humanoid")
         if hum and _speedBoostDefaultWS then hum.WalkSpeed = _speedBoostDefaultWS end
     end)
@@ -6235,7 +6244,7 @@ local function applySpeedBoost(v)
     _G._speedBoostEnabled = true
     -- Appliquer immédiatement sur le character actuel
     pcall(function()
-        local c = LP.Character
+        local c = LocalPlayer.Character
         local hum = c and c:FindFirstChildOfClass("Humanoid")
         if hum then
             if not _speedBoostDefaultWS then _speedBoostDefaultWS = hum.WalkSpeed end
@@ -6245,14 +6254,14 @@ local function applySpeedBoost(v)
     -- Maintenir sur les respawns et si WalkSpeed est resetté
     _speedBoostConn = RunService.Heartbeat:Connect(function()
         if not _G._speedBoostEnabled then return end
-        local c = LP.Character
+        local c = LocalPlayer.Character
         local hum = c and c:FindFirstChildOfClass("Humanoid")
         if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
     end)
 end
 
 -- Ré-appliquer après respawn
-LP.CharacterAdded:Connect(function(char)
+LocalPlayer.CharacterAdded:Connect(function(char)
     if not _G._speedBoostEnabled or (_G._speedBoostValue or 0) <= 0 then return end
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -6613,18 +6622,7 @@ fovCell.BorderSizePixel = 0
 createSlider(fovCell, "FOV", 30, 120, 100, "SavedFOV", true, "°", 0, true, nil, 32)
 GUI_W = _savedGUI_W
 
-local spdRowY = sliderRowY + ROW_H + GAP
-local _savedGUI_W2 = GUI_W
-GUI_W = FULL_W
-local spdCell = Instance.new("Frame", MainFrame)
-spdCell.Size = UDim2.new(0, FULL_W, 0, ROW_H)
-spdCell.Position = UDim2.new(0, PAD, 0, spdRowY)
-spdCell.BackgroundTransparency = 1
-spdCell.BorderSizePixel = 0
-createSlider(spdCell, "Spd", 0, 32, 0, "SavedSpeedBoost", true, "", 0, false, 1, 32)
-GUI_W = _savedGUI_W2
-
-local stealMinRowY = spdRowY + ROW_H + GAP
+local stealMinRowY = sliderRowY + ROW_H + GAP
 do
     local row = Instance.new("Frame", MainFrame)
     row.Size = UDim2.new(0, GUI_W - PAD * 2, 0, ROW_H)
