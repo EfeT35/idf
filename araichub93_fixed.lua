@@ -2776,7 +2776,7 @@ end)
 task.spawn(function()
     local UIS2 = game:GetService("UserInputService")
     UIS2.InputBegan:Connect(function(input, gp)
-        if gp then return end
+        if UserInputService:GetFocusedTextBox() then return end
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         local wantKey = _G.TPKeybind or "V"
         if Enum.KeyCode[wantKey] and input.KeyCode == Enum.KeyCode[wantKey] then
@@ -5546,7 +5546,7 @@ threeCmdsButton.MouseButton1Click:Connect(selectThreeCommands)
 updateModeVisuals()
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+    if UserInputService:GetFocusedTextBox() then return end
     if Enum.KeyCode[_G.ClickAPKeybind or "F"] and input.KeyCode == Enum.KeyCode[_G.ClickAPKeybind or "F"] then toggleClickAP() end
     if input.UserInputType == Enum.UserInputType.MouseButton2 then onRightClick() end
 end)
@@ -7765,7 +7765,7 @@ local function _setInfiniteJump(enabled)
     if not enabled then return end
     local isSpaceHeld = false
     _ijInputBegan = UserInputService.InputBegan:Connect(function(input, gp)
-        if gp then return end
+        if UserInputService:GetFocusedTextBox() then return end
         if input.KeyCode == Enum.KeyCode.Space then isSpaceHeld = true end
     end)
     _ijInputEnded = UserInputService.InputEnded:Connect(function(input)
@@ -7879,7 +7879,7 @@ do
     -- Keybind (Q par défaut, configurable)
     task.spawn(function()
         game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
-            if gp then return end
+            if UserInputService:GetFocusedTextBox() then return end
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
             local wantKey = _G.CarpetSpeedKey or "Q"
             if Enum.KeyCode[wantKey] and input.KeyCode == Enum.KeyCode[wantKey] then
@@ -11135,7 +11135,7 @@ local function toggleCarpetSpeed()
 end
 
 UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
+	if UserInputService:GetFocusedTextBox() then return end
 	if UserInputService:GetFocusedTextBox() then return end
 	if Enum.KeyCode[_G.KeybindPanelKeybind or "G"] and input.KeyCode == Enum.KeyCode[_G.KeybindPanelKeybind or "G"] then
 		if _G._toggleKeybindPanel then _G._toggleKeybindPanel() end
@@ -15437,7 +15437,7 @@ task.spawn(function()
         end)
 
         UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
+            if UserInputService:GetFocusedTextBox() then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 and Config.ClickToAP then
                 local camera   = Workspace.CurrentCamera
                 local mousePos = UserInputService:GetMouseLocation()
@@ -16558,7 +16558,7 @@ end)
 -- KEYBIND TOUCHE I (standalone)
 -- ================================================
 UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
+    if UserInputService:GetFocusedTextBox() then return end
     local key = Enum.KeyCode[Config.InvisToggleKey] or Enum.KeyCode.I
     if input.KeyCode == key then
         if _G.toggleInvisibleSteal then
