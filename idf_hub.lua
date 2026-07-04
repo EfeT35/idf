@@ -8990,123 +8990,172 @@ end)
         end)
 
         -- ============================================================
-        -- AUTO-DESTROY TURRETS  (ported from dtc) — bats enemy Sentry
-        -- turrets out of existence. Gated by Config.AutoDestroyTurrets.
+        -- AUTO TURRET  (ported from arabic_hub v25)
+        -- Gated by Config.AutoDestroyTurrets.
         -- ============================================================
-        task.spawn(function()
-            local RunService  = game:GetService("RunService")
-            local Workspace   = game:GetService("Workspace")
-            local LocalPlayer = game:GetService("Players").LocalPlayer
-            local _activeSentryConns = {}
+        do
+            local autoTurretActive = false
+            local autoTurretTask   = nil
+            local previousTool     = nil
 
-            -- Startup grace period: hold off anti-turret action for 10s after
-            -- script load so an on-join auto-snipe TP isn't disrupted.
-            local _antiTurretReadyAt = os.clock() + 10
-
-            local function handleSentry(child, immediate)
-                if not child.Name or not child.Name:find("Sentry") then return end
-                if _activeSentryConns[child] then return end
-                local sentry_owner_id = child.Name:match("Sentry_(%d+)")
-                if not sentry_owner_id or tonumber(sentry_owner_id) == LocalPlayer.UserId then return end
-                if not immediate then
-                    local setupReady = child:FindFirstChild("SetupReady")
-                    if not setupReady then
-                        local waitTime = 0
-                        while not setupReady and child.Parent and waitTime < 5 do
-                            task.wait(0.1)
-                            setupReady = child:FindFirstChild("SetupReady")
-                            waitTime = waitTime + 0.1
-                        end
-                        if not child.Parent then return end
-                    end
-                    task.wait(0.1)
-                end
-                if _activeSentryConns[child] then return end
-                local sentryPart = child:IsA("BasePart") and child or child:FindFirstChildWhichIsA("BasePart", true)
-                if not sentryPart and child:IsA("Model") then
-                    for _, desc in ipairs(child:GetDescendants()) do
-                        if desc:IsA("BasePart") then
-                            sentryPart = desc
-                            break
-                        end
-                    end
-                end
-                if sentryPart then
-                    sentryPart.CanCollide = false
-                    sentryPart.Transparency = 1
-                    sentryPart.Size = Vector3.new(10, 10, 10)
-                end
-                local last_attack = 0
-                local equipAttempts = 0
-                local frameSkip = 0
-                local heartbeat_conn
-                heartbeat_conn = RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
-                    if not child.Parent then
-                        if heartbeat_conn and typeof(heartbeat_conn) == "RBXScriptConnection" then
-                            heartbeat_conn:Disconnect()
-                        end
-                        _activeSentryConns[child] = nil
-                        return
-                    end
-                    if not Config.AutoDestroyTurrets then return end
-                    if os.clock() < _antiTurretReadyAt then return end
-                    frameSkip = frameSkip + 1
-                    if frameSkip < 3 then return end
-                    frameSkip = 0
-                    local now = tick()
-                    if now - last_attack < 0.05 then return end
-                    last_attack = now
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local hrp = LocalPlayer.Character.HumanoidRootPart
-                        local targetCFrame = hrp.CFrame * CFrame.new(0, 0, -2)
-                        if child:IsA("Model") and child.PrimaryPart then
-                            pcall(function() child:SetPrimaryPartCFrame(targetCFrame) end)
-                        elseif sentryPart then
-                            pcall(function() sentryPart.CFrame = targetCFrame end)
-                        end
-                        local bat = LocalPlayer.Backpack:FindFirstChild("Bat") or LocalPlayer.Character:FindFirstChild("Bat")
-                        if bat then
-                            if bat.Parent == LocalPlayer.Backpack then
-                                equipAttempts = equipAttempts + 1
-                                if equipAttempts <= 3 then
-                                    pcall(function()
-                                        LocalPlayer.Character.Humanoid:UnequipTools()
-                                        LocalPlayer.Character.Humanoid:EquipTool(bat)
-                                    end)
-                                end
-                            end
-                            if bat.Parent == LocalPlayer.Character then
-                                equipAttempts = 0
-                                pcall(function() bat:Activate() end)
-                            end
-                        end
-                    end
-                end))
-                _activeSentryConns[child] = heartbeat_conn
+            local function getChar()
+                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local hrp  = char:WaitForChild("HumanoidRootPart")
+                local hum  = char:WaitForChild("Humanoid")
+                return char, hrp, hum
             end
 
-            local function scanExistingSentries()
+            local function hasExclamation(target)
+                for _, d in ipairs(target:GetDescendants()) do
+                    if d:IsA("BillboardGui") then
+                        local label = d:FindFirstChildWhichIsA("TextLabel", true)
+                        if label and label.Text:find("!") then return true end
+                    end
+                end
+                return false
+            end
+
+            local function applyVisuals(target)
+                for _, d in ipairs(target:GetDescendants()) do
+                    if d:IsA("BasePart") and d ~= target then
+                        d.Transparency = 0.5; d.CanCollide = false
+                        d.CanTouch = false; d.CanQuery = false
+                    elseif d:IsA("BillboardGui") and d.Name ~= "SentryLabel" then
+                        d:Destroy()
+                    elseif d:IsA("Decal") or d:IsA("Texture") then
+                        d.Transparency = 0.5
+                    end
+                end
+                if target:IsA("BasePart") and target.Name ~= "ProxyVisual" then
+                    target.Transparency = 1; target.CanCollide = false
+                end
+            end
+
+            -- sentry cache
+            local activeSentries = {}
+            local sentryCacheInit = false
+            local function initSentryCache()
+                if sentryCacheInit then return end
+                sentryCacheInit = true
+                Workspace.DescendantAdded:Connect(function(inst)
+                    if inst.Name and inst.Name:sub(1,7) == "Sentry_" then activeSentries[inst] = true end
+                end)
+                Workspace.DescendantRemoving:Connect(function(inst)
+                    activeSentries[inst] = nil
+                end)
                 task.spawn(function()
-                    pcall(function()
-                        for _, child in ipairs(Workspace:GetDescendants()) do
-                            if child and child.Name and child.Name:find("Sentry") and not _activeSentryConns[child] then
-                                task.spawn(function()
-                                    pcall(function() handleSentry(child, true) end)
-                                end)
+                    task.wait(3)
+                    local desc = Workspace:GetDescendants()
+                    local t = os.clock()
+                    for i = 1, #desc do
+                        local inst = desc[i]
+                        if inst and inst.Name and inst.Name:sub(1,7) == "Sentry_" then
+                            activeSentries[inst] = true
+                        end
+                        if os.clock() - t > 0.005 then task.wait(); t = os.clock() end
+                    end
+                end)
+            end
+            task.spawn(initSentryCache)
+
+            local function getClosestSentry()
+                local _, hrp = getChar()
+                local closest, best = nil, math.huge
+                for inst in pairs(activeSentries) do
+                    local name = inst.Name
+                    if inst.Parent and name and name:sub(1,7) == "Sentry_" and name ~= "Sentry_"..LocalPlayer.Name then
+                        if hasExclamation(inst) then
+                            local root = inst:IsA("BasePart") and inst or inst:FindFirstChildWhichIsA("BasePart", true)
+                            if root then
+                                local d = (hrp.Position - root.Position).Magnitude
+                                if d < best then best = d; closest = inst end
                             end
                         end
-                    end)
+                    else
+                        activeSentries[inst] = nil
+                    end
+                end
+                return closest
+            end
+
+            local function unequipBatAndRestore()
+                local char, _, hum = getChar()
+                local bat = char:FindFirstChild("Bat")
+                if bat and hum then hum:UnequipTools(bat) end
+                if previousTool and previousTool.Parent then
+                    if previousTool.Parent == LocalPlayer.Backpack or previousTool.Parent == char then
+                        hum:EquipTool(previousTool)
+                    end
+                end
+                previousTool = nil
+            end
+
+            local function equipBat()
+                local char, _, hum = getChar()
+                local cur = char:FindFirstChildWhichIsA("Tool")
+                if cur and cur.Name ~= "Bat" then previousTool = cur end
+                local bat = LocalPlayer.Backpack:FindFirstChild("Bat") or char:FindFirstChild("Bat")
+                if bat then hum:EquipTool(bat); return true end
+                return false
+            end
+
+            local function startAutoTurretLoop()
+                autoTurretActive = true
+                _G.autoTurretActive = true
+                if autoTurretTask then return end
+                autoTurretTask = task.spawn(function()
+                    while autoTurretActive do
+                        if LocalPlayer:GetAttribute("Stealing") == true then
+                            pcall(function()
+                                local char = LocalPlayer.Character
+                                local bat  = char and char:FindFirstChild("Bat")
+                                local hum  = char and char:FindFirstChild("Humanoid")
+                                if bat and hum then hum:UnequipTools(bat) end
+                            end)
+                            task.wait(0.1)
+                        else
+                            local target = getClosestSentry()
+                            if target and target.Parent then
+                                if equipBat() then
+                                    while target and target.Parent and autoTurretActive and LocalPlayer:GetAttribute("Stealing") ~= true do
+                                        local char, hrp, _ = getChar()
+                                        local bat = char:FindFirstChild("Bat")
+                                        if not bat then break end
+                                        applyVisuals(target)
+                                        local offset   = hrp.CFrame.LookVector * 4
+                                        local targetCF = CFrame.new(hrp.Position + offset, hrp.Position)
+                                        if target:IsA("Model") then
+                                            target:PivotTo(targetCF)
+                                        elseif target:IsA("BasePart") then
+                                            target.CFrame = targetCF
+                                        end
+                                        bat:Activate()
+                                        task.wait(0.1)
+                                        if not hasExclamation(target) then break end
+                                    end
+                                    pcall(unequipBatAndRestore)
+                                end
+                            end
+                        end
+                        task.wait(0.2)
+                    end
                 end)
             end
 
-            scanExistingSentries()
-            task.delay(2, scanExistingSentries)
-            task.delay(5, scanExistingSentries)
+            local function stopAutoTurretLoop()
+                autoTurretActive = false
+                _G.autoTurretActive = false
+                if autoTurretTask then task.cancel(autoTurretTask); autoTurretTask = nil end
+                pcall(unequipBatAndRestore)
+            end
 
-            Workspace.DescendantAdded:Connect(function(child)
-                handleSentry(child, false)
-            end)
-        end)
+            _G.autoTurretActive      = autoTurretActive
+            _G.startAutoTurretLoop   = startAutoTurretLoop
+            _G.stopAutoTurretLoop    = stopAutoTurretLoop
+
+            -- wire the existing Config toggle
+            if Config.AutoDestroyTurrets then startAutoTurretLoop() end
+        end
 
         -- rebindable action keybind row (label + key button, module-styled)
         local function addKeybindRow(host, label, cfgKey)
@@ -11039,6 +11088,12 @@ end)
                 _G.MeerkoAutoKickOnSteal = val
             elseif key == "AntiBodySwap" then
                 _G.AntiBodySwapEnabled = val
+            elseif key == "AutoDestroyTurrets" then
+                if val then
+                    if _G.startAutoTurretLoop then pcall(_G.startAutoTurretLoop) end
+                else
+                    if _G.stopAutoTurretLoop then pcall(_G.stopAutoTurretLoop) end
+                end
             end
         end
 
