@@ -16528,12 +16528,19 @@ task.spawn(function()
     local LP2 = game:GetService("Players").LocalPlayer
     local _wsVal = 0
 
+    local function isTping()
+        local s = _G.TPStatus
+        return s and s ~= "at_brainrot" and s ~= "idle" and s ~= ""
+            and not s:find("^no_") and not s:find("grapple_on_cooldown")
+    end
+
     local function hasTool(char)
         if not char then return false end
         return char:FindFirstChildOfClass("Tool") ~= nil
     end
 
     local function setSpeed(char, speed)
+        if isTping() then return end  -- ne pas toucher au WalkSpeed pendant le TP
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = speed end
     end
