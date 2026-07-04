@@ -3028,6 +3028,7 @@ do
         RejoinKey       = "",
         LeaveKey        = "",
         ResetKey        = "",
+        AutoTurretKey   = "",
         MenuKey         = "RightShift",
         TpKey           = "T",
         InstantResetKey = "R",
@@ -7397,6 +7398,14 @@ end)
                 end)
             elseif Config.AutoBuyKey and Config.AutoBuyKey ~= "" and kn == Config.AutoBuyKey then
                 if _G.MeerkoToggleAutoBuy then pcall(_G.MeerkoToggleAutoBuy) end
+            elseif Config.AutoTurretKey and Config.AutoTurretKey ~= "" and kn == Config.AutoTurretKey then
+                Config.AutoDestroyTurrets = not Config.AutoDestroyTurrets
+                if Config.AutoDestroyTurrets then
+                    if _G.startAutoTurretLoop then pcall(_G.startAutoTurretLoop) end
+                else
+                    if _G.stopAutoTurretLoop then pcall(_G.stopAutoTurretLoop) end
+                end
+                if SaveConfig then pcall(SaveConfig) end
             elseif Config.CancelTPKey and Config.CancelTPKey ~= "" and kn == Config.CancelTPKey then
                 _G.MeerkoTPCancel = true
             end
@@ -9237,6 +9246,7 @@ end)
         addKeybindRow(host2, "Item Drop", "ItemDropKey")
         addKeybindRow(host2, "Drop Brainrot", "BrainrotDropKey")
         addKeybindRow(host2, "Auto Buy", "AutoBuyKey")
+        addKeybindRow(host2, "Auto Turret", "AutoTurretKey")
         addKeybindRow(host2, "Cancel TP", "CancelTPKey")
         addKeybindRow(host2, "Reset", "ResetKey")
         addKeybindRow(host2, "Rejoin", "RejoinKey")
@@ -11247,6 +11257,7 @@ end)
         sBinds:AddKeybind({ Text = "Carpet Speed", Get = function() return Config.CarpetSpeedKey end, Set = function(k) Config.CarpetSpeedKey = k; if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Drop Brainrot", Get = function() return Config.BrainrotDropKey end, Set = function(k) Config.BrainrotDropKey = k; if SaveConfig then pcall(SaveConfig) end end })
         sBinds:AddKeybind({ Text = "Auto Buy",      Get = function() return Config.AutoBuyKey end,      Set = function(k) Config.AutoBuyKey = k;      if SaveConfig then pcall(SaveConfig) end end })
+        sBinds:AddKeybind({ Text = "Auto Turret",   Get = function() return Config.AutoTurretKey end,  Set = function(k) Config.AutoTurretKey = k;   if SaveConfig then pcall(SaveConfig) end end })
         local sActions = tabKeys:AddSection("right", "ACTIONS")
         sActions:AddKeybind({ Text = "Reset",       Get = function() return Config.ResetKey end,  Set = function(k) Config.ResetKey = k;  if SaveConfig then pcall(SaveConfig) end end })
         sActions:AddKeybind({ Text = "Rejoin",      Get = function() return Config.RejoinKey end, Set = function(k) Config.RejoinKey = k; if SaveConfig then pcall(SaveConfig) end end })
