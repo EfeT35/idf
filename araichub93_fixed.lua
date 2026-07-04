@@ -2048,16 +2048,13 @@ local function goToBrainrot(petData)
     local exactPos = snapPart.Position
     local isThirdFloor  = exactPos.Y > 22
     local isSecondFloor = exactPos.Y > 10 and not isThirdFloor
-    -- 3eme etage : Y-8 (sous le brainrot du haut)
-    -- 2eme etage : Y=-4 (1er etage sous le brainrot du 2eme)
-    -- 1er etage  : Y=-4 (sous le brainrot du bas)
     local snapY
     if isThirdFloor then
         snapY = exactPos.Y - 8
     elseif isSecondFloor then
         snapY = -4
     else
-        snapY = -4
+        snapY = exactPos.Y + 3.5
     end
     -- Land exactly on the spawn position on all floors.
     local snapPos = Vector3.new(exactPos.X, snapY, exactPos.Z)
