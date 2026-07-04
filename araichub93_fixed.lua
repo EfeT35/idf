@@ -6579,44 +6579,38 @@ wsCell.Position = UDim2.new(0, PAD, 0, sliderRowY + ROW_H + GAP)
 wsCell.BackgroundTransparency = 1
 wsCell.BorderSizePixel = 0
 do
+    local _wsRS = game:GetService("RunService")
+    local _wsLP = game:GetService("Players").LocalPlayer
     local _wsBoostConn = nil
     local _wsBoostEnabled = false
     local function applyWalkSpeed(v)
         if _wsBoostConn then _wsBoostConn:Disconnect(); _wsBoostConn = nil end
         if v <= 0 then _wsBoostEnabled = false; return end
         _wsBoostEnabled = true
-        local function _apply()
-            local c = LocalPlayer.Character
-            local hum = c and c:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = v end
-        end
-        _apply()
-        _wsBoostConn = RunService.Heartbeat:Connect(function()
+        local c = _wsLP.Character
+        local hum = c and c:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = v end
+        _wsBoostConn = _wsRS.Heartbeat:Connect(function()
             if not _wsBoostEnabled then return end
-            local c = LocalPlayer.Character
-            local hum = c and c:FindFirstChildOfClass("Humanoid")
-            if hum and hum.WalkSpeed ~= v then hum.WalkSpeed = v end
+            local c2 = _wsLP.Character
+            local hum2 = c2 and c2:FindFirstChildOfClass("Humanoid")
+            if hum2 and hum2.WalkSpeed ~= v then hum2.WalkSpeed = v end
         end)
     end
     _G._applyWalkSpeed = applyWalkSpeed
     createSlider(wsCell, "Walk Spd", 0, 32, 0, "SavedWalkSpeed", true, "", 0, true, nil, 40)
-    -- wire the SavedWalkSpeed attribute to applyWalkSpeed
     SettingsObj:GetAttributeChangedSignal("SavedWalkSpeed"):Connect(function()
-        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
-        applyWalkSpeed(v)
+        applyWalkSpeed(SettingsObj:GetAttribute("SavedWalkSpeed") or 0)
     end)
-    -- restore on spawn
-    LocalPlayer.CharacterAdded:Connect(function(char)
+    _wsLP.CharacterAdded:Connect(function(char)
         local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
         if v <= 0 then return end
         task.wait(0.5)
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = v end
     end)
-    -- apply saved value on load
     task.defer(function()
-        local v = SettingsObj:GetAttribute("SavedWalkSpeed") or 0
-        applyWalkSpeed(v)
+        applyWalkSpeed(SettingsObj:GetAttribute("SavedWalkSpeed") or 0)
     end)
 end
 GUI_W = _savedGUI_W
