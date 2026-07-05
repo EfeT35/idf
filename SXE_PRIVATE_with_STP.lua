@@ -8105,19 +8105,16 @@ end
 
 function rebuildTpSpeedSettings()
     clearBody(tpSpeedSettingsBody)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Fly TP Speed", 50, 300, Config.TpSettings.FlyTPSpeed or 160, function(v) Config.TpSettings.FlyTPSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "100 Studs Base Speed", 20, 250, Config.TpSettings.FlyTPCloseSpeed or 75, function(v) Config.TpSettings.FlyTPCloseSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v)
-        Config.TpSettings.GrabbleTPSpeed=v
-        _G.TPVelocity = math.clamp(v, 200, 500)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "TP Velocity", 200, 500, math.clamp(tonumber(_G.TPVelocity) or Config.TpSettings.GrabbleTPSpeed or 400, 200, 500), function(v)
+        _G.TPVelocity = v
+        Config.TpSettings.GrabbleTPSpeed = v
         saveConfig()
         if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end
         if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
     end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Walk To Brainrot Speed", 50, 300, Config.TpSettings.WalkTPSpeed or 190, function(v) Config.TpSettings.WalkTPSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Clone Delay", 0.05, 2.0, Config.TpSettings.CloneDelayVal or 0.1, function(v)
-        Config.TpSettings.CloneDelayVal=v
-        _G.LandingDelay = math.clamp(v, 0.15, 0.75)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Landing Delay Before Clone", 0.15, 0.75, math.clamp(tonumber(_G.LandingDelay) or Config.TpSettings.CloneDelayVal or 0.4, 0.15, 0.75), function(v)
+        _G.LandingDelay = v
+        Config.TpSettings.CloneDelayVal = v
         saveConfig()
         if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
     end, "s")
