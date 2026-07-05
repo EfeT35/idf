@@ -8012,6 +8012,51 @@ end
 
 -- CREATE PANELS
 main,mainBody=makeMainPanel("SXE HUB PRIVAT",UDim2.new(0,375,0,480),UDim2.new(0.5,-187,0.5,-255))
+-- Reposition mainBody to leave room for the left sidebar (75px) + padding
+mainBody.Position = UDim2.new(0, 81, 0, 49)
+mainBody.Size     = UDim2.new(1, -87, 1, -55)
+-- "Summer Fuse / 0/4" style top-right status labels in the header
+do
+    local hdr = main:FindFirstChildWhichIsA("Frame")
+    if hdr then
+        local stLabel = Instance.new("TextLabel")
+        stLabel.Name = "SidebarStatusLabel"
+        stLabel.Size = UDim2.new(0, 100, 0, 14)
+        stLabel.Position = UDim2.new(1, -108, 0, 7)
+        stLabel.BackgroundTransparency = 1
+        stLabel.Text = ""
+        stLabel.TextColor3 = Theme.Accent
+        stLabel.Font = Enum.Font.GothamBold
+        stLabel.TextSize = 9
+        stLabel.TextXAlignment = Enum.TextXAlignment.Right
+        stLabel.Parent = hdr
+        local subLabel = Instance.new("TextLabel")
+        subLabel.Name = "SidebarSubLabel"
+        subLabel.Size = UDim2.new(0, 100, 0, 12)
+        subLabel.Position = UDim2.new(1, -108, 0, 22)
+        subLabel.BackgroundTransparency = 1
+        subLabel.Text = ""
+        subLabel.TextColor3 = Theme.Dim
+        subLabel.Font = Enum.Font.GothamMedium
+        subLabel.TextSize = 8
+        subLabel.TextXAlignment = Enum.TextXAlignment.Right
+        subLabel.Parent = hdr
+        -- Update dynamically: show current steal target + pet count
+        RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local ok, pets = pcall(scanAllPets)
+                if ok and pets then
+                    if #pets > 0 then
+                        stLabel.Text = pets[1].name or ""
+                        subLabel.Text = tostring(#pets) .. " pet" .. (#pets==1 and "" or "s")
+                    else
+                        stLabel.Text = ""; subLabel.Text = ""
+                    end
+                end
+            end)
+        end)
+    end
+end
 if Config.AutoCloseOnExec then main.Visible = false end
 panels["Invisible Steal Panel"],panels["InvisStealBody"]=makeQuickPanel("SXE HUB PRIVAT\nInvisible Steal",UDim2.new(0,230,0,375),UDim2.new(0,80,0.5,-220))
 panels["InvisStealBody"].ScrollBarThickness = 0
@@ -8716,11 +8761,53 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
 end) -- END ADMIN PANEL UI SCOPE (LazyInit)
 
 -- ============================================================
--- TAB BAR + TABS
+-- LEFT SIDEBAR + TABS
 -- ============================================================
-tabBar=Instance.new("Frame"); tabBar.Size=UDim2.new(1,-12,0,28); tabBar.Position=UDim2.new(0,6,0,43); tabBar.BackgroundTransparency=1; tabBar.Parent=main
+-- Sidebar container (left strip, below header)
+tabBar=Instance.new("Frame")
+tabBar.Name="SidebarFrame"
+tabBar.Size=UDim2.new(0,75,1,-43)
+tabBar.Position=UDim2.new(0,0,0,43)
+tabBar.BackgroundColor3=Theme.Background
+tabBar.BackgroundTransparency=0.08
+tabBar.BorderSizePixel=0
+tabBar.Parent=main
+corner(tabBar,0)
+-- Thin right divider
+local sideDiv=Instance.new("Frame"); sideDiv.Size=UDim2.new(0,1,1,0); sideDiv.Position=UDim2.new(1,0,0,0); sideDiv.BackgroundColor3=Theme.AccentLight; sideDiv.BackgroundTransparency=0.5; sideDiv.BorderSizePixel=0; sideDiv.Parent=tabBar
+-- Vertical list layout for tab buttons
+local sideLayout=Instance.new("UIListLayout"); sideLayout.Padding=UDim.new(0,4); sideLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center; sideLayout.Parent=tabBar
+local sidePad=Instance.new("UIPadding"); sidePad.PaddingTop=UDim.new(0,6); sidePad.PaddingLeft=UDim.new(0,4); sidePad.PaddingRight=UDim.new(0,4); sidePad.Parent=tabBar
+-- Tab buttons (vertical)
 local tabs={"Keybinds","Auto TP","ESP","UI","Misc","Priority","Performance"}
-for i,name in ipairs(tabs) do local b=Instance.new("TextButton"); b.Size=UDim2.new(0,49,0,27); b.Position=UDim2.new(0,(i-1)*51,0,0); b.BackgroundColor3=Theme.SoftAccent; b.BackgroundTransparency=0.05; b.Text=name; b.TextColor3=Theme.Dim; b.Font=Enum.Font.GothamMedium; b.TextSize=8; b.AutoButtonColor=false; b.Parent=tabBar; corner(b,5); tabButtons[name]=b end
+for _,name in ipairs(tabs) do
+    local b=Instance.new("TextButton")
+    b.Size=UDim2.new(1,0,0,30)
+    b.BackgroundColor3=Theme.SoftAccent
+    b.BackgroundTransparency=0.05
+    b.Text=name
+    b.TextColor3=Theme.Dim
+    b.Font=Enum.Font.GothamMedium
+    b.TextSize=9
+    b.AutoButtonColor=false
+    b.Parent=tabBar
+    corner(b,6)
+    tabButtons[name]=b
+end
+-- Player info at the bottom of the sidebar
+do
+    local playerInfoFrame=Instance.new("Frame")
+    playerInfoFrame.Size=UDim2.new(1,-8,0,32)
+    playerInfoFrame.AnchorPoint=Vector2.new(0,1)
+    playerInfoFrame.Position=UDim2.new(0,4,1,-6)
+    playerInfoFrame.BackgroundColor3=Theme.Panel
+    playerInfoFrame.BackgroundTransparency=0.3
+    playerInfoFrame.BorderSizePixel=0
+    playerInfoFrame.Parent=tabBar
+    corner(playerInfoFrame,6)
+    local nameL=Instance.new("TextLabel"); nameL.Size=UDim2.new(1,-4,0,14); nameL.Position=UDim2.new(0,2,0,2); nameL.BackgroundTransparency=1; nameL.Text=LP.DisplayName or LP.Name; nameL.TextColor3=Theme.Text; nameL.Font=Enum.Font.GothamBold; nameL.TextSize=8; nameL.TextTruncate=Enum.TextTruncate.AtEnd; nameL.TextXAlignment=Enum.TextXAlignment.Center; nameL.Parent=playerInfoFrame
+    local userL=Instance.new("TextLabel"); userL.Size=UDim2.new(1,-4,0,12); userL.Position=UDim2.new(0,2,0,17); userL.BackgroundTransparency=1; userL.Text="@"..LP.Name; userL.TextColor3=Theme.Dim; userL.Font=Enum.Font.GothamMedium; userL.TextSize=7; userL.TextTruncate=Enum.TextTruncate.AtEnd; userL.TextXAlignment=Enum.TextXAlignment.Center; userL.Parent=playerInfoFrame
+end
 
 -- Cache all animal names for autocomplete. Source per request:
 -- ReplicatedStorage.Animations.Animals (animation instances are named after
