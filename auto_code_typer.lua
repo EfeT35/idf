@@ -377,47 +377,45 @@ local function findRiddleAnswer(text)
 end
 
 -- =====================================================================
--- HANDLER NOTIFICATION — choisit le bon mot selon wordIndex
+-- HANDLER NOTIFICATION — soumet la Nième notif de la séquence
 -- =====================================================================
-local lastHandled = ""
-local lastHandledTime = 0
+local lastNotifTime = 0
+local notifCounter  = 0
+local lastText      = ""
 
 local function handleNotificationText(text)
     if text == "" then return end
-    local now = tick()
-    if text == lastHandled and (now - lastHandledTime) < 3 then return end
-    lastHandled = text
-    lastHandledTime = now
+
+    -- éviter les doublons immédiats du même texte
+    if text == lastText then return end
+    lastText = text
 
     if not autoCodeEnabled then return end
 
-    -- vérifier riddle d'abord
-    local riddleAnswer = findRiddleAnswer(text)
-    local toSubmit
+    local now = tick()
+    -- si plus de 3 secondes sans notif, on repart à 0
+    if (now - lastNotifTime) > 3 then notifCounter = 0 end
+    lastNotifTime = now
+    notifCounter  = notifCounter + 1
 
+    -- vérifier riddle d'abord (priorité absolue)
+    local riddleAnswer = findRiddleAnswer(text)
     if riddleAnswer then
-        toSubmit = riddleAnswer
-    else
-        if wordIndex == 0 then
-            -- soumettre tout le texte
-            toSubmit = text
-        else
-            -- extraire le Nième mot
-            local words = {}
-            for w in text:gmatch("%S+") do table.insert(words, w) end
-            toSubmit = words[wordIndex]
-        end
+        addSavedCode(riddleAnswer)
+        if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
+        typeIntoCodeBox(riddleAnswer)
+        return
     end
 
-    -- sauvegarder ce qui a été détecté (même si le mot N n'existe pas)
-    local toSave = toSubmit or text
-    if toSave and toSave ~= "" then addSavedCode(toSave) end
+    -- toujours sauvegarder dans la liste
+    addSavedCode(text)
 
-    if not toSubmit or toSubmit == "" then return end
+    -- soumettre selon wordIndex
+    -- 0 = toutes les notifs, N = seulement la Nième de la séquence
+    if wordIndex ~= 0 and notifCounter ~= wordIndex then return end
 
-    -- ouvrir et soumettre
     if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
-    typeIntoCodeBox(toSubmit)
+    typeIntoCodeBox(text)
 end
 
 playerGui.DescendantAdded:Connect(function(v)
