@@ -6634,6 +6634,50 @@ end)
             end
         end
 
+        -- ── First-Grab Auto-Unlock ─────────────────────────────────────────────
+        -- Auto-grab n'est activé qu'après le 1er grab manuel du joueur.
+        -- Quand il lâche le brainrot, l'auto-grab se déclenche automatiquement.
+        local _firstGrabDone = false
+        local _holdingBrainrot = false
+
+        local function _isBrainrotTool(tool)
+            if not tool or not tool:IsA("Tool") then return false end
+            -- les brainrots sont des tools avec des données dans AnimalsData
+            if AnimalsData and AnimalsData[tool.Name] then return true end
+            -- fallback: tout tool qui n'est pas un outil de déplacement/combat connu
+            local skipTools = { ["Grapple Hook"]=true, ["Grappling Hook"]=true, ["Flying Carpet"]=true,
+                ["Carpet"]=true, ["Cloud"]=true, ["Witch's Broom"]=true, ["Cupid's Wings"]=true,
+                ["Santa's Sleigh"]=true, ["Magic Carpet"]=true, ["Quantum Cloner"]=true,
+                ["Grapple Gun"]=true, ["Web Slinger"]=true }
+            if skipTools[tool.Name] then return false end
+            -- si le tool a un attribut ou valeur lié aux animaux, c'est un brainrot
+            return tool:FindFirstChild("Index") ~= nil or tool:FindFirstChild("Slot") ~= nil
+                or tool:FindFirstChildWhichIsA("StringValue") ~= nil
+        end
+
+        local function _onCharAdded(char)
+            char.ChildAdded:Connect(function(obj)
+                if _isBrainrotTool(obj) then
+                    _holdingBrainrot = true
+                    _firstGrabDone = true
+                end
+            end)
+            char.ChildRemoved:Connect(function(obj)
+                if _isBrainrotTool(obj) and _holdingBrainrot then
+                    _holdingBrainrot = false
+                    -- activer l'auto-grab dès qu'on lâche le brainrot
+                    if _firstGrabDone and not (Config.StealNearest or Config.StealHighest or Config.StealPriority) then
+                        Config.StealNearest = true
+                        if _G.MeerkoSetStealMode then _G.MeerkoSetStealMode("nearest") end
+                    end
+                end
+            end)
+        end
+
+        if LocalPlayer.Character then _onCharAdded(LocalPlayer.Character) end
+        LocalPlayer.CharacterAdded:Connect(_onCharAdded)
+        -- ──────────────────────────────────────────────────────────────────────
+
         -- the driver loop: re-arm the steal on the current target ~10x/sec
         local _lastTick = 0
         local _petsCacheT = 0
@@ -6642,6 +6686,9 @@ end)
         RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
             if os.clock() < _stealReadyAt then return end
             local active = Config.StealNearest or Config.StealHighest or Config.StealPriority or _G.MeerkoStealTargetUID ~= nil
+            -- bloquer l'auto-grab automatique jusqu'au 1er grab manuel du joueur
+            -- (si le joueur active manuellement depuis l'UI, active=true est déjà géré)
+            if not _firstGrabDone and not active then return end
             if not active then
                 if barActive then hideBar() end
                 currentTargetUID = nil
