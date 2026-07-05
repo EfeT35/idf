@@ -8107,9 +8107,24 @@ function rebuildTpSpeedSettings()
     clearBody(tpSpeedSettingsBody)
     makeMainSliderWithInput(tpSpeedSettingsBody, "Fly TP Speed", 50, 300, Config.TpSettings.FlyTPSpeed or 160, function(v) Config.TpSettings.FlyTPSpeed=v; saveConfig() end)
     makeMainSliderWithInput(tpSpeedSettingsBody, "100 Studs Base Speed", 20, 250, Config.TpSettings.FlyTPCloseSpeed or 75, function(v) Config.TpSettings.FlyTPCloseSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v) Config.TpSettings.GrabbleTPSpeed=v; saveConfig(); if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v)
+        Config.TpSettings.GrabbleTPSpeed=v
+        _G.TPVelocity = math.clamp(v, 200, 500)
+        saveConfig()
+        if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end
+        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
+    end)
     makeMainSliderWithInput(tpSpeedSettingsBody, "Walk To Brainrot Speed", 50, 300, Config.TpSettings.WalkTPSpeed or 190, function(v) Config.TpSettings.WalkTPSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Clone Delay", 0.05, 2.0, Config.TpSettings.CloneDelayVal or 0.1, function(v) Config.TpSettings.CloneDelayVal=v; saveConfig() end, "s")
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Clone Delay", 0.05, 2.0, Config.TpSettings.CloneDelayVal or 0.1, function(v)
+        Config.TpSettings.CloneDelayVal=v
+        _G.LandingDelay = math.clamp(v, 0.15, 0.75)
+        saveConfig()
+        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
+    end, "s")
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Delay Before TP", 0, 900, math.floor((_G._stp_tpDelay or 0) * 1000 + 0.5), function(v)
+        _G._stp_tpDelay = v / 1000
+        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
+    end, "ms")
     makeQuickButton(tpSpeedSettingsBody, "Close", function() closeAnim(tpSpeedSettingsPanel) end, Theme.SoftAccentHover)
 end
 
@@ -8977,6 +8992,9 @@ function loadTab(tabName)
 
         makeMainButton(mainBody, "Tp Speed", function()
             if tpSpeedSettingsPanel.Visible then closeAnim(tpSpeedSettingsPanel) else openAnim(tpSpeedSettingsPanel) end
+        end, Theme.Panel)
+        makeMainButton(mainBody, "Edit TP Priority", function()
+            if _G._stp_openPriority then pcall(_G._stp_openPriority) end
         end, Theme.Panel)
         makeMainTextBox(mainBody,"Min Gen for Auto TP",Config.TpSettings.MinGenForTp,"e.g. 50k, 1m, 10b",function(v)
             Config.TpSettings.MinGenForTp = v
@@ -10754,6 +10772,8 @@ do
     -- ===== Main TP function (1:1 xentp.lua doVelocityTP) =====
     local function doVelocityTP()
         if isTeleporting and (os.clock() - _tpStartedAt) < 30 then return end
+        local _preDelay = tonumber(_G._stp_tpDelay) or 0
+        if _preDelay > 0 then task.wait(_preDelay) end
         isTeleporting = true
         _tpStartedAt = os.clock()
         _cloneTP = false
@@ -10785,8 +10805,8 @@ do
         end
         if not pet then pet = _pickByMode(allPets) or allPets[1] end
 
-        local _tpSpd = (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400
-        local _cloneDelay = (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.35
+        local _tpSpd = tonumber(_G.TPVelocity) or (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400
+        local _cloneDelay = tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.35
 
         local petPos = pet.position
         local petName = pet.name
@@ -11048,8 +11068,8 @@ end
 
 do
 _G.VanishStartSideTP = doGrabbleVelocityTP
-_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or 0.4, 0.15, 0.75)
+_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400, 200, 500)
+_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.4, 0.15, 0.75)
 _G._stp_tpDelay = _G._stp_tpDelay or 0
 local _SAVE_FILE = "chopper_HUB.json"
 local _HttpService = game:GetService("HttpService")
@@ -11191,21 +11211,14 @@ end
 
 task.spawn(function()
 	local _UIS = game:GetService("UserInputService")
-	local TweenService = game:GetService("TweenService")
 	local Players = game:GetService("Players")
 	local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
 	if not LocalPlayer then return end
 	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-	local TP_KEY = Enum.KeyCode.T
-	pcall(function()
-		local n = _G._stp_tpKeyName
-		if type(n) == "string" and Enum.KeyCode[n] then TP_KEY = Enum.KeyCode[n] end
-	end)
 	local C_BG = Color3.fromRGB(255, 252, 255)
 	local C_SURFACE = Color3.fromRGB(252, 245, 249)
 	local C_SELECTED = Color3.fromRGB(252, 225, 240)
-	local C_BORDER = Color3.fromRGB(238, 188, 219)
 	local C_TEXT = Color3.fromRGB(40, 15, 30)
 	local C_TEXT_DIM = Color3.fromRGB(140, 80, 115)
 	local C_GREEN = Color3.fromRGB(232, 111, 177)
@@ -11218,445 +11231,6 @@ task.spawn(function()
 	local _cloneref = cloneref or function(x) return x end
 	pcall(function() sg.Parent = _cloneref(game:GetService("CoreGui")) end)
 	if not sg.Parent then sg.Parent = PlayerGui end
-
-	local mf = Instance.new("Frame")
-	mf.Size = UDim2.new(0, 260, 0, 280)
-	mf.Position = UDim2.new(0, _G._stp_panelX or 20, 0, _G._stp_panelY or 300)
-	mf.BackgroundColor3 = C_BG
-	mf.BackgroundTransparency = 0.02
-	mf.BorderSizePixel = 0
-	mf.Parent = sg
-	Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 12)
-	local mfStroke = Instance.new("UIStroke", mf)
-	mfStroke.Color = C_BORDER; mfStroke.Thickness = 1; mfStroke.Transparency = 0.3
-
-	local titleLabel = Instance.new("TextLabel", mf)
-	titleLabel.Size = UDim2.new(1, 0, 0, 32)
-	titleLabel.Position = UDim2.new(0, 0, 0, 6)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "Meerko TP"
-	titleLabel.TextColor3 = Color3.fromRGB(232, 111, 177)
-	titleLabel.TextSize = 18
-	titleLabel.Font = Enum.Font.GothamBlack
-
-	local div = Instance.new("Frame", mf)
-	div.Size = UDim2.new(1, -20, 0, 1)
-	div.Position = UDim2.new(0, 10, 0, 42)
-	div.BackgroundColor3 = C_BORDER
-	div.BackgroundTransparency = 0.5
-	div.BorderSizePixel = 0
-
-	local dg, ds, sp = false, nil, nil
-	titleLabel.Active = true
-	titleLabel.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dg = true
-			ds = input.Position
-			sp = UDim2.new(0, mf.AbsolutePosition.X, 0, mf.AbsolutePosition.Y)
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dg = false
-					_G._stp_panelX = mf.Position.X.Offset
-					_G._stp_panelY = mf.Position.Y.Offset
-					if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-				end
-			end)
-		end
-	end)
-	_UIS.InputChanged:Connect(function(input)
-		if dg and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			local d = input.Position - ds
-			local newX = sp.X.Offset + d.X
-			local newY = sp.Y.Offset + d.Y
-			local viewportSize = workspace.CurrentCamera.ViewportSize
-			newX = math.clamp(newX, 0, viewportSize.X - mf.AbsoluteSize.X)
-			newY = math.clamp(newY, 0, viewportSize.Y - mf.AbsoluteSize.Y)
-			mf.Position = UDim2.new(0, newX, 0, newY)
-		end
-	end)
-
-	local buttonArea = Instance.new("Frame", mf)
-	buttonArea.Size = UDim2.new(1, -24, 0, 246)
-	buttonArea.Position = UDim2.new(0, 12, 0, 48)
-	buttonArea.BackgroundTransparency = 1
-	local btnLayout = Instance.new("UIListLayout", buttonArea)
-	btnLayout.Padding = UDim.new(0, 10)
-	btnLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-	local tpBtn = Instance.new("TextButton", buttonArea)
-	tpBtn.Size = UDim2.new(1, 0, 0, 34)
-	tpBtn.BackgroundColor3 = C_SURFACE
-	tpBtn.Text = "Manual TP"
-	tpBtn.TextColor3 = C_TEXT_DIM
-	tpBtn.TextSize = 13
-	tpBtn.Font = Enum.Font.GothamBold
-	tpBtn.AutoButtonColor = false
-	tpBtn.LayoutOrder = 0
-	tpBtn.BorderSizePixel = 0
-	Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0, 8)
-	local tpStroke = Instance.new("UIStroke", tpBtn)
-	tpStroke.Color = C_BORDER; tpStroke.Thickness = 1; tpStroke.Transparency = 0.5
-	tpBtn.MouseEnter:Connect(function()
-		TweenService:Create(tpBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50,56,72), TextColor3 = C_TEXT}):Play()
-	end)
-	tpBtn.MouseLeave:Connect(function()
-		TweenService:Create(tpBtn, TweenInfo.new(0.1), {BackgroundColor3 = C_SURFACE, TextColor3 = C_TEXT_DIM}):Play()
-	end)
-	tpBtn.MouseButton1Click:Connect(function()
-		task.spawn(function() if _G.VanishStartSideTP then _G.VanishStartSideTP() end end)
-	end)
-
-	local tpBindBtn = Instance.new("TextButton", tpBtn)
-	tpBindBtn.Size = UDim2.new(0, 30, 0, 16)
-	tpBindBtn.Position = UDim2.new(1, -36, 0.5, -8)
-	tpBindBtn.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
-	tpBindBtn.Text = TP_KEY.Name
-	tpBindBtn.TextColor3 = C_ACCENT
-	tpBindBtn.TextSize = 9
-	tpBindBtn.Font = Enum.Font.GothamBold
-	tpBindBtn.AutoButtonColor = false
-	tpBindBtn.BorderSizePixel = 0
-	tpBindBtn.ZIndex = 2
-	Instance.new("UICorner", tpBindBtn).CornerRadius = UDim.new(0, 4)
-	local tpBindStroke = Instance.new("UIStroke", tpBindBtn)
-	tpBindStroke.Color = C_BORDER; tpBindStroke.Thickness = 1; tpBindStroke.Transparency = 0.5
-
-	local listeningForTPBind = false
-	tpBindBtn.MouseButton1Click:Connect(function()
-		if listeningForTPBind then return end
-		listeningForTPBind = true
-		tpBindBtn.Text = "..."
-		tpBindBtn.TextColor3 = C_TEXT_DIM
-		local conn
-		conn = _UIS.InputBegan:Connect(function(input, processed)
-			if processed then return end
-			if input.UserInputType == Enum.UserInputType.Keyboard then
-				local name = input.KeyCode.Name
-				if name and name ~= "Unknown" then
-					TP_KEY = input.KeyCode
-					tpBindBtn.Text = name
-					tpBindBtn.TextColor3 = C_ACCENT
-					_G._stp_tpKeyName = name
-					if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-				end
-			end
-			listeningForTPBind = false
-			if conn then conn:Disconnect() end
-		end)
-		task.delay(5, function()
-			if listeningForTPBind then
-				listeningForTPBind = false
-				if conn then conn:Disconnect() end
-				tpBindBtn.Text = TP_KEY.Name
-				tpBindBtn.TextColor3 = C_ACCENT
-			end
-		end)
-	end)
-
-	_G._stp_tpDelay = _G._stp_tpDelay or 0
-	local _tpDelay = _G._stp_tpDelay
-	local DELAY_MIN = 0
-	local DELAY_MAX = 0.9
-	local delayFrame = Instance.new("Frame", buttonArea)
-	delayFrame.Size = UDim2.new(1, 0, 0, 38)
-	delayFrame.BackgroundTransparency = 1
-	delayFrame.LayoutOrder = 3
-
-	local delayLabel = Instance.new("TextLabel", delayFrame)
-	delayLabel.Size = UDim2.new(1, -60, 0, 16)
-	delayLabel.Position = UDim2.new(0, 0, 0, 0)
-	delayLabel.BackgroundTransparency = 1
-	delayLabel.Text = "Delay Before TP (ms):"
-	delayLabel.TextColor3 = C_TEXT_DIM
-	delayLabel.TextSize = 12
-	delayLabel.Font = Enum.Font.GothamBold
-	delayLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local delayValueLabel = Instance.new("TextLabel", delayFrame)
-	delayValueLabel.Size = UDim2.new(0, 60, 0, 16)
-	delayValueLabel.Position = UDim2.new(1, -60, 0, 0)
-	delayValueLabel.BackgroundTransparency = 1
-	delayValueLabel.Text = "0ms"
-	delayValueLabel.TextColor3 = C_TEXT
-	delayValueLabel.TextSize = 12
-	delayValueLabel.Font = Enum.Font.GothamBold
-	delayValueLabel.TextXAlignment = Enum.TextXAlignment.Right
-
-	local delayTrack = Instance.new("Frame", delayFrame)
-	delayTrack.Size = UDim2.new(1, 0, 0, 8)
-	delayTrack.Position = UDim2.new(0, 0, 0, 24)
-	delayTrack.BackgroundColor3 = C_SURFACE
-	delayTrack.BorderSizePixel = 0
-	Instance.new("UICorner", delayTrack).CornerRadius = UDim.new(1, 0)
-
-	local delayFill = Instance.new("Frame", delayTrack)
-	delayFill.Size = UDim2.new(0, 0, 1, 0)
-	delayFill.BackgroundColor3 = C_ACCENT
-	delayFill.BorderSizePixel = 0
-	Instance.new("UICorner", delayFill).CornerRadius = UDim.new(1, 0)
-
-	local delayKnob = Instance.new("Frame", delayTrack)
-	delayKnob.Size = UDim2.new(0, 14, 0, 14)
-	delayKnob.Position = UDim2.new(0, -7, 0.5, -7)
-	delayKnob.BackgroundColor3 = C_TEXT
-	delayKnob.BorderSizePixel = 0
-	delayKnob.ZIndex = 3
-	Instance.new("UICorner", delayKnob).CornerRadius = UDim.new(1, 0)
-
-	local function updateDelayVisual()
-		local frac = (_tpDelay - DELAY_MIN) / (DELAY_MAX - DELAY_MIN)
-		delayFill.Size = UDim2.new(frac, 0, 1, 0)
-		delayKnob.Position = UDim2.new(frac, -7, 0.5, -7)
-		delayValueLabel.Text = string.format("%dms", math.floor(_tpDelay * 1000 + 0.5))
-	end
-	updateDelayVisual()
-
-	local delayDragging = false
-	local delaySliderBtn = Instance.new("TextButton", delayTrack)
-	delaySliderBtn.Size = UDim2.new(1, 0, 1, 10)
-	delaySliderBtn.Position = UDim2.new(0, 0, 0, -5)
-	delaySliderBtn.BackgroundTransparency = 1
-	delaySliderBtn.Text = ""
-	delaySliderBtn.ZIndex = 2
-	local function handleDelayInput(xPos)
-		local tx = delayTrack.AbsolutePosition.X
-		local tw = delayTrack.AbsoluteSize.X
-		local frac = math.clamp((xPos - tx) / tw, 0, 1)
-
-		local raw = DELAY_MIN + frac * (DELAY_MAX - DELAY_MIN)
-		_tpDelay = math.floor(raw * 100 + 0.5) / 100
-		_tpDelay = math.clamp(_tpDelay, DELAY_MIN, DELAY_MAX)
-		_G._stp_tpDelay = _tpDelay
-		updateDelayVisual()
-	end
-	delaySliderBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			delayDragging = true
-			handleDelayInput(input.Position.X)
-		end
-	end)
-	_UIS.InputChanged:Connect(function(input)
-		if delayDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			handleDelayInput(input.Position.X)
-		end
-	end)
-	_UIS.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if delayDragging then
-				delayDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-			end
-		end
-	end)
-
-	_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or 0.4, 0.15, 0.75)
-	local _landingDelay = _G.LandingDelay
-	local LD_MIN = 0.15
-	local LD_MAX = 0.75
-	local ldFrame = Instance.new("Frame", buttonArea)
-	ldFrame.Size = UDim2.new(1, 0, 0, 38)
-	ldFrame.BackgroundTransparency = 1
-	ldFrame.LayoutOrder = 4
-
-	local ldLabel = Instance.new("TextLabel", ldFrame)
-	ldLabel.Size = UDim2.new(1, -60, 0, 16)
-	ldLabel.Position = UDim2.new(0, 0, 0, 0)
-	ldLabel.BackgroundTransparency = 1
-	ldLabel.Text = "Landing Delay Before Clone:"
-	ldLabel.TextColor3 = C_TEXT_DIM
-	ldLabel.TextSize = 12
-	ldLabel.Font = Enum.Font.GothamBold
-	ldLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local ldValueLabel = Instance.new("TextLabel", ldFrame)
-	ldValueLabel.Size = UDim2.new(0, 60, 0, 16)
-	ldValueLabel.Position = UDim2.new(1, -60, 0, 0)
-	ldValueLabel.BackgroundTransparency = 1
-	ldValueLabel.Text = string.format("%.2fs", _landingDelay)
-	ldValueLabel.TextColor3 = C_TEXT
-	ldValueLabel.TextSize = 12
-	ldValueLabel.Font = Enum.Font.GothamBold
-	ldValueLabel.TextXAlignment = Enum.TextXAlignment.Right
-
-	local ldTrack = Instance.new("Frame", ldFrame)
-	ldTrack.Size = UDim2.new(1, 0, 0, 8)
-	ldTrack.Position = UDim2.new(0, 0, 0, 24)
-	ldTrack.BackgroundColor3 = C_SURFACE
-	ldTrack.BorderSizePixel = 0
-	Instance.new("UICorner", ldTrack).CornerRadius = UDim.new(1, 0)
-
-	local ldFill = Instance.new("Frame", ldTrack)
-	ldFill.Size = UDim2.new(0, 0, 1, 0)
-	ldFill.BackgroundColor3 = C_ACCENT
-	ldFill.BorderSizePixel = 0
-	Instance.new("UICorner", ldFill).CornerRadius = UDim.new(1, 0)
-
-	local ldKnob = Instance.new("Frame", ldTrack)
-	ldKnob.Size = UDim2.new(0, 14, 0, 14)
-	ldKnob.Position = UDim2.new(0, -7, 0.5, -7)
-	ldKnob.BackgroundColor3 = C_TEXT
-	ldKnob.BorderSizePixel = 0
-	ldKnob.ZIndex = 3
-	Instance.new("UICorner", ldKnob).CornerRadius = UDim.new(1, 0)
-
-	local function updateLdVisual()
-		local frac = (_landingDelay - LD_MIN) / (LD_MAX - LD_MIN)
-		ldFill.Size = UDim2.new(frac, 0, 1, 0)
-		ldKnob.Position = UDim2.new(frac, -7, 0.5, -7)
-		ldValueLabel.Text = string.format("%.2fs", _landingDelay)
-	end
-	updateLdVisual()
-
-	local ldDragging = false
-	local ldSliderBtn = Instance.new("TextButton", ldTrack)
-	ldSliderBtn.Size = UDim2.new(1, 0, 1, 10)
-	ldSliderBtn.Position = UDim2.new(0, 0, 0, -5)
-	ldSliderBtn.BackgroundTransparency = 1
-	ldSliderBtn.Text = ""
-	ldSliderBtn.ZIndex = 2
-	local function handleLdInput(xPos)
-		local tx = ldTrack.AbsolutePosition.X
-		local tw = ldTrack.AbsoluteSize.X
-		local frac = math.clamp((xPos - tx) / tw, 0, 1)
-
-		local raw = LD_MIN + frac * (LD_MAX - LD_MIN)
-		_landingDelay = math.floor(raw * 100 + 0.5) / 100
-		_landingDelay = math.clamp(_landingDelay, LD_MIN, LD_MAX)
-		_G.LandingDelay = _landingDelay
-		updateLdVisual()
-	end
-	ldSliderBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			ldDragging = true
-			handleLdInput(input.Position.X)
-		end
-	end)
-	_UIS.InputChanged:Connect(function(input)
-		if ldDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			handleLdInput(input.Position.X)
-		end
-	end)
-	_UIS.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if ldDragging then
-				ldDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-			end
-		end
-	end)
-
-	local VEL_MIN = 200
-	local VEL_MAX = 500
-	_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or 400, VEL_MIN, VEL_MAX)
-	local velFrame = Instance.new("Frame", buttonArea)
-	velFrame.Size = UDim2.new(1, 0, 0, 38)
-	velFrame.BackgroundTransparency = 1
-	velFrame.LayoutOrder = 5
-
-	local velLabel = Instance.new("TextLabel", velFrame)
-	velLabel.Size = UDim2.new(1, -70, 0, 16)
-	velLabel.Position = UDim2.new(0, 0, 0, 0)
-	velLabel.BackgroundTransparency = 1
-	velLabel.Text = "TP Velocity:"
-	velLabel.TextColor3 = C_TEXT_DIM
-	velLabel.TextSize = 12
-	velLabel.Font = Enum.Font.GothamBold
-	velLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-	local velValueLabel = Instance.new("TextLabel", velFrame)
-	velValueLabel.Size = UDim2.new(0, 70, 0, 16)
-	velValueLabel.Position = UDim2.new(1, -70, 0, 0)
-	velValueLabel.BackgroundTransparency = 1
-	velValueLabel.Text = tostring(_G.TPVelocity)
-	velValueLabel.TextColor3 = C_TEXT
-	velValueLabel.TextSize = 12
-	velValueLabel.Font = Enum.Font.GothamBold
-	velValueLabel.TextXAlignment = Enum.TextXAlignment.Right
-
-	local velTrack = Instance.new("Frame", velFrame)
-	velTrack.Size = UDim2.new(1, 0, 0, 8)
-	velTrack.Position = UDim2.new(0, 0, 0, 24)
-	velTrack.BackgroundColor3 = C_SURFACE
-	velTrack.BorderSizePixel = 0
-	Instance.new("UICorner", velTrack).CornerRadius = UDim.new(1, 0)
-
-	local velFill = Instance.new("Frame", velTrack)
-	velFill.Size = UDim2.new(0, 0, 1, 0)
-	velFill.BackgroundColor3 = C_ACCENT
-	velFill.BorderSizePixel = 0
-	Instance.new("UICorner", velFill).CornerRadius = UDim.new(1, 0)
-
-	local velKnob = Instance.new("Frame", velTrack)
-	velKnob.Size = UDim2.new(0, 14, 0, 14)
-	velKnob.Position = UDim2.new(0, -7, 0.5, -7)
-	velKnob.BackgroundColor3 = C_TEXT
-	velKnob.BorderSizePixel = 0
-	velKnob.ZIndex = 3
-	Instance.new("UICorner", velKnob).CornerRadius = UDim.new(1, 0)
-
-	local function updateVelVisual()
-		local frac = (_G.TPVelocity - VEL_MIN) / (VEL_MAX - VEL_MIN)
-		velFill.Size = UDim2.new(frac, 0, 1, 0)
-		velKnob.Position = UDim2.new(frac, -7, 0.5, -7)
-		velValueLabel.Text = tostring(_G.TPVelocity)
-	end
-	updateVelVisual()
-
-	local velDragging = false
-	local velSliderBtn = Instance.new("TextButton", velTrack)
-	velSliderBtn.Size = UDim2.new(1, 0, 1, 10)
-	velSliderBtn.Position = UDim2.new(0, 0, 0, -5)
-	velSliderBtn.BackgroundTransparency = 1
-	velSliderBtn.Text = ""
-	velSliderBtn.ZIndex = 2
-	local function handleVelInput(xPos)
-		local tx = velTrack.AbsolutePosition.X
-		local tw = velTrack.AbsoluteSize.X
-		local frac = math.clamp((xPos - tx) / tw, 0, 1)
-		local raw = VEL_MIN + frac * (VEL_MAX - VEL_MIN)
-
-		_G.TPVelocity = math.floor(raw / 10 + 0.5) * 10
-		_G.TPVelocity = math.clamp(_G.TPVelocity, VEL_MIN, VEL_MAX)
-		updateVelVisual()
-	end
-	velSliderBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			velDragging = true
-			handleVelInput(input.Position.X)
-		end
-	end)
-	_UIS.InputChanged:Connect(function(input)
-		if velDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			handleVelInput(input.Position.X)
-		end
-	end)
-	_UIS.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if velDragging then
-				velDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-			end
-		end
-	end)
-
-	local customizeBtn = Instance.new("TextButton", buttonArea)
-	customizeBtn.Size = UDim2.new(1, 0, 0, 34)
-	customizeBtn.BackgroundColor3 = C_ACCENT
-	customizeBtn.Text = "Edit Priority"
-	customizeBtn.TextColor3 = C_TEXT
-	customizeBtn.TextSize = 13
-	customizeBtn.Font = Enum.Font.GothamBold
-	customizeBtn.AutoButtonColor = false
-	customizeBtn.LayoutOrder = 1
-	customizeBtn.BorderSizePixel = 0
-	Instance.new("UICorner", customizeBtn).CornerRadius = UDim.new(0, 8)
-	customizeBtn.MouseEnter:Connect(function()
-		TweenService:Create(customizeBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(100, 140, 190)}):Play()
-	end)
-	customizeBtn.MouseLeave:Connect(function()
-		TweenService:Create(customizeBtn, TweenInfo.new(0.1), {BackgroundColor3 = C_ACCENT}):Play()
-	end)
 
 	local priorityPopup = Instance.new("Frame", sg)
 	priorityPopup.Size = UDim2.new(0, 400, 0, 560)
@@ -11986,26 +11560,8 @@ task.spawn(function()
 	end)
 
 	local popupOpen = false
-	customizeBtn.MouseButton1Click:Connect(function()
-		popupOpen = not popupOpen
-		if popupOpen then
-			rebuildPriorityList()
-			priorityPopup.Visible = true
-			local px = mf.AbsolutePosition.X + mf.AbsoluteSize.X + 8
-			local py = mf.AbsolutePosition.Y
-			local cam = workspace.CurrentCamera
-			if cam then
-				local vp = cam.ViewportSize
-				if px + 400 > vp.X - 10 then px = mf.AbsolutePosition.X - 408 end
-				py = math.clamp(py, 10, vp.Y - 570)
-			end
-			priorityPopup.Position = UDim2.new(0, px, 0, py)
-		else
-			priorityPopup.Visible = false
-		end
-	end)
 
-	-- Opened from the "Auto Teleport" module in the Features panel.
+	-- Opened from the "Edit TP Priority" button in SXE's TP tab.
 	_G._stp_openPriority = function()
 		popupOpen = true
 		rebuildPriorityList()
@@ -12014,8 +11570,6 @@ task.spawn(function()
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		priorityPopup.Position = UDim2.new(0, math.floor(vp.X / 2 - 200), 0, math.floor(vp.Y / 2 - 280))
 	end
-
-	mf.Visible = true
 
 	popClose.MouseButton1Click:Connect(function()
 		popupOpen = false
