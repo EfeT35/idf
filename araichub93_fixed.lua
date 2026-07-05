@@ -1905,6 +1905,13 @@ local function _stp_loadSaved()
 	if not data then
 		local root = _stp_readRoot()
 		if type(root.sideTP) == "table" then data = root.sideTP end
+	else
+		-- toujours merger depuis le fichier pour les positions UI (pas dans les données TP)
+		local root = _stp_readRoot()
+		if type(root.sideTP) == "table" then
+			if type(root.sideTP.panelX) == "number" then data.panelX = root.sideTP.panelX end
+			if type(root.sideTP.panelY) == "number" then data.panelY = root.sideTP.panelY end
+		end
 	end
 	return data or {}
 end
@@ -3071,6 +3078,8 @@ do
         end
         -- Force the menu open bind to Left Ctrl (override whatever was saved).
         Config.MenuKey = "LeftControl"
+        -- Carpet Speed ne doit jamais s'activer automatiquement au join (casse le TP).
+        Config.CarpetSpeed = false
     end
     _G.MeerkoCarpetTool = Config.CarpetTool or "Auto"
     if Config.GameStretcher then _bindStretch() end
@@ -6634,307 +6643,112 @@ end)
             end
         end
 
-        -- ══════════════════════════════════════════════════════════════════
-        -- SXE AUTO GRAB ENGINE — port exact de SXE PRIVATE
-        -- ══════════════════════════════════════════════════════════════════
-        local SXE_CONFIG      = { AUTO_STEAL = false }
-        local FIRE_DEBOUNCE   = 0.00
-        local FIRE_BURST      = 50
-        local ENABLE_BURST    = 50
-        local ENABLE_DEBOUNCE = 0.00
-        local ENABLE_COOLDOWN = 0.05
-        local GRAB_RADIUS     = Config.AutoGrabRadius or 60
-
-        local sxeTracked      = {}
-        local sxeLastFire     = {}
-        local sxeLastEnable   = {}
-
-        local function sxeGetHRP()
-            local c = LocalPlayer.Character
-            return c and c:FindFirstChild("HumanoidRootPart")
-        end
-
-        local function sxeGetPromptPos(pr)
-            local p = pr.Parent
-            if not p then return nil end
-            if p:IsA("Attachment") and p.Parent then p = p.Parent end
-            if p:IsA("BasePart") then return p.Position end
-            if p:IsA("Model") then return p:GetPivot().Position end
-        end
-
-        -- equivalent de promptMatchesSelectedPet dans SXE
-        -- vérifie que le prompt est dans le bon slot/plot du target courant
-        local function sxeMatchesTarget(pr)
-            local tgt = _G.MeerkoCurrentSteal
-            if not tgt then return false end
-            -- check par slot (AnimalPodiums/<slot>)
-            if tgt.slot then
-                local slotAnc = pr:FindFirstAncestor(tostring(tgt.slot))
-                if slotAnc then
-                    -- confirmer qu'on est dans le bon plot
-                    if tgt.plot then
-                        return slotAnc:FindFirstAncestor(tostring(tgt.plot)) ~= nil
-                            or slotAnc.Parent and slotAnc.Parent.Name == tostring(tgt.plot)
-                    end
-                    return true
-                end
-            end
-            -- fallback: match par nom de l'animal
-            if tgt.name then
-                local wantedName = tgt.name:lower()
-                local model = pr:FindFirstAncestorOfClass("Model")
-                local cur = model
-                while cur do
-                    if cur.Name and cur.Name:lower() == wantedName then return true end
-                    cur = cur.Parent
-                end
-            end
-            return false
-        end
-
-        -- port exact de isPromptAvailable() de SXE
-        local function sxeIsAvailable(pr, hrpPos)
-            if _G.MeerkoStealMode == nil then return false end
-            if not pr or not pr.Parent or not pr.Enabled then return false end
-            local pos = sxeGetPromptPos(pr)
-            if not pos then return false end
-            -- vérifier que c'est pas notre propre plot (port exact de SXE)
-            local plots = Workspace:FindFirstChild("Plots")
-            if plots then
-                local parentPlot = pr:FindFirstAncestorWhichIsA("Model")
-                while parentPlot and parentPlot.Parent ~= plots do
-                    parentPlot = parentPlot.Parent
-                end
-                if parentPlot then
-                    local sign = parentPlot:FindFirstChild("PlotSign")
-                    if sign then
-                        local gui = sign:FindFirstChildWhichIsA("SurfaceGui", true)
-                        local lbl = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
-                        if lbl then
-                            local txt = lbl.Text:lower()
-                            if txt:find(LocalPlayer.Name:lower(), 1, true)
-                            or txt:find(LocalPlayer.DisplayName:lower(), 1, true) then
-                                return false
-                            end
-                        end
-                    end
-                end
-            end
-            -- nearest OU pas de target trouvé → fire tout ce qui est dans le rayon
-            local hasTarget = _G.MeerkoCurrentSteal ~= nil
-            if not _G.NEAREST_INSTANT_MODE and hasTarget then
-                if not sxeMatchesTarget(pr) then return false end
-            end
-            return (pos - hrpPos).Magnitude <= GRAB_RADIUS
-        end
-
-        local function sxeCanFire(pr, debounce)
-            local t = os.clock()
-            local last = sxeLastFire[pr]
-            if last and (t - last) < debounce then return false end
-            sxeLastFire[pr] = t
-            return true
-        end
-
-        local function sxeFirePrompt(pr, burst, debounce)
-            if not pr or not pr.Parent or not pr.Enabled then return end
-            if debounce and debounce > 0 and not sxeCanFire(pr, debounce) then return end
-            if typeof(fireproximityprompt) ~= "function" then return end
-            for _ = 1, burst do
-                pcall(function() fireproximityprompt(pr, 0) end)
-                pcall(function() fireproximityprompt(pr) end)
-            end
-        end
-
-        local function sxeTrackPrompt(pr)
-            if sxeTracked[pr] then return end
-            sxeTracked[pr] = true
-            -- enable event → burst immédiat (snipe, port exact SXE)
-            local function tryInstantEnableFire()
-                local hrp = sxeGetHRP()
-                if hrp and sxeIsAvailable(pr, hrp.Position) then
-                    SXE_CONFIG.AUTO_STEAL = true
-                    local now = os.clock()
-                    local le = sxeLastEnable[pr]
-                    if not le or (now - le) >= ENABLE_COOLDOWN then
-                        sxeLastEnable[pr] = now
-                        sxeFirePrompt(pr, ENABLE_BURST, ENABLE_DEBOUNCE)
-                    end
-                end
-            end
-            task.defer(tryInstantEnableFire)
-            pcall(function()
-                pr:GetPropertyChangedSignal("Enabled"):Connect(function()
-                    if pr.Enabled then tryInstantEnableFire() end
-                end)
-            end)
-            pr.AncestryChanged:Connect(function()
-                if not pr:IsDescendantOf(Workspace) then
-                    sxeTracked[pr] = nil
-                    sxeLastFire[pr] = nil
-                    sxeLastEnable[pr] = nil
-                end
-            end)
-        end
-
-        local function sxeScanAll()
-            local plots = Workspace:FindFirstChild("Plots")
-            if not plots then return end
-            for _, plot in ipairs(plots:GetChildren()) do
-                local pods = plot:FindFirstChild("AnimalPodiums")
-                if pods then
-                    for _, obj in ipairs(pods:GetDescendants()) do
-                        if obj:IsA("ProximityPrompt") then sxeTrackPrompt(obj) end
-                    end
-                end
-            end
-        end
-
-        sxeScanAll()
-        Workspace.DescendantAdded:Connect(function(obj)
-            if obj:IsA("ProximityPrompt") and obj:FindFirstAncestor("AnimalPodiums") then
-                sxeTrackPrompt(obj)
-            end
-        end)
-
-        -- ── First-Grab Auto-Unlock ─────────────────────────────────────
+        -- ── First-Grab Auto-Unlock ─────────────────────────────────────────────
+        -- Auto-grab n'est activé qu'après le 1er grab manuel du joueur.
+        -- Quand il lâche le brainrot, l'auto-grab se déclenche automatiquement.
         local _firstGrabDone = false
         local _holdingBrainrot = false
-        local _skipTools = {
-            ["Grapple Hook"]=true, ["Grappling Hook"]=true, ["Flying Carpet"]=true,
-            ["Carpet"]=true, ["Cloud"]=true, ["Witch's Broom"]=true, ["Cupid's Wings"]=true,
-            ["Santa's Sleigh"]=true, ["Magic Carpet"]=true, ["Quantum Cloner"]=true,
-            ["Grapple Gun"]=true, ["Web Slinger"]=true,
-        }
+
         local function _isBrainrotTool(tool)
             if not tool or not tool:IsA("Tool") then return false end
-            if _skipTools[tool.Name] then return false end
+            -- les brainrots sont des tools avec des données dans AnimalsData
             if AnimalsData and AnimalsData[tool.Name] then return true end
+            -- fallback: tout tool qui n'est pas un outil de déplacement/combat connu
+            local skipTools = { ["Grapple Hook"]=true, ["Grappling Hook"]=true, ["Flying Carpet"]=true,
+                ["Carpet"]=true, ["Cloud"]=true, ["Witch's Broom"]=true, ["Cupid's Wings"]=true,
+                ["Santa's Sleigh"]=true, ["Magic Carpet"]=true, ["Quantum Cloner"]=true,
+                ["Grapple Gun"]=true, ["Web Slinger"]=true }
+            if skipTools[tool.Name] then return false end
+            -- si le tool a un attribut ou valeur lié aux animaux, c'est un brainrot
             return tool:FindFirstChild("Index") ~= nil or tool:FindFirstChild("Slot") ~= nil
+                or tool:FindFirstChildWhichIsA("StringValue") ~= nil
         end
+
         local function _onCharAdded(char)
             char.ChildAdded:Connect(function(obj)
-                if _isBrainrotTool(obj) then _holdingBrainrot = true; _firstGrabDone = true end
+                if _isBrainrotTool(obj) then
+                    _holdingBrainrot = true
+                    _firstGrabDone = true
+                end
             end)
             char.ChildRemoved:Connect(function(obj)
                 if _isBrainrotTool(obj) and _holdingBrainrot then
                     _holdingBrainrot = false
-                    if _firstGrabDone and not _G.MeerkoStealMode then
+                    -- activer l'auto-grab dès qu'on lâche le brainrot
+                    if _firstGrabDone and not (Config.StealNearest or Config.StealHighest or Config.StealPriority) then
+                        Config.StealNearest = true
                         if _G.MeerkoSetStealMode then _G.MeerkoSetStealMode("nearest") end
                     end
                 end
             end)
         end
+
         if LocalPlayer.Character then _onCharAdded(LocalPlayer.Character) end
         LocalPlayer.CharacterAdded:Connect(_onCharAdded)
-        -- ──────────────────────────────────────────────────────────────
+        -- ──────────────────────────────────────────────────────────────────────
 
-        -- ── poll loop (port exact de SXE) ─────────────────────────────
-        local _stealReadyAt = os.clock() + 3
-        local _petsCacheT   = 0
-        local _petsCache    = {}
-
-        task.spawn(function()
-            while true do
-                task.wait(0.05)
-
-                if os.clock() < _stealReadyAt then continue end
-
-                -- NEAREST_INSTANT_MODE: fire tout ce qui est dans le rayon sans filtrer par target
-                _G.NEAREST_INSTANT_MODE = _G.MeerkoStealMode == "nearest"
-
-                local stealOn = _G.MeerkoStealMode ~= nil
-
-                if not stealOn then
-                    if barActive then hideBar() end
-                    SXE_CONFIG.AUTO_STEAL = false
-                    _G.MeerkoCurrentSteal = nil
-                    continue
-                end
-
-                local hrp = sxeGetHRP()
-                if not hrp then SXE_CONFIG.AUTO_STEAL = false; continue end
-                local myPos = hrp.Position
-
-                -- rafraîchir la liste de pets ~1x/sec (pour Highest/Priority)
-                local now = os.clock()
-                if now - _petsCacheT > 1.0 then
-                    local ok, pets = pcall(scanAllPets)
-                    _petsCache = (ok and pets) or {}
-                    _petsCacheT = now
-                end
-                if #_petsCache > 0 then
-                    local tp = pickTarget(_petsCache)
-                    if tp then
-                        _G.MeerkoCurrentSteal = {
-                            uid   = tostring(tp.plot) .. "|" .. tostring(tp.slot),
-                            index = tp.index,
-                            name  = tp.name,
-                            plot  = tp.plot,
-                            slot  = tp.slot,
-                        }
-                    end
-                end
-
-                -- scan direct workspace/Plots/*/AnimalPodiums + sxeTracked
-                local myName  = LocalPlayer.Name:lower()
-                local myDName = LocalPlayer.DisplayName:lower()
-                local plots   = Workspace:FindFirstChild("Plots")
-
-                local anyAvailable = false
-                local fired = false
-
-                local function tryFire(pr)
-                    if not pr or not pr.Parent or not pr.Enabled then return end
-                    local pos = sxeGetPromptPos(pr)
-                    if not pos then return end
-                    if (pos - myPos).Magnitude > GRAB_RADIUS then return end
-                    -- own-plot check
-                    if plots then
-                        local pp = pr:FindFirstAncestorWhichIsA("Model")
-                        while pp and pp.Parent ~= plots do pp = pp.Parent end
-                        if pp then
-                            local sg = pp:FindFirstChild("PlotSign")
-                            if sg then
-                                local gui = sg:FindFirstChildWhichIsA("SurfaceGui", true)
-                                local lbl = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
-                                if lbl then
-                                    local t = lbl.Text:lower()
-                                    if t:find(myName,1,true) or t:find(myDName,1,true) then return end
-                                end
-                            end
-                        end
-                    end
-                    anyAvailable = true
-                    if SXE_CONFIG.AUTO_STEAL then
-                        sxeFirePrompt(pr, FIRE_BURST, 0)
-                        fired = true
-                    end
-                end
-
-                -- scan workspace directement
-                if plots then
-                    for _, plot in ipairs(plots:GetChildren()) do
-                        local pods = plot:FindFirstChild("AnimalPodiums")
-                        if pods then
-                            for _, obj in ipairs(pods:GetDescendants()) do
-                                if obj:IsA("ProximityPrompt") then tryFire(obj) end
-                            end
-                        end
-                    end
-                end
-                -- aussi les trackés (pour enable-event snipe)
-                for pr in pairs(sxeTracked) do tryFire(pr) end
-
-                SXE_CONFIG.AUTO_STEAL = anyAvailable
-                if fired and not barActive then
-                    local tname = (_G.MeerkoCurrentSteal and _G.MeerkoCurrentSteal.name) or "brainrot"
-                    barLabel.Text = "Stealing " .. tname .. "..."
-                    barActive = true
-                end
-                if not anyAvailable and barActive then hideBar() end
+        -- the driver loop: re-arm the steal on the current target ~10x/sec
+        local _lastTick = 0
+        local _petsCacheT = 0
+        local _petsCache = {}
+        local _stealReadyAt = os.clock() + 3   -- hold off the steal scan ~3s after joining
+        RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
+            if os.clock() < _stealReadyAt then return end
+            local active = Config.StealNearest or Config.StealHighest or Config.StealPriority or _G.MeerkoStealTargetUID ~= nil
+            -- bloquer l'auto-grab automatique jusqu'au 1er grab manuel du joueur
+            -- (si le joueur active manuellement depuis l'UI, active=true est déjà géré)
+            if not _firstGrabDone and not active then return end
+            if not active then
+                if barActive then hideBar() end
+                currentTargetUID = nil
+                _G.MeerkoCurrentSteal = nil
+                return
             end
-        end)
+            if LocalPlayer:GetAttribute("Stealing") == true then return end
+            local now = os.clock()
+            if now - _lastTick < 0.25 then return end
+            _lastTick = now
+
+            -- scanAllPets is moderately heavy; refresh the list ~1x/sec
+            if now - _petsCacheT > 1.0 then
+                local ok, pets = pcall(scanAllPets)
+                _petsCache = (ok and pets) or {}
+                _petsCacheT = now
+            end
+            if #_petsCache == 0 then if barActive then hideBar() end return end
+
+            local tp = pickTarget(_petsCache)
+            if not tp then return end
+
+            -- whatever brainrot the TP/steal engine is currently converging on,
+            -- regardless of ENGAGE_RANGE -- used by the competing-thief popup
+            _G.MeerkoCurrentSteal = {
+                uid = tostring(tp.plot) .. "|" .. tostring(tp.slot),
+                index = tp.index,
+                name = tp.name,
+            }
+
+            -- only arm/show the bar when we're actually heading into the target
+            if distToPos(tp.position) > ENGAGE_RANGE then
+                if barActive then hideBar() end
+                return
+            end
+
+            local uid = tostring(tp.plot) .. "_" .. tostring(tp.slot)
+            local pr = promptCache[uid]
+            if not pr or not pr.Parent then
+                pr = findStealPrompt(tp.plot, tp.slot)
+                promptCache[uid] = pr
+            end
+            if pr then
+                -- always loop: while we're within steal range, fire the prompt
+                -- continuously every tick so it keeps grabbing with no delay
+                if distToPos(tp.position) <= STEAL_RANGE and typeof(fireproximityprompt) == "function" then
+                    pcall(fireproximityprompt, pr)
+                end
+                attemptSteal(pr, uid, tp.position, tp.name)
+            end
+        end))
 
     end
 
