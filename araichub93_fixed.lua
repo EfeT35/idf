@@ -6873,24 +6873,62 @@ end)
                     end
                 end
 
-                -- port exact du poll loop SXE:
-                -- frame 1: détecte (anyAvailable=true), AUTO_STEAL reste false → pas de fire
-                -- frame 2: AUTO_STEAL=true → fire
+                -- scan direct workspace/Plots/*/AnimalPodiums + sxeTracked
+                local myName  = LocalPlayer.Name:lower()
+                local myDName = LocalPlayer.DisplayName:lower()
+                local plots   = Workspace:FindFirstChild("Plots")
+
                 local anyAvailable = false
-                for pr in pairs(sxeTracked) do
-                    if sxeIsAvailable(pr, myPos) then
-                        anyAvailable = true
-                        if SXE_CONFIG.AUTO_STEAL then
-                            sxeFirePrompt(pr, FIRE_BURST, FIRE_DEBOUNCE)
-                            if not barActive then
-                                local tname = (_G.MeerkoCurrentSteal and _G.MeerkoCurrentSteal.name) or "brainrot"
-                                barLabel.Text = "Stealing " .. tname .. "..."
-                                barActive = true
+                local fired = false
+
+                local function tryFire(pr)
+                    if not pr or not pr.Parent or not pr.Enabled then return end
+                    local pos = sxeGetPromptPos(pr)
+                    if not pos then return end
+                    if (pos - myPos).Magnitude > GRAB_RADIUS then return end
+                    -- own-plot check
+                    if plots then
+                        local pp = pr:FindFirstAncestorWhichIsA("Model")
+                        while pp and pp.Parent ~= plots do pp = pp.Parent end
+                        if pp then
+                            local sg = pp:FindFirstChild("PlotSign")
+                            if sg then
+                                local gui = sg:FindFirstChildWhichIsA("SurfaceGui", true)
+                                local lbl = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
+                                if lbl then
+                                    local t = lbl.Text:lower()
+                                    if t:find(myName,1,true) or t:find(myDName,1,true) then return end
+                                end
+                            end
+                        end
+                    end
+                    anyAvailable = true
+                    if SXE_CONFIG.AUTO_STEAL then
+                        sxeFirePrompt(pr, FIRE_BURST, FIRE_DEBOUNCE)
+                        fired = true
+                    end
+                end
+
+                -- scan workspace directement
+                if plots then
+                    for _, plot in ipairs(plots:GetChildren()) do
+                        local pods = plot:FindFirstChild("AnimalPodiums")
+                        if pods then
+                            for _, obj in ipairs(pods:GetDescendants()) do
+                                if obj:IsA("ProximityPrompt") then tryFire(obj) end
                             end
                         end
                     end
                 end
+                -- aussi les trackés (pour enable-event snipe)
+                for pr in pairs(sxeTracked) do tryFire(pr) end
+
                 SXE_CONFIG.AUTO_STEAL = anyAvailable
+                if fired and not barActive then
+                    local tname = (_G.MeerkoCurrentSteal and _G.MeerkoCurrentSteal.name) or "brainrot"
+                    barLabel.Text = "Stealing " .. tname .. "..."
+                    barActive = true
+                end
                 if not anyAvailable and barActive then hideBar() end
             end
         end)
