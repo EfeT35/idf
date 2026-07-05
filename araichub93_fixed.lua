@@ -10715,14 +10715,15 @@ end)
                 ScaleType = Enum.ScaleType.Slice,
                 SliceCenter = Rect.new(49, 49, 450, 450),
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.fromScale(0.5, 0.5),
+                Position = UDim2.new(0.5, tonumber(Config.MainWindowX) or 0, 0.5, tonumber(Config.MainWindowY) or 0),
                 Size = UDim2.fromOffset(W + 60, H + 60),
                 Parent = gui,
             })
+            local _mainInitPos = UDim2.new(0.5, tonumber(Config.MainWindowX) or 0, 0.5, tonumber(Config.MainWindowY) or 0)
             local main = fg_new("CanvasGroup", {
                 BackgroundColor3 = FG_Theme.Window,
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.fromScale(0.5, 0.5),
+                Position = _mainInitPos,
                 Size = UDim2.fromOffset(W, H),
                 GroupTransparency = 1,
                 Parent = gui,
@@ -11004,7 +11005,12 @@ end)
             end)
             FG_UIS.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    if dragging then fg_tween(main, 0.22, { Size = UDim2.fromOffset(W, H) }, Enum.EasingStyle.Back) end
+                    if dragging then
+                        fg_tween(main, 0.22, { Size = UDim2.fromOffset(W, H) }, Enum.EasingStyle.Back)
+                        Config.MainWindowX = targetPos.X.Offset
+                        Config.MainWindowY = targetPos.Y.Offset
+                        if SaveConfig then pcall(SaveConfig) end
+                    end
                     dragging = false
                 end
             end)
