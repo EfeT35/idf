@@ -10992,7 +10992,8 @@ do
         end
 
         healConn:Disconnect()
-        isTeleporting = false
+        -- NOTE: isTeleporting stays TRUE here so the steal Heartbeat sees
+        -- _inCloneTP = true and fires the grab at the same instant as doClone().
 
         -- Stability check: hold position until settled
         do
@@ -11038,10 +11039,15 @@ do
 
         task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
 
-        _cloneFired = true
+        -- Arm the steal and fire the clone at the same instant.
+        -- The Heartbeat steal loop sees isTeleporting=true + _cloneTP=true + _cloneFired=true
+        -- → bypasses proximity and grabs the pet simultaneously with the clone swap.
         armSteal(pet)
+        _cloneFired = true
         local _cloneOk = doClone()
         if _clonePlat then pcall(function() _clonePlat:Destroy() end); _clonePlat = nil end
+
+        isTeleporting = false
 
         do
             local _t0 = os.clock()
@@ -11062,12 +11068,6 @@ do
         if _cloneOk then
             goToBrainrot(petPos)
         end
-        pcall(function()
-            local vim = Instance.new("VirtualInputManager")
-            vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-            task.wait(0.05)
-            vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
-        end)
     end
 
     doGrabbleVelocityTP = doVelocityTP
