@@ -11039,13 +11039,26 @@ do
 
         task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
 
-        -- Fire clone. isTeleporting stays true so the 30s guard holds and no second TP
-        -- can be triggered while we wait for the character to arrive in the base.
         _cloneFired = true
         local _cloneOk = doClone()
         if _clonePlat then pcall(function() _clonePlat:Destroy() end); _clonePlat = nil end
 
-        -- Wait for the clone swap to place the character in the base.
+        -- Fire the steal in a parallel thread ~0.35s after the clone fires.
+        -- The character arrives in the base during that window, and MaxActivationDistance
+        -- is set to math.huge so proximity doesn't matter.
+        task.spawn(function()
+            task.wait(0.35)
+            pcall(function()
+                local prompt = findStealPrompt(pet)
+                if prompt and prompt.Parent then
+                    buildStealCallbacks(prompt)
+                    if InternalStealCache[prompt] then executeStealAsync(prompt) end
+                end
+            end)
+        end)
+        disarmSteal()
+
+        -- Wait for the clone swap (detection only, steal already running in parallel).
         do
             local _t0 = os.clock()
             repeat
@@ -11061,19 +11074,6 @@ do
             until os.clock() - _t0 > 3
         end
         if _caConn then _caConn:Disconnect() end
-
-        -- Character is now in the base. Fire the steal ONCE directly (no Heartbeat
-        -- involvement) so it triggers immediately at arrival, not mid-flight.
-        pcall(function()
-            local prompt = findStealPrompt(pet)
-            if prompt and prompt.Parent then
-                buildStealCallbacks(prompt)
-                if InternalStealCache[prompt] then executeStealAsync(prompt) end
-            end
-        end)
-        -- Disarm before goToBrainrot so the Heartbeat loop cannot re-trigger steal
-        -- while the character is flying (which would cause the double-steal slowdown).
-        disarmSteal()
 
         if _cloneOk then
             goToBrainrot(petPos)
