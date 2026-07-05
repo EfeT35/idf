@@ -290,25 +290,29 @@ local function isCodesOpen()
     return false
 end
 
--- Trouve la TextBox du menu codes (cherche dynamiquement)
+-- Trouve la TextBox du menu codes (cherche dynamiquement, exclut notre GUI)
 local function findCodeBox()
     -- chemin direct d'abord
     local ok, box = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
     if ok and box and box:IsA("TextBox") then return box end
-    -- recherche dans tout le PlayerGui
+    -- recherche dans tout le PlayerGui en excluant SABHub
     for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name == "SABHub" then continue end
         for _, desc in ipairs(gui:GetDescendants()) do
             if desc:IsA("TextBox") then
-                local name = desc.Name:lower()
+                local name   = desc.Name:lower()
                 local parent = desc.Parent and desc.Parent.Name:lower() or ""
-                if name:find("code") or parent:find("code") or parent:find("redeem") then
+                local ph     = desc.PlaceholderText and desc.PlaceholderText:lower() or ""
+                if name:find("code") or parent:find("code") or parent:find("redeem")
+                   or ph:find("code") or ph:find("ici") then
                     return desc
                 end
             end
         end
     end
-    -- fallback: première TextBox visible dans le PlayerGui
+    -- fallback: première TextBox visible hors SABHub
     for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name == "SABHub" then continue end
         for _, desc in ipairs(gui:GetDescendants()) do
             if desc:IsA("TextBox") and desc.Visible then
                 return desc
