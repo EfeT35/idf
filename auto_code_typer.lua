@@ -290,21 +290,51 @@ local function isCodesOpen()
     return false
 end
 
+-- Trouve la TextBox du menu codes (cherche dynamiquement)
+local function findCodeBox()
+    -- chemin direct d'abord
+    local ok, box = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
+    if ok and box and box:IsA("TextBox") then return box end
+    -- recherche dans tout le PlayerGui
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        for _, desc in ipairs(gui:GetDescendants()) do
+            if desc:IsA("TextBox") then
+                local name = desc.Name:lower()
+                local parent = desc.Parent and desc.Parent.Name:lower() or ""
+                if name:find("code") or parent:find("code") or parent:find("redeem") then
+                    return desc
+                end
+            end
+        end
+    end
+    -- fallback: première TextBox visible dans le PlayerGui
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        for _, desc in ipairs(gui:GetDescendants()) do
+            if desc:IsA("TextBox") and desc.Visible then
+                return desc
+            end
+        end
+    end
+    return nil
+end
+
 -- Écrit le texte dans la box SANS soumettre (utilisé par les boutons de la liste)
 local function typeOnly(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-    local ok, codeBox = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
-    if not ok or not codeBox then return end
-    if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
+    if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
+    local codeBox = findCodeBox()
+    if not codeBox then print("[ACT] box introuvable") return end
     codeBox:CaptureFocus()
     codeBox.Text = formatted
+    print("[ACT] écrit:", formatted)
 end
 
 -- Écrit ET soumet le texte (utilisé par la détection automatique)
 local function typeIntoCodeBox(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-    local ok, codeBox = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
-    if not ok or not codeBox then return formatted end
+    if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
+    local codeBox = findCodeBox()
+    if not codeBox then print("[ACT] box introuvable") return formatted end
 
     codeBox:CaptureFocus()
     codeBox.Text = formatted
@@ -312,10 +342,9 @@ local function typeIntoCodeBox(rawText)
 
     local submitted = false
     pcall(function()
-        local redeem = playerGui.Codes.Codes.CodeRedeem
-        for _, btn in ipairs(redeem:GetDescendants()) do
-            if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                for _, conn in ipairs(getconnections(btn.Activated)) do
+        for _, desc in ipairs(codeBox.Parent:GetDescendants()) do
+            if desc:IsA("TextButton") or desc:IsA("ImageButton") then
+                for _, conn in ipairs(getconnections(desc.Activated)) do
                     conn:Fire(); submitted = true; break
                 end
             end
@@ -324,7 +353,7 @@ local function typeIntoCodeBox(rawText)
     end)
     if not submitted then codeBox:ReleaseFocus(true) end
 
-    print("SUBMITTED:", formatted)
+    print("[ACT] submitted:", formatted)
     return formatted
 end
 
