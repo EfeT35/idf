@@ -6665,7 +6665,7 @@ end)
             pcall(function()
                 local ch = getPlotChannel and getPlotChannel(plot.Name)
                 if ch then
-                    local owner = ch:Get and ch:Get("Owner")
+                    local owner = ch.Get and ch:Get("Owner")
                     if owner and owner == LocalPlayer.Name then result = true; return end
                 end
                 -- fallback: PlotSign text
