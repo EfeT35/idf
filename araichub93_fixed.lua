@@ -11983,6 +11983,7 @@ task.spawn(function()
     end)
 end)
 
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- SXE-STYLE STEAL PANEL — floating panel with ON/OFF toggles
 -- ═══════════════════════════════════════════════════════════════════════
@@ -12003,19 +12004,19 @@ task.spawn(function()
         local C_STROKE = Color3.fromRGB(238, 188, 219)
         local C_TEXT   = Color3.fromRGB(40, 15, 30)
         local C_SUB    = Color3.fromRGB(140, 80, 115)
-        local C_ACC    = Color3.fromRGB(232, 111, 177)   -- ON
-        local C_OFF    = Color3.fromRGB(220, 210, 215)   -- OFF button bg
+        local C_ACC    = Color3.fromRGB(232, 111, 177)
+        local C_OFF    = Color3.fromRGB(220, 210, 215)
         local C_ON_TXT = Color3.fromRGB(255, 255, 255)
         local C_OFF_TXT= Color3.fromRGB(120, 80, 100)
 
         local W, ROW_H, PAD = 260, 44, 10
         local ROWS = {
-            { label = "Auto Steal",     key = "autoSteal"  },
-            { label = "Steal Highest",  key = "highest"    },
-            { label = "Steal Priority", key = "priority"   },
-            { label = "Steal Nearest",  key = "nearest"    },
-            { label = "Auto Buy",       key = "autoBuy"    },
-            { label = "Auto Kick",      key = "autoKick"   },
+            { label = "Auto Steal",     id = "autoSteal"  },
+            { label = "Steal Highest",  id = "highest"    },
+            { label = "Steal Priority", id = "priority"   },
+            { label = "Steal Nearest",  id = "nearest"    },
+            { label = "Auto Buy",       id = "autoBuy"    },
+            { label = "Auto Kick",      id = "autoKick"   },
         }
         local TOTAL_H = 72 + #ROWS * ROW_H + PAD
 
@@ -12027,7 +12028,6 @@ task.spawn(function()
         pcall(function() sg.Parent = game:GetService("CoreGui") end)
         if not sg.Parent then sg.Parent = pg end
 
-        -- ── main frame ──────────────────────────────────────────────
         local frame = Instance.new("Frame", sg)
         frame.Size             = UDim2.fromOffset(W, TOTAL_H)
         frame.Position         = UDim2.new(1, -W - 20, 0.5, -TOTAL_H / 2)
@@ -12037,46 +12037,30 @@ task.spawn(function()
         local fstroke = Instance.new("UIStroke", frame)
         fstroke.Color = C_STROKE; fstroke.Thickness = 1.5; fstroke.Transparency = 0.2
 
-        -- ── header ──────────────────────────────────────────────────
+        -- header
         local header = Instance.new("Frame", frame)
         header.Size             = UDim2.new(1, 0, 0, 58)
         header.BackgroundColor3 = C_CARD
         header.BorderSizePixel  = 0
         Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
-        local headerFix = Instance.new("Frame", header)
-        headerFix.Size             = UDim2.new(1, 0, 0, 14)
-        headerFix.Position         = UDim2.new(0, 0, 1, -14)
-        headerFix.BackgroundColor3 = C_CARD
-        headerFix.BorderSizePixel  = 0
+        local hfix = Instance.new("Frame", header)
+        hfix.Size = UDim2.new(1,0,0,14); hfix.Position = UDim2.new(0,0,1,-14)
+        hfix.BackgroundColor3 = C_CARD; hfix.BorderSizePixel = 0
+        local div0 = Instance.new("Frame", header)
+        div0.Size = UDim2.new(1,-20,0,1); div0.Position = UDim2.new(0,10,1,-1)
+        div0.BackgroundColor3 = C_STROKE; div0.BackgroundTransparency = 0.3; div0.BorderSizePixel = 0
+        local t1 = Instance.new("TextLabel", header)
+        t1.Size = UDim2.new(1,0,0,26); t1.Position = UDim2.new(0,0,0,6)
+        t1.BackgroundTransparency = 1; t1.Text = "IDF HUB"
+        t1.Font = Enum.Font.GothamBlack; t1.TextSize = 15
+        t1.TextColor3 = C_ACC; t1.TextXAlignment = Enum.TextXAlignment.Center
+        local t2 = Instance.new("TextLabel", header)
+        t2.Size = UDim2.new(1,0,0,18); t2.Position = UDim2.new(0,0,0,32)
+        t2.BackgroundTransparency = 1; t2.Text = "Steal Panel"
+        t2.Font = Enum.Font.Gotham; t2.TextSize = 11
+        t2.TextColor3 = C_SUB; t2.TextXAlignment = Enum.TextXAlignment.Center
 
-        local divH = Instance.new("Frame", header)
-        divH.Size              = UDim2.new(1, -20, 0, 1)
-        divH.Position          = UDim2.new(0, 10, 1, -1)
-        divH.BackgroundColor3  = C_STROKE
-        divH.BackgroundTransparency = 0.3
-        divH.BorderSizePixel   = 0
-
-        local titleTop = Instance.new("TextLabel", header)
-        titleTop.Size              = UDim2.new(1, 0, 0, 26)
-        titleTop.Position          = UDim2.new(0, 0, 0, 6)
-        titleTop.BackgroundTransparency = 1
-        titleTop.Text              = "IDF HUB"
-        titleTop.Font              = Enum.Font.GothamBlack
-        titleTop.TextSize          = 15
-        titleTop.TextColor3        = C_ACC
-        titleTop.TextXAlignment    = Enum.TextXAlignment.Center
-
-        local titleSub = Instance.new("TextLabel", header)
-        titleSub.Size              = UDim2.new(1, 0, 0, 18)
-        titleSub.Position          = UDim2.new(0, 0, 0, 32)
-        titleSub.BackgroundTransparency = 1
-        titleSub.Text              = "Steal Panel"
-        titleSub.Font              = Enum.Font.Gotham
-        titleSub.TextSize          = 11
-        titleSub.TextColor3        = C_SUB
-        titleSub.TextXAlignment    = Enum.TextXAlignment.Center
-
-        -- ── drag ────────────────────────────────────────────────────
+        -- drag
         do
             local dragging, dragStart, startPos
             header.InputBegan:Connect(function(inp)
@@ -12090,161 +12074,117 @@ task.spawn(function()
             UIS.InputChanged:Connect(function(inp)
                 if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
                     local d = inp.Position - dragStart
-                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
                 end
             end)
         end
 
-        -- ── state ───────────────────────────────────────────────────
-        local state = {
-            autoSteal = (_G.MeerkoStealMode ~= nil),
-            highest   = (Config and Config.StealHighest)  or false,
-            priority  = (Config and Config.StealPriority) or false,
-            nearest   = (Config and Config.StealNearest)  or false,
-            autoBuy   = (Config and Config.AutoBuyCarpet) or false,
-            autoKick  = (Config and Config.AutoKickOnSteal) or false,
-        }
+        -- ── helpers pour lire l'état réel via _G ────────────────────
+        local function getState(id)
+            if id == "autoSteal"  then return _G.MeerkoStealMode ~= nil end
+            if id == "highest"    then return _G.MeerkoStealMode == "highest" end
+            if id == "priority"   then return _G.MeerkoStealMode == "priority" end
+            if id == "nearest"    then return _G.MeerkoStealMode == "nearest" end
+            if id == "autoBuy"    then
+                local ok, v = pcall(function() return _G.MeerkoConfig and _G.MeerkoConfig.AutoBuyCarpet end)
+                return ok and v == true
+            end
+            if id == "autoKick"   then
+                local ok, v = pcall(function() return _G.MeerkoConfig and _G.MeerkoConfig.AutoKickOnSteal end)
+                return ok and v == true
+            end
+            return false
+        end
 
-        local btnRefs = {}
-
-        local function applyState(key, on)
-            state[key] = on
-            -- sync vers le hub
-            if key == "autoSteal" then
+        local function setState(id, on)
+            if id == "autoSteal" then
                 if on then
-                    local mode = state.highest and "highest" or state.priority and "priority" or "nearest"
+                    -- active le mode actuel (priority par défaut)
+                    local mode = _G.MeerkoStealMode or "priority"
                     if _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, mode) end
                 else
                     if _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, nil) end
                 end
-            elseif key == "highest" then
-                if Config then Config.StealHighest = on; Config.StealNearest = false; Config.StealPriority = false end
-                state.nearest = false; state.priority = false
-                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "highest") end
-                -- refresh les autres boutons
-                for k2, ref in pairs(btnRefs) do
-                    if k2 == "nearest" or k2 == "priority" then
-                        local s2 = state[k2]
-                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
-                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
-                        ref.btn.Text             = s2 and "ON" or "OFF"
-                    end
+            elseif id == "highest" then
+                if _G.MeerkoSetStealMode then
+                    pcall(_G.MeerkoSetStealMode, on and "highest" or nil)
                 end
-            elseif key == "priority" then
-                if Config then Config.StealPriority = on; Config.StealNearest = false; Config.StealHighest = false end
-                state.nearest = false; state.highest = false
-                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "priority") end
-                for k2, ref in pairs(btnRefs) do
-                    if k2 == "nearest" or k2 == "highest" then
-                        local s2 = state[k2]
-                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
-                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
-                        ref.btn.Text             = s2 and "ON" or "OFF"
-                    end
+            elseif id == "priority" then
+                if _G.MeerkoSetStealMode then
+                    pcall(_G.MeerkoSetStealMode, on and "priority" or nil)
                 end
-            elseif key == "nearest" then
-                if Config then Config.StealNearest = on; Config.StealHighest = false; Config.StealPriority = false end
-                state.highest = false; state.priority = false
-                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "nearest") end
-                for k2, ref in pairs(btnRefs) do
-                    if k2 == "highest" or k2 == "priority" then
-                        local s2 = state[k2]
-                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
-                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
-                        ref.btn.Text             = s2 and "ON" or "OFF"
-                    end
+            elseif id == "nearest" then
+                if _G.MeerkoSetStealMode then
+                    pcall(_G.MeerkoSetStealMode, on and "nearest" or nil)
                 end
-            elseif key == "autoBuy" then
+            elseif id == "autoBuy" then
                 if _G.MeerkoAutoBuyCarpet then pcall(_G.MeerkoAutoBuyCarpet, on) end
-            elseif key == "autoKick" then
-                if Config then Config.AutoKickOnSteal = on end
+            elseif id == "autoKick" then
+                pcall(function()
+                    if _G.MeerkoConfig then _G.MeerkoConfig.AutoKickOnSteal = on end
+                end)
             end
         end
 
-        -- ── row factory ─────────────────────────────────────────────
-        local function makeRow(idx, rowDef)
-            local yOff = 58 + (idx - 1) * ROW_H
-            local row = Instance.new("Frame", frame)
-            row.Size             = UDim2.new(1, -PAD * 2, 0, ROW_H)
-            row.Position         = UDim2.new(0, PAD, 0, yOff)
-            row.BackgroundTransparency = 1
-            row.BorderSizePixel  = 0
+        -- ── rows ────────────────────────────────────────────────────
+        local btns = {}
+        local TI = TweenInfo.new(0.12, Enum.EasingStyle.Quad)
 
-            local lbl = Instance.new("TextLabel", row)
-            lbl.Size             = UDim2.new(1, -80, 1, 0)
-            lbl.Position         = UDim2.new(0, 8, 0, 0)
-            lbl.BackgroundTransparency = 1
-            lbl.Text             = rowDef.label
-            lbl.Font             = Enum.Font.GothamBold
-            lbl.TextSize         = 13
-            lbl.TextColor3       = C_TEXT
-            lbl.TextXAlignment   = Enum.TextXAlignment.Left
-            lbl.TextYAlignment   = Enum.TextYAlignment.Center
-
-            local on = state[rowDef.key]
-            local btn = Instance.new("TextButton", row)
-            btn.Size             = UDim2.fromOffset(62, 28)
-            btn.Position         = UDim2.new(1, -66, 0.5, -14)
-            btn.AutoButtonColor  = false
-            btn.Text             = on and "ON" or "OFF"
-            btn.Font             = Enum.Font.GothamBlack
-            btn.TextSize         = 12
+        local function paintBtn(btn, on)
             btn.BackgroundColor3 = on and C_ACC or C_OFF
             btn.TextColor3       = on and C_ON_TXT or C_OFF_TXT
-            btn.BorderSizePixel  = 0
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+            btn.Text             = on and "ON" or "OFF"
+        end
 
-            btnRefs[rowDef.key] = { btn = btn }
+        for i, row in ipairs(ROWS) do
+            local yOff = 58 + (i-1)*ROW_H
+            local rf = Instance.new("Frame", frame)
+            rf.Size = UDim2.new(1,-PAD*2,0,ROW_H); rf.Position = UDim2.new(0,PAD,0,yOff)
+            rf.BackgroundTransparency = 1; rf.BorderSizePixel = 0
 
-            -- séparateur entre rows (sauf dernier)
-            if idx < #ROWS then
+            local lbl = Instance.new("TextLabel", rf)
+            lbl.Size = UDim2.new(1,-80,1,0); lbl.Position = UDim2.new(0,8,0,0)
+            lbl.BackgroundTransparency = 1; lbl.Text = row.label
+            lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 13
+            lbl.TextColor3 = C_TEXT
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.TextYAlignment = Enum.TextYAlignment.Center
+
+            local btn = Instance.new("TextButton", rf)
+            btn.Size = UDim2.fromOffset(62,28); btn.Position = UDim2.new(1,-66,0.5,-14)
+            btn.AutoButtonColor = false; btn.Font = Enum.Font.GothamBlack; btn.TextSize = 12
+            btn.BorderSizePixel = 0
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+            paintBtn(btn, getState(row.id))
+            btns[row.id] = btn
+
+            if i < #ROWS then
                 local div = Instance.new("Frame", frame)
-                div.Size             = UDim2.new(1, -PAD * 2, 0, 1)
-                div.Position         = UDim2.new(0, PAD, 0, yOff + ROW_H - 1)
-                div.BackgroundColor3 = C_STROKE
-                div.BackgroundTransparency = 0.55
-                div.BorderSizePixel  = 0
+                div.Size = UDim2.new(1,-PAD*2,0,1); div.Position = UDim2.new(0,PAD,0,yOff+ROW_H-1)
+                div.BackgroundColor3 = C_STROKE; div.BackgroundTransparency = 0.55; div.BorderSizePixel = 0
             end
 
+            local rowId = row.id
             btn.MouseButton1Click:Connect(function()
-                local newOn = not state[rowDef.key]
-                applyState(rowDef.key, newOn)
-                local TI = TweenInfo.new(0.12, Enum.EasingStyle.Quad)
-                TS:Create(btn, TI, {
-                    BackgroundColor3 = newOn and C_ACC or C_OFF,
-                    TextColor3       = newOn and C_ON_TXT or C_OFF_TXT,
-                }):Play()
-                btn.Text = newOn and "ON" or "OFF"
+                local currentOn = getState(rowId)
+                local newOn = not currentOn
+                setState(rowId, newOn)
+                -- lire l'état réel après avoir appliqué (le mode peut changer d'autres)
+                task.defer(function()
+                    for id2, b2 in pairs(btns) do
+                        paintBtn(b2, getState(id2))
+                    end
+                end)
             end)
         end
 
-        for i, rowDef in ipairs(ROWS) do
-            makeRow(i, rowDef)
-        end
-
-        -- ── sync loop: reflète l'état réel du hub ───────────────────
+        -- ── sync loop: reflète l'état réel toutes les 0.5s ──────────
         task.spawn(function()
             while sg and sg.Parent do
-                task.wait(1)
-                local function sync(key, val)
-                    if state[key] ~= val then
-                        state[key] = val
-                        local ref = btnRefs[key]
-                        if ref then
-                            ref.btn.BackgroundColor3 = val and C_ACC or C_OFF
-                            ref.btn.TextColor3       = val and C_ON_TXT or C_OFF_TXT
-                            ref.btn.Text             = val and "ON" or "OFF"
-                        end
-                    end
+                task.wait(0.5)
+                for id, btn in pairs(btns) do
+                    pcall(function() paintBtn(btn, getState(id)) end)
                 end
-                pcall(function()
-                    sync("autoSteal",  _G.MeerkoStealMode ~= nil)
-                    sync("highest",    Config and Config.StealHighest  or false)
-                    sync("priority",   Config and Config.StealPriority or false)
-                    sync("nearest",    Config and Config.StealNearest  or false)
-                    sync("autoBuy",    Config and Config.AutoBuyCarpet or false)
-                    sync("autoKick",   Config and Config.AutoKickOnSteal or false)
-                end)
             end
         end)
     end)
