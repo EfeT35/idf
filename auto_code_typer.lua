@@ -14,7 +14,7 @@ screenGui.Parent = playerGui
 -- FENETRE PRINCIPALE
 -- =====================================================================
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 240, 0, 270)
+main.Size = UDim2.new(0, 240, 0, 290)
 main.Position = UDim2.new(0.5, -120, 0, 20)
 main.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
 main.BackgroundTransparency = 0.1
@@ -102,87 +102,119 @@ lowerStroke.Transparency = 0.7
 lowerStroke.Thickness = 1
 
 -- =====================================================================
--- SELECTEUR DE MOT (numéro du mot à soumettre)
+-- SELECTEUR DE NOTIF (boutons 1 2 3 4 5 OFF — sélection multiple)
 -- =====================================================================
-local wordSelLabel = Instance.new("TextLabel", main)
-wordSelLabel.Size = UDim2.new(0, 100, 0, 20)
-wordSelLabel.Position = UDim2.new(0, 10, 0, 100)
-wordSelLabel.BackgroundTransparency = 1
-wordSelLabel.Text = "MOT À SUBMIT :"
-wordSelLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
-wordSelLabel.Font = Enum.Font.GothamBold
-wordSelLabel.TextSize = 10
-wordSelLabel.TextXAlignment = Enum.TextXAlignment.Left
+local notifSelLabel = Instance.new("TextLabel", main)
+notifSelLabel.Size = UDim2.new(1, -20, 0, 14)
+notifSelLabel.Position = UDim2.new(0, 10, 0, 100)
+notifSelLabel.BackgroundTransparency = 1
+notifSelLabel.Text = "NOTIF À SUBMIT :"
+notifSelLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
+notifSelLabel.Font = Enum.Font.GothamBold
+notifSelLabel.TextSize = 10
+notifSelLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local wordMinusBtn = Instance.new("TextButton", main)
-wordMinusBtn.Size = UDim2.new(0, 26, 0, 20)
-wordMinusBtn.Position = UDim2.new(0, 112, 0, 100)
-wordMinusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-wordMinusBtn.BorderSizePixel = 0
-wordMinusBtn.Text = "-"
-wordMinusBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-wordMinusBtn.Font = Enum.Font.GothamBold
-wordMinusBtn.TextSize = 14
-Instance.new("UICorner", wordMinusBtn).CornerRadius = UDim.new(0, 4)
+-- 6 boutons : 1 2 3 4 5 OFF
+local notifBtnLabels = {"1","2","3","4","5","OFF"}
+local notifBtnRefs   = {}
+local notifSelected  = {}   -- set: notifSelected[n] = true si actif
 
-local wordNumLbl = Instance.new("TextLabel", main)
-wordNumLbl.Size = UDim2.new(0, 30, 0, 20)
-wordNumLbl.Position = UDim2.new(0, 142, 0, 100)
-wordNumLbl.BackgroundTransparency = 1
-wordNumLbl.Text = "1"
-wordNumLbl.TextColor3 = Color3.fromRGB(255, 220, 80)
-wordNumLbl.Font = Enum.Font.GothamBold
-wordNumLbl.TextSize = 13
-wordNumLbl.TextXAlignment = Enum.TextXAlignment.Center
+local btnW   = 32
+local btnGap = 3
+local btnY   = 118
 
-local wordPlusBtn = Instance.new("TextButton", main)
-wordPlusBtn.Size = UDim2.new(0, 26, 0, 20)
-wordPlusBtn.Position = UDim2.new(0, 176, 0, 100)
-wordPlusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-wordPlusBtn.BorderSizePixel = 0
-wordPlusBtn.Text = "+"
-wordPlusBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-wordPlusBtn.Font = Enum.Font.GothamBold
-wordPlusBtn.TextSize = 14
-Instance.new("UICorner", wordPlusBtn).CornerRadius = UDim.new(0, 4)
-
-local wordAllBtn = Instance.new("TextButton", main)
-wordAllBtn.Size = UDim2.new(0, 30, 0, 20)
-wordAllBtn.Position = UDim2.new(0, 206, 0, 100)
-wordAllBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 120)
-wordAllBtn.BorderSizePixel = 0
-wordAllBtn.Text = "ALL"
-wordAllBtn.TextColor3 = Color3.fromRGB(150, 210, 255)
-wordAllBtn.Font = Enum.Font.GothamBold
-wordAllBtn.TextSize = 9
-Instance.new("UICorner", wordAllBtn).CornerRadius = UDim.new(0, 4)
-
-local wordIndex = 1   -- 0 = soumettre tout le texte
-local function updateWordDisplay()
-    wordNumLbl.Text = wordIndex == 0 and "ALL" or tostring(wordIndex)
+for i, lbl in ipairs(notifBtnLabels) do
+    local b = Instance.new("TextButton", main)
+    b.Size             = UDim2.new(0, btnW, 0, 22)
+    b.Position         = UDim2.new(0, 10 + (i-1)*(btnW+btnGap), 0, btnY)
+    b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    b.BorderSizePixel  = 0
+    b.Text             = lbl
+    b.TextColor3       = Color3.fromRGB(130, 130, 150)
+    b.Font             = Enum.Font.GothamBold
+    b.TextSize         = 11
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+    notifBtnRefs[i] = b
 end
 
-wordMinusBtn.MouseButton1Click:Connect(function()
-    if wordIndex > 1 then wordIndex = wordIndex - 1
-    else wordIndex = 0 end
-    updateWordDisplay()
+-- texte affichant les sélections actives
+local notifSelectedLbl = Instance.new("TextLabel", main)
+notifSelectedLbl.Size                  = UDim2.new(0, 150, 0, 18)
+notifSelectedLbl.Position              = UDim2.new(0, 10, 0, btnY + 26)
+notifSelectedLbl.BackgroundTransparency = 1
+notifSelectedLbl.Text                  = "OFF"
+notifSelectedLbl.TextColor3            = Color3.fromRGB(255, 220, 80)
+notifSelectedLbl.Font                  = Enum.Font.GothamBold
+notifSelectedLbl.TextSize              = 11
+notifSelectedLbl.TextXAlignment        = Enum.TextXAlignment.Left
+
+-- bouton SUP
+local supBtn = Instance.new("TextButton", main)
+supBtn.Size             = UDim2.new(0, 40, 0, 18)
+supBtn.Position         = UDim2.new(0, 190, 0, btnY + 26)
+supBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+supBtn.BorderSizePixel  = 0
+supBtn.Text             = "SUP"
+supBtn.TextColor3       = Color3.fromRGB(255, 160, 160)
+supBtn.Font             = Enum.Font.GothamBold
+supBtn.TextSize         = 10
+Instance.new("UICorner", supBtn).CornerRadius = UDim.new(0, 4)
+
+local function refreshNotifBtns()
+    local parts = {}
+    for n = 1, 5 do
+        if notifSelected[n] then table.insert(parts, tostring(n)) end
+    end
+    local anySelected = #parts > 0
+
+    -- mettre à jour le texte
+    notifSelectedLbl.Text = anySelected and table.concat(parts, ", ") or "OFF"
+
+    -- mettre à jour l'apparence des boutons
+    for i, b in ipairs(notifBtnRefs) do
+        local active = false
+        if i <= 5 then
+            active = notifSelected[i] == true
+        else
+            -- bouton OFF : actif si rien n'est sélectionné
+            active = not anySelected
+        end
+        if active then
+            b.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+            b.TextColor3       = Color3.fromRGB(255, 255, 255)
+        else
+            b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            b.TextColor3       = Color3.fromRGB(130, 130, 150)
+        end
+    end
+end
+
+for i, b in ipairs(notifBtnRefs) do
+    b.MouseButton1Click:Connect(function()
+        if i <= 5 then
+            -- toggle ce numéro
+            notifSelected[i] = not notifSelected[i] or nil
+        else
+            -- OFF → tout effacer
+            notifSelected = {}
+        end
+        refreshNotifBtns()
+    end)
+end
+
+supBtn.MouseButton1Click:Connect(function()
+    notifSelected = {}
+    refreshNotifBtns()
 end)
-wordPlusBtn.MouseButton1Click:Connect(function()
-    if wordIndex == 0 then wordIndex = 1
-    else wordIndex = wordIndex + 1 end
-    updateWordDisplay()
-end)
-wordAllBtn.MouseButton1Click:Connect(function()
-    wordIndex = 0
-    updateWordDisplay()
-end)
+
+refreshNotifBtns()
 
 -- =====================================================================
 -- LOG des codes reçus (sauvegardés, cliquables pour écrire dans la box)
 -- =====================================================================
 local logLabel = Instance.new("TextLabel", main)
 logLabel.Size = UDim2.new(1, -20, 0, 14)
-logLabel.Position = UDim2.new(0, 10, 0, 128)
+logLabel.Position = UDim2.new(0, 10, 0, 150)
 logLabel.BackgroundTransparency = 1
 logLabel.Text = "CODES REÇUS (clique pour écrire)"
 logLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
@@ -192,7 +224,7 @@ logLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local logFrame = Instance.new("Frame", main)
 logFrame.Size = UDim2.new(1, -20, 0, 118)
-logFrame.Position = UDim2.new(0, 10, 0, 144)
+logFrame.Position = UDim2.new(0, 10, 0, 166)
 logFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 logFrame.BackgroundTransparency = 0.95
 logFrame.BorderSizePixel = 0
@@ -410,9 +442,12 @@ local function handleNotificationText(text)
     -- toujours sauvegarder dans la liste
     addSavedCode(text)
 
-    -- soumettre selon wordIndex
-    -- 0 = toutes les notifs, N = seulement la Nième de la séquence
-    if wordIndex ~= 0 and notifCounter ~= wordIndex then return end
+    -- soumettre selon notifSelected
+    -- si rien sélectionné (OFF) → ne pas soumettre
+    local anySelected = false
+    for _ in pairs(notifSelected) do anySelected = true break end
+    if not anySelected then return end
+    if not notifSelected[notifCounter] then return end
 
     if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
     typeIntoCodeBox(text)
