@@ -6692,29 +6692,12 @@ end)
             return pr:IsDescendantOf(slotFolder)
         end
 
-        -- isPromptAvailable:
-        --   Nearest  → dans le rayon + pas notre plot
-        --   Highest/Priority → dans le rayon + pas notre plot + correspond au target
+        -- fire TOUT prompt enabled dans le rayon — le serveur gère le rejet
         local function sxeIsAvailable(pr, myPos)
             if not pr or not pr.Parent or not pr.Enabled then return false end
             local pos = sxePromptPos(pr)
             if not pos then return false end
-            if (pos - myPos).Magnitude > GRAB_RADIUS then return false end
-            -- vérifier que c'est pas notre plot
-            local plots = Workspace:FindFirstChild("Plots")
-            if plots then
-                for _, plot in ipairs(plots:GetChildren()) do
-                    if pr:IsDescendantOf(plot) then
-                        if sxeIsMyPlot(plot) then return false end
-                        break
-                    end
-                end
-            end
-            -- mode Nearest → fire tout ce qui est en portée
-            local nearestMode = Config.StealNearest or _G.MeerkoStealMode == "nearest"
-            if nearestMode then return true end
-            -- mode Highest/Priority → seulement le prompt du slot cible
-            return sxePromptMatchesTarget(pr)
+            return (pos - myPos).Magnitude <= GRAB_RADIUS
         end
 
         local function sxeFirePrompt(pr, burst, debounce)
@@ -6734,9 +6717,16 @@ end)
 
             -- quand un prompt se libère → burst immédiat (snipe)
             local function tryInstantFire()
+                local stealActive = _G.MeerkoStealMode ~= nil
+                    or Config.StealNearest or Config.StealHighest or Config.StealPriority
+                    or _G.MeerkoStealTargetUID ~= nil
+                if not stealActive then return end
+                if not pr or not pr.Parent or not pr.Enabled then return end
                 local hrp = sxeHRP()
                 if not hrp then return end
-                if not sxeIsAvailable(pr, hrp.Position) then return end
+                local pos = sxePromptPos(pr)
+                if not pos then return end
+                if (pos - hrp.Position).Magnitude > GRAB_RADIUS then return end
                 local now = os.clock()
                 local le = lastEnableFire[pr]
                 if le and (now - le) < ENABLE_COOLDOWN then return end
@@ -6864,16 +6854,29 @@ end)
                     end
                 end
 
-                -- fire les prompts disponibles selon le mode actif
+                -- fire tous les prompts enabled dans le rayon
                 local fired = false
                 for pr in pairs(trackedPrompts) do
                     if sxeIsAvailable(pr, myPos) then
-                        sxeFirePrompt(pr, FIRE_BURST, FIRE_DEBOUNCE)
-                        fired = true
-                        if not barActive then
-                            local tname = (_G.MeerkoCurrentSteal and _G.MeerkoCurrentSteal.name) or "brainrot"
-                            barLabel.Text = "Stealing " .. tname .. "..."
-                            barActive = true
+                        -- vérifier que c'est pas notre propre plot
+                        local isOwn = false
+                        local plots = Workspace:FindFirstChild("Plots")
+                        if plots then
+                            for _, plot in ipairs(plots:GetChildren()) do
+                                if pr:IsDescendantOf(plot) then
+                                    if sxeIsMyPlot(plot) then isOwn = true end
+                                    break
+                                end
+                            end
+                        end
+                        if not isOwn then
+                            sxeFirePrompt(pr, FIRE_BURST, FIRE_DEBOUNCE)
+                            fired = true
+                            if not barActive then
+                                local tname = (_G.MeerkoCurrentSteal and _G.MeerkoCurrentSteal.name) or "brainrot"
+                                barLabel.Text = "Stealing " .. tname .. "..."
+                                barActive = true
+                            end
                         end
                     end
                 end
