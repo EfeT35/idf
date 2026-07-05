@@ -419,12 +419,8 @@ local function handleNotificationText(text)
     typeIntoCodeBox(toSubmit)
 end
 
-local handledInstances = {}
-
 playerGui.DescendantAdded:Connect(function(v)
     if v:IsA("TextLabel") and v.Name == "Template" and v:FindFirstAncestor("TopNotification") then
-        if handledInstances[v] then return end
-        handledInstances[v] = true
         task.defer(function()
             handleNotificationText(v.Text)
             v:GetPropertyChangedSignal("Text"):Connect(function()
