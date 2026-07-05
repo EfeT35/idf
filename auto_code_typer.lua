@@ -411,11 +411,9 @@ end
 
 playerGui.DescendantAdded:Connect(function(v)
     if v:IsA("TextLabel") and v.Name == "Template" and v:FindFirstAncestor("TopNotification") then
-        task.defer(function()
+        task.spawn(function()
+            task.wait(0.3)  -- laisser le texte se stabiliser
             handleNotificationText(v.Text)
-            v:GetPropertyChangedSignal("Text"):Connect(function()
-                handleNotificationText(v.Text)
-            end)
         end)
     end
 end)
