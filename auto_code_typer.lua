@@ -409,10 +409,11 @@ local function handleNotificationText(text)
         end
     end
 
-    if not toSubmit or toSubmit == "" then return end
+    -- sauvegarder ce qui a été détecté (même si le mot N n'existe pas)
+    local toSave = toSubmit or text
+    if toSave and toSave ~= "" then addSavedCode(toSave) end
 
-    -- sauvegarder
-    addSavedCode(toSubmit)
+    if not toSubmit or toSubmit == "" then return end
 
     -- ouvrir et soumettre
     if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
