@@ -11962,7 +11962,7 @@ task.spawn(function()
         if not sg.Parent then sg.Parent = pg end
 
         -- ── main frame ───────────────────────────────────────────
-        local buttons = { "Drop", "Auto-Kick", "Rejoin", "Kick", "Reset" }
+        local buttons = { "Drop", "Rejoin", "Kick", "Reset" }
         local totalH  = 54 + #buttons * (BTN_H + GAP) + PAD
 
         local frame = Instance.new("Frame", sg)
@@ -12088,19 +12088,8 @@ task.spawn(function()
             end)
         end)
 
-        -- 2) AUTO-KICK TOGGLE
-        local autoKickOn = _G.MeerkoConfig and _G.MeerkoConfig.AutoKickOnSteal or false
-        local function autoKickColor() return autoKickOn and ACCENT or SURFACE end
-        local akBtn = makeBtn(2, autoKickOn and "Auto-Kick  ON" or "Auto-Kick  OFF", autoKickColor(), true)
-        akBtn.MouseButton1Click:Connect(function()
-            autoKickOn = not autoKickOn
-            if _G.MeerkoConfig then _G.MeerkoConfig.AutoKickOnSteal = autoKickOn end
-            akBtn.BackgroundColor3 = autoKickColor()
-            akBtn.Text = autoKickOn and "Auto-Kick  ON" or "Auto-Kick  OFF"
-        end)
-
-        -- 3) REJOIN
-        local rejoinBtn = makeBtn(3, "Rejoin")
+        -- 2) REJOIN
+        local rejoinBtn = makeBtn(2, "Rejoin")
         rejoinBtn.MouseButton1Click:Connect(function()
             pcall(function()
                 local ok = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
@@ -12108,15 +12097,15 @@ task.spawn(function()
             end)
         end)
 
-        -- 4) KICK (leave server)
-        local kickBtn = makeBtn(4, "Kick", RED)
+        -- 3) KICK (leave server)
+        local kickBtn = makeBtn(3, "Kick", RED)
         kickBtn.MouseButton1Click:Connect(function()
             local ok = pcall(function() game:Shutdown() end)
             if not ok then pcall(function() LP:Kick("") end) end
         end)
 
-        -- 5) RESET
-        local resetBtn = makeBtn(5, "Reset")
+        -- 4) RESET
+        local resetBtn = makeBtn(4, "Reset")
         resetBtn.MouseButton1Click:Connect(function()
             if _G.MeerkoInstaReset then
                 task.spawn(function() pcall(_G.MeerkoInstaReset) end)
