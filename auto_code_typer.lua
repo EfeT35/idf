@@ -322,14 +322,30 @@ local function findCodeBox()
     return nil
 end
 
+-- Attend que la TextBox du jeu soit disponible (max 3s)
+local function waitForCodeBox()
+    local deadline = tick() + 3
+    local box
+    repeat
+        box = findCodeBox()
+        if not box then task.wait(0.1) end
+    until box or tick() > deadline
+    if box then
+        print("[ACT] box trouvée:", box:GetFullName())
+    else
+        print("[ACT] box introuvable")
+    end
+    return box
+end
+
 -- Écrit le texte dans la box SANS soumettre (utilisé par les boutons de la liste)
 local function typeOnly(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
     if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
-    local codeBox = findCodeBox()
-    if not codeBox then print("[ACT] box introuvable") return end
-    codeBox:CaptureFocus()
+    local codeBox = waitForCodeBox()
+    if not codeBox then return end
     codeBox.Text = formatted
+    codeBox:CaptureFocus()
     print("[ACT] écrit:", formatted)
 end
 
@@ -337,19 +353,25 @@ end
 local function typeIntoCodeBox(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
     if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
-    local codeBox = findCodeBox()
-    if not codeBox then print("[ACT] box introuvable") return formatted end
+    local codeBox = waitForCodeBox()
+    if not codeBox then return formatted end
 
-    codeBox:CaptureFocus()
     codeBox.Text = formatted
-    task.wait(0.1)
+    codeBox:CaptureFocus()
+    task.wait(0.15)
 
     local submitted = false
     pcall(function()
-        for _, desc in ipairs(codeBox.Parent:GetDescendants()) do
-            if desc:IsA("TextButton") or desc:IsA("ImageButton") then
-                for _, conn in ipairs(getconnections(desc.Activated)) do
-                    conn:Fire(); submitted = true; break
+        -- cherche un bouton Submit dans toute la UI Codes
+        local codesGui = playerGui:FindFirstChild("Codes")
+        if not codesGui then return end
+        for _, desc in ipairs(codesGui:GetDescendants()) do
+            if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
+                local n = desc.Name:lower()
+                if n:find("submit") or n:find("redeem") or n:find("confirm") then
+                    for _, conn in ipairs(getconnections(desc.Activated)) do
+                        conn:Fire(); submitted = true; break
+                    end
                 end
             end
             if submitted then break end
