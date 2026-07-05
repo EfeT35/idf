@@ -12127,3 +12127,270 @@ task.spawn(function()
 
     end)
 end)
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- SXE-STYLE STEAL PANEL — floating panel with ON/OFF toggles
+-- ═══════════════════════════════════════════════════════════════════════
+task.spawn(function()
+    pcall(function()
+        repeat task.wait() until game:IsLoaded()
+        task.wait(2)
+
+        local LP       = game:GetService("Players").LocalPlayer
+        local UIS      = game:GetService("UserInputService")
+        local TS       = game:GetService("TweenService")
+        local pg       = LP:WaitForChild("PlayerGui", 15)
+        if not pg then return end
+
+        -- ── Couleurs SXE light pink ──────────────────────────────────
+        local C_BG     = Color3.fromRGB(255, 252, 255)
+        local C_CARD   = Color3.fromRGB(252, 245, 249)
+        local C_STROKE = Color3.fromRGB(238, 188, 219)
+        local C_TEXT   = Color3.fromRGB(40, 15, 30)
+        local C_SUB    = Color3.fromRGB(140, 80, 115)
+        local C_ACC    = Color3.fromRGB(232, 111, 177)   -- ON
+        local C_OFF    = Color3.fromRGB(220, 210, 215)   -- OFF button bg
+        local C_ON_TXT = Color3.fromRGB(255, 255, 255)
+        local C_OFF_TXT= Color3.fromRGB(120, 80, 100)
+
+        local W, ROW_H, PAD = 260, 44, 10
+        local ROWS = {
+            { label = "Auto Steal",     key = "autoSteal"  },
+            { label = "Steal Highest",  key = "highest"    },
+            { label = "Steal Priority", key = "priority"   },
+            { label = "Steal Nearest",  key = "nearest"    },
+            { label = "Auto Buy",       key = "autoBuy"    },
+            { label = "Auto Kick",      key = "autoKick"   },
+        }
+        local TOTAL_H = 72 + #ROWS * ROW_H + PAD
+
+        local sg = Instance.new("ScreenGui")
+        sg.Name           = "SXE_StealPanel"
+        sg.ResetOnSpawn   = false
+        sg.DisplayOrder   = 160
+        sg.IgnoreGuiInset = true
+        pcall(function() sg.Parent = game:GetService("CoreGui") end)
+        if not sg.Parent then sg.Parent = pg end
+
+        -- ── main frame ──────────────────────────────────────────────
+        local frame = Instance.new("Frame", sg)
+        frame.Size             = UDim2.fromOffset(W, TOTAL_H)
+        frame.Position         = UDim2.new(1, -W - 20, 0.5, -TOTAL_H / 2)
+        frame.BackgroundColor3 = C_BG
+        frame.BorderSizePixel  = 0
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+        local fstroke = Instance.new("UIStroke", frame)
+        fstroke.Color = C_STROKE; fstroke.Thickness = 1.5; fstroke.Transparency = 0.2
+
+        -- ── header ──────────────────────────────────────────────────
+        local header = Instance.new("Frame", frame)
+        header.Size             = UDim2.new(1, 0, 0, 58)
+        header.BackgroundColor3 = C_CARD
+        header.BorderSizePixel  = 0
+        Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
+        local headerFix = Instance.new("Frame", header)
+        headerFix.Size             = UDim2.new(1, 0, 0, 14)
+        headerFix.Position         = UDim2.new(0, 0, 1, -14)
+        headerFix.BackgroundColor3 = C_CARD
+        headerFix.BorderSizePixel  = 0
+
+        local divH = Instance.new("Frame", header)
+        divH.Size              = UDim2.new(1, -20, 0, 1)
+        divH.Position          = UDim2.new(0, 10, 1, -1)
+        divH.BackgroundColor3  = C_STROKE
+        divH.BackgroundTransparency = 0.3
+        divH.BorderSizePixel   = 0
+
+        local titleTop = Instance.new("TextLabel", header)
+        titleTop.Size              = UDim2.new(1, 0, 0, 26)
+        titleTop.Position          = UDim2.new(0, 0, 0, 6)
+        titleTop.BackgroundTransparency = 1
+        titleTop.Text              = "IDF HUB"
+        titleTop.Font              = Enum.Font.GothamBlack
+        titleTop.TextSize          = 15
+        titleTop.TextColor3        = C_ACC
+        titleTop.TextXAlignment    = Enum.TextXAlignment.Center
+
+        local titleSub = Instance.new("TextLabel", header)
+        titleSub.Size              = UDim2.new(1, 0, 0, 18)
+        titleSub.Position          = UDim2.new(0, 0, 0, 32)
+        titleSub.BackgroundTransparency = 1
+        titleSub.Text              = "Steal Panel"
+        titleSub.Font              = Enum.Font.Gotham
+        titleSub.TextSize          = 11
+        titleSub.TextColor3        = C_SUB
+        titleSub.TextXAlignment    = Enum.TextXAlignment.Center
+
+        -- ── drag ────────────────────────────────────────────────────
+        do
+            local dragging, dragStart, startPos
+            header.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; dragStart = inp.Position; startPos = frame.Position
+                    inp.Changed:Connect(function()
+                        if inp.UserInputState == Enum.UserInputState.End then dragging = false end
+                    end)
+                end
+            end)
+            UIS.InputChanged:Connect(function(inp)
+                if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+                    local d = inp.Position - dragStart
+                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+        end
+
+        -- ── state ───────────────────────────────────────────────────
+        local state = {
+            autoSteal = (_G.MeerkoStealMode ~= nil),
+            highest   = (Config and Config.StealHighest)  or false,
+            priority  = (Config and Config.StealPriority) or false,
+            nearest   = (Config and Config.StealNearest)  or false,
+            autoBuy   = (Config and Config.AutoBuyCarpet) or false,
+            autoKick  = (Config and Config.AutoKickOnSteal) or false,
+        }
+
+        local btnRefs = {}
+
+        local function applyState(key, on)
+            state[key] = on
+            -- sync vers le hub
+            if key == "autoSteal" then
+                if on then
+                    local mode = state.highest and "highest" or state.priority and "priority" or "nearest"
+                    if _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, mode) end
+                else
+                    if _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, nil) end
+                end
+            elseif key == "highest" then
+                if Config then Config.StealHighest = on; Config.StealNearest = false; Config.StealPriority = false end
+                state.nearest = false; state.priority = false
+                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "highest") end
+                -- refresh les autres boutons
+                for k2, ref in pairs(btnRefs) do
+                    if k2 == "nearest" or k2 == "priority" then
+                        local s2 = state[k2]
+                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
+                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
+                        ref.btn.Text             = s2 and "ON" or "OFF"
+                    end
+                end
+            elseif key == "priority" then
+                if Config then Config.StealPriority = on; Config.StealNearest = false; Config.StealHighest = false end
+                state.nearest = false; state.highest = false
+                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "priority") end
+                for k2, ref in pairs(btnRefs) do
+                    if k2 == "nearest" or k2 == "highest" then
+                        local s2 = state[k2]
+                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
+                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
+                        ref.btn.Text             = s2 and "ON" or "OFF"
+                    end
+                end
+            elseif key == "nearest" then
+                if Config then Config.StealNearest = on; Config.StealHighest = false; Config.StealPriority = false end
+                state.highest = false; state.priority = false
+                if on and _G.MeerkoSetStealMode then pcall(_G.MeerkoSetStealMode, "nearest") end
+                for k2, ref in pairs(btnRefs) do
+                    if k2 == "highest" or k2 == "priority" then
+                        local s2 = state[k2]
+                        ref.btn.BackgroundColor3 = s2 and C_ACC or C_OFF
+                        ref.btn.TextColor3       = s2 and C_ON_TXT or C_OFF_TXT
+                        ref.btn.Text             = s2 and "ON" or "OFF"
+                    end
+                end
+            elseif key == "autoBuy" then
+                if _G.MeerkoAutoBuyCarpet then pcall(_G.MeerkoAutoBuyCarpet, on) end
+            elseif key == "autoKick" then
+                if Config then Config.AutoKickOnSteal = on end
+            end
+        end
+
+        -- ── row factory ─────────────────────────────────────────────
+        local function makeRow(idx, rowDef)
+            local yOff = 58 + (idx - 1) * ROW_H
+            local row = Instance.new("Frame", frame)
+            row.Size             = UDim2.new(1, -PAD * 2, 0, ROW_H)
+            row.Position         = UDim2.new(0, PAD, 0, yOff)
+            row.BackgroundTransparency = 1
+            row.BorderSizePixel  = 0
+
+            local lbl = Instance.new("TextLabel", row)
+            lbl.Size             = UDim2.new(1, -80, 1, 0)
+            lbl.Position         = UDim2.new(0, 8, 0, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text             = rowDef.label
+            lbl.Font             = Enum.Font.GothamBold
+            lbl.TextSize         = 13
+            lbl.TextColor3       = C_TEXT
+            lbl.TextXAlignment   = Enum.TextXAlignment.Left
+            lbl.TextYAlignment   = Enum.TextYAlignment.Center
+
+            local on = state[rowDef.key]
+            local btn = Instance.new("TextButton", row)
+            btn.Size             = UDim2.fromOffset(62, 28)
+            btn.Position         = UDim2.new(1, -66, 0.5, -14)
+            btn.AutoButtonColor  = false
+            btn.Text             = on and "ON" or "OFF"
+            btn.Font             = Enum.Font.GothamBlack
+            btn.TextSize         = 12
+            btn.BackgroundColor3 = on and C_ACC or C_OFF
+            btn.TextColor3       = on and C_ON_TXT or C_OFF_TXT
+            btn.BorderSizePixel  = 0
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+            btnRefs[rowDef.key] = { btn = btn }
+
+            -- séparateur entre rows (sauf dernier)
+            if idx < #ROWS then
+                local div = Instance.new("Frame", frame)
+                div.Size             = UDim2.new(1, -PAD * 2, 0, 1)
+                div.Position         = UDim2.new(0, PAD, 0, yOff + ROW_H - 1)
+                div.BackgroundColor3 = C_STROKE
+                div.BackgroundTransparency = 0.55
+                div.BorderSizePixel  = 0
+            end
+
+            btn.MouseButton1Click:Connect(function()
+                local newOn = not state[rowDef.key]
+                applyState(rowDef.key, newOn)
+                local TI = TweenInfo.new(0.12, Enum.EasingStyle.Quad)
+                TS:Create(btn, TI, {
+                    BackgroundColor3 = newOn and C_ACC or C_OFF,
+                    TextColor3       = newOn and C_ON_TXT or C_OFF_TXT,
+                }):Play()
+                btn.Text = newOn and "ON" or "OFF"
+            end)
+        end
+
+        for i, rowDef in ipairs(ROWS) do
+            makeRow(i, rowDef)
+        end
+
+        -- ── sync loop: reflète l'état réel du hub ───────────────────
+        task.spawn(function()
+            while sg and sg.Parent do
+                task.wait(1)
+                local function sync(key, val)
+                    if state[key] ~= val then
+                        state[key] = val
+                        local ref = btnRefs[key]
+                        if ref then
+                            ref.btn.BackgroundColor3 = val and C_ACC or C_OFF
+                            ref.btn.TextColor3       = val and C_ON_TXT or C_OFF_TXT
+                            ref.btn.Text             = val and "ON" or "OFF"
+                        end
+                    end
+                end
+                pcall(function()
+                    sync("autoSteal",  _G.MeerkoStealMode ~= nil)
+                    sync("highest",    Config and Config.StealHighest  or false)
+                    sync("priority",   Config and Config.StealPriority or false)
+                    sync("nearest",    Config and Config.StealNearest  or false)
+                    sync("autoBuy",    Config and Config.AutoBuyCarpet or false)
+                    sync("autoKick",   Config and Config.AutoKickOnSteal or false)
+                end)
+            end
+        end)
+    end)
+end)
