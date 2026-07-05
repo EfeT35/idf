@@ -4461,7 +4461,7 @@ local function AddResizeHandle(frame, panelKey, posOverride)
     end
     handle.Position = posOverride or autoPos
     handle.AnchorPoint = Vector2.new(0, 0)
-    handle.BackgroundColor3 = Color3.fromRGB(48, 52, 70)
+    handle.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
     handle.BackgroundTransparency = 0.25
     handle.AutoButtonColor = false
     handle.Text = "+"
@@ -4472,7 +4472,7 @@ local function AddResizeHandle(frame, panelKey, posOverride)
     handle.ZIndex = 100
     Instance.new("UICorner", handle).CornerRadius = UDim.new(0, 4)
     local hStroke = Instance.new("UIStroke", handle)
-    hStroke.Color = Color3.fromRGB(110, 116, 200); hStroke.Thickness = 1; hStroke.Transparency = 0.4
+    hStroke.Color = Color3.fromRGB(238, 188, 219); hStroke.Thickness = 1; hStroke.Transparency = 0.4
     handle.Parent = frame
 
     handle.MouseEnter:Connect(function() handle.BackgroundTransparency = 0.05; hStroke.Transparency = 0.1 end)
@@ -4563,7 +4563,7 @@ local function ShowNotification(title, text)
     local f = Instance.new("Frame", sg)
     f.Size = UDim2.new(0, 290, 0, 54)
     f.Position = UDim2.new(0.5, -145, 0, 80)
-    f.BackgroundColor3 = Color3.fromRGB(20, 8, 18)
+    f.BackgroundColor3 = Color3.fromRGB(255, 252, 255)
     f.BackgroundTransparency = 0.08
     f.BorderSizePixel = 0
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 9)
@@ -4695,7 +4695,7 @@ task.spawn(function()
     local proxCont = Instance.new("Frame", frame)
     proxCont.Size = UDim2.new(1, -20, 0, 44)
     proxCont.Position = UDim2.new(0, 10, 0, 58)
-    proxCont.BackgroundColor3 = Color3.fromRGB(40, 43, 58)
+    proxCont.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
     proxCont.BackgroundTransparency = 0.3
     Instance.new("UICorner", proxCont).CornerRadius = UDim.new(0, 10)
     local proxContStroke = Instance.new("UIStroke", proxCont)
@@ -4703,10 +4703,10 @@ task.spawn(function()
 
     local function updateProximityAPButton()
         if SharedState.ProximityAPButton then
-            SharedState.ProximityAPButton.BackgroundColor3 = ProximityAPActive and Theme.Accent1 or Color3.fromRGB(48, 52, 70)
+            SharedState.ProximityAPButton.BackgroundColor3 = ProximityAPActive and Theme.Accent1 or Color3.fromRGB(250, 242, 248)
             SharedState.ProximityAPButton.TextColor3 = ProximityAPActive and Color3.new(255,255,255) or Theme.TextPrimary
             if SharedState.ProximityAPButtonStroke then
-                SharedState.ProximityAPButtonStroke.Color = ProximityAPActive and Theme.Accent2 or Color3.fromRGB(78, 84, 124)
+                SharedState.ProximityAPButtonStroke.Color = ProximityAPActive and Theme.Accent2 or Color3.fromRGB(238, 188, 219)
             end
         end
     end
@@ -4715,13 +4715,13 @@ task.spawn(function()
     proxBtn.Name = "ProximityAPButton"
     proxBtn.Size = UDim2.new(0, 70, 0, 26)
     proxBtn.Position = UDim2.new(0, 6, 0.5, -13)
-    proxBtn.BackgroundColor3 = ProximityAPActive and Theme.Accent1 or Color3.fromRGB(48, 52, 70)
+    proxBtn.BackgroundColor3 = ProximityAPActive and Theme.Accent1 or Color3.fromRGB(250, 242, 248)
     proxBtn.Text = "Prox"
     proxBtn.Font = Enum.Font.GothamBold; proxBtn.TextSize = 11
     proxBtn.TextColor3 = ProximityAPActive and Color3.new(255,255,255) or Theme.TextPrimary
     Instance.new("UICorner", proxBtn).CornerRadius = UDim.new(0, 6)
     local proxBtnStroke = Instance.new("UIStroke", proxBtn)
-    proxBtnStroke.Color = ProximityAPActive and Theme.Accent2 or Color3.fromRGB(78, 84, 124)
+    proxBtnStroke.Color = ProximityAPActive and Theme.Accent2 or Color3.fromRGB(238, 188, 219)
     proxBtnStroke.Transparency = 0.3
     SharedState.ProximityAPButton = proxBtn
     SharedState.ProximityAPButtonStroke = proxBtnStroke
@@ -4731,13 +4731,13 @@ task.spawn(function()
     local spamBaseBtn = Instance.new("TextButton", proxCont)
     spamBaseBtn.Size = UDim2.new(0, 70, 0, 26)
     spamBaseBtn.Position = UDim2.new(0, 80, 0.5, -13)
-    spamBaseBtn.BackgroundColor3 = Color3.fromRGB(48, 52, 70)
+    spamBaseBtn.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
     spamBaseBtn.Text = "Spam Owner"
     spamBaseBtn.Font = Enum.Font.GothamBold; spamBaseBtn.TextSize = 9
     spamBaseBtn.TextColor3 = Theme.TextPrimary
     Instance.new("UICorner", spamBaseBtn).CornerRadius = UDim.new(0, 6)
     local spamBaseBtnStroke = Instance.new("UIStroke", spamBaseBtn)
-    spamBaseBtnStroke.Color = Color3.fromRGB(78, 84, 124); spamBaseBtnStroke.Transparency = 0.3
+    spamBaseBtnStroke.Color = Color3.fromRGB(238, 188, 219); spamBaseBtnStroke.Transparency = 0.3
 
     local ctapPanelBtn = Instance.new("TextButton", proxCont)
     ctapPanelBtn.Size = UDim2.new(0, 60, 0, 26)
@@ -4747,13 +4747,13 @@ task.spawn(function()
     ctapPanelBtn.Font = Enum.Font.GothamBold; ctapPanelBtn.TextSize = 9
     ctapPanelBtn.BorderSizePixel = 0
     local function updateCtapPanelBtn()
-        ctapPanelBtn.BackgroundColor3 = Config.ClickToAP and Theme.Accent1 or Color3.fromRGB(48, 52, 70)
+        ctapPanelBtn.BackgroundColor3 = Config.ClickToAP and Theme.Accent1 or Color3.fromRGB(250, 242, 248)
         ctapPanelBtn.TextColor3      = Config.ClickToAP and Color3.new(0,0,0) or Theme.TextPrimary
     end
     updateCtapPanelBtn()
     Instance.new("UICorner", ctapPanelBtn).CornerRadius = UDim.new(0, 6)
     local ctapPanelStroke = Instance.new("UIStroke", ctapPanelBtn)
-    ctapPanelStroke.Color = Color3.fromRGB(78, 84, 124); ctapPanelStroke.Transparency = 0.3
+    ctapPanelStroke.Color = Color3.fromRGB(238, 188, 219); ctapPanelStroke.Transparency = 0.3
     ctapPanelBtn.MouseButton1Click:Connect(function()
         Config.ClickToAP = not Config.ClickToAP
         SaveConfig()
@@ -4837,7 +4837,7 @@ task.spawn(function()
             local adminFunc = _G.runAdminCommand
             if not adminFunc then task.wait(0.05); adminFunc = _G.runAdminCommand end
             if not adminFunc then
-                spamBaseBtn.BackgroundColor3 = Color3.fromRGB(48, 52, 70)
+                spamBaseBtn.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
                 spamBaseBtn.TextColor3 = Theme.TextPrimary
                 ShowNotification("SPAM OWNER", "Admin command not ready"); return
             end
@@ -4847,7 +4847,7 @@ task.spawn(function()
                 task.wait(0.15)
             end
             task.wait(0.2)
-            spamBaseBtn.BackgroundColor3 = Color3.fromRGB(48, 52, 70)
+            spamBaseBtn.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             spamBaseBtn.TextColor3 = Theme.TextPrimary
             ShowNotification("SPAM OWNER", "Sent " .. cmdCount .. " commands to " .. targetPlayer.DisplayName)
         end)
@@ -4856,7 +4856,7 @@ task.spawn(function()
     local proxSliderBg = Instance.new("Frame", proxCont)
     proxSliderBg.Size = UDim2.new(0, 140, 0, 5)
     proxSliderBg.Position = UDim2.new(0, 220, 0.5, -2.5)
-    proxSliderBg.BackgroundColor3 = Color3.fromRGB(30, 32, 38)
+    proxSliderBg.BackgroundColor3 = Color3.fromRGB(244, 230, 240)
     Instance.new("UICorner", proxSliderBg).CornerRadius = UDim.new(1,0)
     local proxFill = Instance.new("Frame", proxSliderBg)
     proxFill.BackgroundColor3 = Theme.Accent1; proxFill.Size = UDim2.new(0,0,1,0)
@@ -4967,34 +4967,34 @@ task.spawn(function()
             tabPlayers.BackgroundColor3 = Theme.Accent1
             tabPlayers.TextColor3 = Color3.new(0,0,0)
             tabPlayersStroke.Color = Theme.Accent1
-            tabBlacklist.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabBlacklist.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabBlacklist.TextColor3 = Theme.TextPrimary
-            tabBlacklistStroke.Color = Color3.fromRGB(88, 94, 138)
-            tabSettings.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabBlacklistStroke.Color = Color3.fromRGB(238, 188, 219)
+            tabSettings.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabSettings.TextColor3 = Theme.TextPrimary
-            tabSettingsStroke.Color = Color3.fromRGB(88, 94, 138)
+            tabSettingsStroke.Color = Color3.fromRGB(238, 188, 219)
             listFrame.Visible = true; blFrame.Visible = false; settingsFrame.Visible = false
         elseif name == "blacklist" then
             tabBlacklist.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
             tabBlacklist.TextColor3 = Color3.fromRGB(255, 210, 210)
             tabBlacklistStroke.Color = Color3.fromRGB(180, 50, 50)
-            tabPlayers.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabPlayers.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabPlayers.TextColor3 = Theme.TextPrimary
-            tabPlayersStroke.Color = Color3.fromRGB(88, 94, 138)
-            tabSettings.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabPlayersStroke.Color = Color3.fromRGB(238, 188, 219)
+            tabSettings.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabSettings.TextColor3 = Theme.TextPrimary
-            tabSettingsStroke.Color = Color3.fromRGB(88, 94, 138)
+            tabSettingsStroke.Color = Color3.fromRGB(238, 188, 219)
             listFrame.Visible = false; blFrame.Visible = true; settingsFrame.Visible = false
         elseif name == "settings" then
             tabSettings.BackgroundColor3 = Theme.Accent1
             tabSettings.TextColor3 = Color3.new(0,0,0)
             tabSettingsStroke.Color = Theme.Accent1
-            tabPlayers.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabPlayers.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabPlayers.TextColor3 = Theme.TextPrimary
-            tabPlayersStroke.Color = Color3.fromRGB(88, 94, 138)
-            tabBlacklist.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+            tabPlayersStroke.Color = Color3.fromRGB(238, 188, 219)
+            tabBlacklist.BackgroundColor3 = Color3.fromRGB(250, 242, 248)
             tabBlacklist.TextColor3 = Theme.TextPrimary
-            tabBlacklistStroke.Color = Color3.fromRGB(88, 94, 138)
+            tabBlacklistStroke.Color = Color3.fromRGB(238, 188, 219)
             listFrame.Visible = false; blFrame.Visible = false; settingsFrame.Visible = true
         end
         if SharedState._RefreshAdminEmptyState then SharedState._RefreshAdminEmptyState() end
@@ -5013,10 +5013,10 @@ task.spawn(function()
 
     local blInput = Instance.new("TextBox", blFrame)
     blInput.Size = UDim2.new(1, -58, 0, 26); blInput.Position = UDim2.new(0, 0, 0, 0)
-    blInput.ZIndex = 6; blInput.BackgroundColor3 = Color3.fromRGB(22, 22, 28); blInput.BorderSizePixel = 0
+    blInput.ZIndex = 6; blInput.BackgroundColor3 = Color3.fromRGB(252, 245, 249); blInput.BorderSizePixel = 0
     blInput.Text = ""; blInput.PlaceholderText = "Roblox username..."
     blInput.Font = Enum.Font.Gotham; blInput.TextSize = 11
-    blInput.TextColor3 = Theme.TextPrimary; blInput.PlaceholderColor3 = Color3.fromRGB(80, 80, 95)
+    blInput.TextColor3 = Theme.TextPrimary; blInput.PlaceholderColor3 = Color3.fromRGB(190, 140, 170)
     blInput.ClearTextOnFocus = false
     Instance.new("UICorner", blInput).CornerRadius = UDim.new(0, 6)
     local blInputStroke = Instance.new("UIStroke", blInput)
@@ -5050,11 +5050,11 @@ task.spawn(function()
             local row = Instance.new("Frame", blListScroll)
             row.LayoutOrder = i
             row.Size = UDim2.new(1, 0, 0, 28)
-            row.BackgroundColor3 = Color3.fromRGB(43, 46, 60)
+            row.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
             row.BorderSizePixel = 0
             Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
             local rowStroke = Instance.new("UIStroke", row)
-            rowStroke.Color = Color3.fromRGB(80, 30, 30); rowStroke.Thickness = 1; rowStroke.Transparency = 0.5
+            rowStroke.Color = Color3.fromRGB(238, 188, 219); rowStroke.Thickness = 1; rowStroke.Transparency = 0.5
 
             local nameLabel = Instance.new("TextLabel", row)
             nameLabel.Size = UDim2.new(1, -36, 1, 0); nameLabel.Position = UDim2.new(0, 10, 0, 0)
@@ -5123,7 +5123,7 @@ task.spawn(function()
         local switchFrame = Instance.new("TextButton")
         switchFrame.Position = position
         switchFrame.Size = UDim2.new(0, 36, 0, 18)
-        switchFrame.BackgroundColor3 = defaultState and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(45, 45, 60)
+        switchFrame.BackgroundColor3 = defaultState and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(244, 230, 240)
         switchFrame.BackgroundTransparency = 0.2
         switchFrame.Text = ""
         switchFrame.ZIndex = parent.ZIndex + 1
@@ -5135,7 +5135,7 @@ task.spawn(function()
         
         local sfstroke = Instance.new("UIStroke")
         sfstroke.Thickness = 1.2
-        sfstroke.Color = defaultState and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(110, 116, 200)
+        sfstroke.Color = defaultState and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(238, 188, 219)
         sfstroke.Transparency = defaultState and 0.4 or 0.7
         sfstroke.Parent = switchFrame
         
@@ -5155,9 +5155,9 @@ task.spawn(function()
         
         local function updateVisuals(on)
             isToggled = on
-            local targetColor = on and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(45, 45, 60)
+            local targetColor = on and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(244, 230, 240)
             local targetKnobPos = on and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-            local strokeColor = on and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(110, 116, 200)
+            local strokeColor = on and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(238, 188, 219)
             
             TweenService:Create(switchFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 BackgroundColor3 = targetColor
@@ -5189,7 +5189,7 @@ task.spawn(function()
         switchFrame.MouseLeave:Connect(function()
             TweenService:Create(sfstroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Transparency = isToggled and 0.4 or 0.7,
-                Color = isToggled and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(110, 116, 200)
+                Color = isToggled and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(238, 188, 219)
             }):Play()
             TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = UDim2.new(0, 14, 0, 14)
@@ -5220,12 +5220,12 @@ task.spawn(function()
     local function createSettingToggle(parent, text, description, configKey, callback)
         local row = Instance.new("Frame", parent)
         row.Size = UDim2.new(1, -4, 0, 36)
-        row.BackgroundColor3 = Color3.fromRGB(28, 12, 24)
+        row.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
         row.BackgroundTransparency = 0.3
         row.BorderSizePixel = 0
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
         local rowStroke = Instance.new("UIStroke", row)
-        rowStroke.Color = Color3.fromRGB(90, 30, 55)
+        rowStroke.Color = Color3.fromRGB(238, 188, 219)
         rowStroke.Thickness = 1
         rowStroke.Transparency = 0.5
 
@@ -5266,7 +5266,7 @@ task.spawn(function()
             rowStroke.Transparency = 0.2
         end)
         row.MouseLeave:Connect(function()
-            rowStroke.Color = Color3.fromRGB(90, 30, 55)
+            rowStroke.Color = Color3.fromRGB(238, 188, 219)
             rowStroke.Transparency = 0.5
         end)
 
@@ -5312,12 +5312,12 @@ task.spawn(function()
     -- Tool input row
     local toolRow = Instance.new("Frame", settingsFrame)
     toolRow.Size = UDim2.new(1, -4, 0, 36)
-    toolRow.BackgroundColor3 = Color3.fromRGB(28, 12, 24)
+    toolRow.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
     toolRow.BackgroundTransparency = 0.3
     toolRow.BorderSizePixel = 0
     Instance.new("UICorner", toolRow).CornerRadius = UDim.new(0, 8)
     local toolRowStroke = Instance.new("UIStroke", toolRow)
-    toolRowStroke.Color = Color3.fromRGB(90, 30, 55); toolRowStroke.Thickness = 1; toolRowStroke.Transparency = 0.5
+    toolRowStroke.Color = Color3.fromRGB(238, 188, 219); toolRowStroke.Thickness = 1; toolRowStroke.Transparency = 0.5
 
     local toolLbl = Instance.new("TextLabel", toolRow)
     toolLbl.Size = UDim2.new(0, 120, 1, 0); toolLbl.Position = UDim2.new(0, 10, 0, 0)
@@ -5327,7 +5327,7 @@ task.spawn(function()
 
     local toolInput = Instance.new("TextBox", toolRow)
     toolInput.Size = UDim2.new(1, -140, 0, 24); toolInput.Position = UDim2.new(0, 130, 0.5, -12)
-    toolInput.BackgroundColor3 = Color3.fromRGB(22, 22, 28); toolInput.BorderSizePixel = 0
+    toolInput.BackgroundColor3 = Color3.fromRGB(252, 245, 249); toolInput.BorderSizePixel = 0
     toolInput.Text = Config.TpSettings.Tool
     toolInput.Font = Enum.Font.Gotham; toolInput.TextSize = 11; toolInput.TextColor3 = Theme.TextPrimary
     Instance.new("UICorner", toolInput).CornerRadius = UDim.new(0, 6)
@@ -5602,11 +5602,11 @@ task.spawn(function()
                             if newAdornee and child.Name == hoveredName then
                                 s.Color = Color3.fromRGB(255, 50, 50)
                                 s.Transparency = 0
-                                child.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+                                child.BackgroundColor3 = Color3.fromRGB(252, 225, 240)
                             else
                                 s.Color = Theme.Accent2
                                 s.Transparency = 0.7
-                                child.BackgroundColor3 = Color3.fromRGB(40, 43, 58)
+                                child.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
                             end
                         end
                     end
@@ -5730,7 +5730,7 @@ task.spawn(function()
         local row = Instance.new("TextButton")
         row.Name = plr.Name; row.LayoutOrder = 0
         row.Size = UDim2.new(1, -4, 0, 74)
-        row.BackgroundColor3 = Color3.fromRGB(40, 43, 58)
+        row.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
         row.BackgroundTransparency = 0.2; row.BorderSizePixel = 0
         row.AutoButtonColor = false; row.Text = ""
         row.Parent = listFrame
@@ -5747,7 +5747,7 @@ task.spawn(function()
 
         local headshot = Instance.new("ImageLabel", row)
         headshot.Size = UDim2.new(0, 42, 0, 42); headshot.Position = UDim2.new(0, 12, 0.5, -21)
-        headshot.BackgroundColor3 = Color3.fromRGB(15, 17, 22)
+        headshot.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
         headshot.Image = Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
         Instance.new("UICorner", headshot).CornerRadius = UDim.new(1, 0)
         local headshotStroke = Instance.new("UIStroke", headshot)
@@ -5903,21 +5903,21 @@ task.spawn(function()
             b.ZIndex = 11; b.Active = true
             local hasBallooned = SharedState.BalloonedPlayers and next(SharedState.BalloonedPlayers) ~= nil
             local isOnCD = isOnCooldown(def.cmd)
-            b.BackgroundColor3 = ((def.cmd == "balloon" and hasBallooned) or isOnCD) and Theme.Error or Color3.fromRGB(48, 52, 70)
+            b.BackgroundColor3 = ((def.cmd == "balloon" and hasBallooned) or isOnCD) and Theme.Error or Color3.fromRGB(250, 242, 248)
             b.BackgroundTransparency = 0
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
             local bStroke = Instance.new("UIStroke", b)
-            bStroke.Color = ((def.cmd == "balloon" and hasBallooned) or isOnCD) and Theme.Error or Color3.fromRGB(110, 116, 200)
+            bStroke.Color = ((def.cmd == "balloon" and hasBallooned) or isOnCD) and Theme.Error or Color3.fromRGB(238, 188, 219)
             bStroke.Thickness = 1.5; bStroke.Transparency = 0.4; bStroke.ZIndex = 12
 
             b.MouseEnter:Connect(function()
                 if not isOnCD and not (def.cmd == "balloon" and hasBallooned) then
-                    b.BackgroundColor3 = Color3.fromRGB(68, 24, 48); bStroke.Transparency = 0.2
+                    b.BackgroundColor3 = Color3.fromRGB(252, 225, 240); bStroke.Transparency = 0.2
                 end
             end)
             b.MouseLeave:Connect(function()
                 if not isOnCD and not (def.cmd == "balloon" and hasBallooned) then
-                    b.BackgroundColor3 = Color3.fromRGB(48, 52, 70); bStroke.Transparency = 0.4
+                    b.BackgroundColor3 = Color3.fromRGB(250, 242, 248); bStroke.Transparency = 0.4
                 end
             end)
 
@@ -5938,8 +5938,8 @@ task.spawn(function()
                         b.BackgroundColor3 = Theme.Error; b.BackgroundTransparency = 0
                         bStroke.Color = Theme.Error; bStroke.Transparency = 0.2
                     else
-                        b.BackgroundColor3 = Color3.fromRGB(48, 52, 70); b.BackgroundTransparency = 0
-                        bStroke.Color = Color3.fromRGB(110, 116, 200); bStroke.Transparency = 0.4
+                        b.BackgroundColor3 = Color3.fromRGB(250, 242, 248); b.BackgroundTransparency = 0
+                        bStroke.Color = Color3.fromRGB(238, 188, 219); bStroke.Transparency = 0.4
                     end
                     if b.Text ~= def.icon then
                         b.Text = def.icon; b.TextSize = 11
@@ -6373,13 +6373,13 @@ end)
         local barHolder = Instance.new("Frame", barSg)
         barHolder.Size = UDim2.new(0, 264, 0, 56)
         barHolder.Position = UDim2.new(0.5, -132, 0.84, 0)
-        barHolder.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+        barHolder.BackgroundColor3 = Color3.fromRGB(252, 245, 249)
         barHolder.BackgroundTransparency = 0
         barHolder.BorderSizePixel = 0
         barHolder.Visible = true
         Instance.new("UICorner", barHolder).CornerRadius = UDim.new(0, 14)
         local barStroke = Instance.new("UIStroke", barHolder)
-        barStroke.Color = Color3.fromRGB(48, 48, 60); barStroke.Thickness = 1; barStroke.Transparency = 0.2
+        barStroke.Color = Color3.fromRGB(238, 188, 219); barStroke.Thickness = 1; barStroke.Transparency = 0.2
         do  -- soft drop shadow
             local ps = Instance.new("ImageLabel", barHolder)
             ps.Name = "BarShadow"; ps.BackgroundTransparency = 1
@@ -6407,11 +6407,11 @@ end)
         local barTrack = Instance.new("Frame", barHolder)
         barTrack.Size = UDim2.new(1, -20, 0, 20)
         barTrack.Position = UDim2.new(0, 10, 0, 28)
-        barTrack.BackgroundColor3 = Color3.fromRGB(12, 12, 16); barTrack.BackgroundTransparency = 0
+        barTrack.BackgroundColor3 = Color3.fromRGB(244, 230, 240); barTrack.BackgroundTransparency = 0
         barTrack.BorderSizePixel = 0
         barTrack.ZIndex = 2
         Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
-        Instance.new("UIStroke", barTrack).Color = Color3.fromRGB(40, 40, 50)
+        Instance.new("UIStroke", barTrack).Color = Color3.fromRGB(238, 188, 219)
         local barFill = Instance.new("Frame", barTrack)
         barFill.Size = UDim2.new(0, 0, 1, 0)
         barFill.BackgroundColor3 = Color3.fromRGB(140, 146, 255); barFill.BackgroundTransparency = 0
@@ -6929,11 +6929,11 @@ end)
 
             local BTN_SZ, GAP = 36, 9
             -- blue buttons (matches the admin panel / menu)
-            local FG_CARD    = Color3.fromRGB(43, 46, 60)
-            local FG_CARDALT = Color3.fromRGB(58, 62, 82)
-            local FG_TEXT    = Color3.fromRGB(142, 148, 255)
-            local FG_STROKE  = Color3.fromRGB(88, 94, 138)
-            local FG_ACCENT  = Color3.fromRGB(142, 148, 255)
+            local FG_CARD    = Color3.fromRGB(252, 245, 249)
+            local FG_CARDALT = Color3.fromRGB(244, 230, 240)
+            local FG_TEXT    = Color3.fromRGB(232, 111, 177)
+            local FG_STROKE  = Color3.fromRGB(238, 188, 219)
+            local FG_ACCENT  = Color3.fromRGB(232, 111, 177)
             unlockBtns = {}
             for i = 1, 3 do
                 local b = Instance.new("TextButton", root)
@@ -7539,7 +7539,7 @@ end)
 
         -- palette (matches the menu / admin panel)
         local COL_BG     = Color3.fromRGB(30, 32, 44)
-        local COL_CARD   = Color3.fromRGB(43, 46, 60)
+        local COL_CARD   = Color3.fromRGB(252, 245, 249)
         local COL_ACCENT = Color3.fromRGB(142, 148, 255)
         local COL_BRAND  = Color3.fromRGB(245, 247, 252)
         local COL_MUTED  = Color3.fromRGB(150, 155, 178)
@@ -8573,17 +8573,16 @@ end)
             local LIST_H   = 238
             local PAD2     = 4
             local ROW_H2   = 30
-            -- matches the admin panel theme (navy + purple-blue accent)
-            local FG_TEXT   = Color3.fromRGB(245, 247, 252)
-            local FG_SUB    = Color3.fromRGB(172, 180, 206)
-            local FG_FAINT  = Color3.fromRGB(150, 155, 178)
-            local FG_STROKE = Color3.fromRGB(88, 94, 138)
-            local FG_SOFT   = Color3.fromRGB(64, 66, 98)
-            local ACCENT    = Color3.fromRGB(140, 146, 255)
-            local MONEY     = Color3.fromRGB(100, 220, 140)
-            local PANEL_BG  = Color3.fromRGB(30, 32, 44)
-            local HEAD_BG   = Color3.fromRGB(43, 46, 60)
-            local ROW_BG    = Color3.fromRGB(43, 46, 60)
+            local FG_TEXT   = Color3.fromRGB(40, 15, 30)
+            local FG_SUB    = Color3.fromRGB(140, 80, 115)
+            local FG_FAINT  = Color3.fromRGB(170, 110, 145)
+            local FG_STROKE = Color3.fromRGB(238, 188, 219)
+            local FG_SOFT   = Color3.fromRGB(250, 242, 248)
+            local ACCENT    = Color3.fromRGB(232, 111, 177)
+            local MONEY     = Color3.fromRGB(195, 65, 140)
+            local PANEL_BG  = Color3.fromRGB(255, 252, 255)
+            local HEAD_BG   = Color3.fromRGB(252, 245, 249)
+            local ROW_BG    = Color3.fromRGB(252, 245, 249)
 
             local stp = Instance.new("ScreenGui")
             stp.Name = "MeerkoStealTargetPanel"
@@ -8609,7 +8608,7 @@ end)
             pfStroke.Color = FG_STROKE; pfStroke.Thickness = 1; pfStroke.Transparency = 0
             do  -- subtle gradient like the FreeGUI window
                 local gr = Instance.new("UIGradient", pf)
-                gr.Color = ColorSequence.new(Color3.fromRGB(34, 36, 50), Color3.fromRGB(24, 26, 38))
+                gr.Color = ColorSequence.new(Color3.fromRGB(255, 252, 255), Color3.fromRGB(252, 245, 249))
                 gr.Rotation = 90
             end
             do  -- slight soft drop shadow around the whole panel (light theme)
