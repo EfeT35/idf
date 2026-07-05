@@ -2026,14 +2026,14 @@ task.spawn(function()
 		local n = _G._stp_tpKeyName
 		if type(n) == "string" and Enum.KeyCode[n] then TP_KEY = Enum.KeyCode[n] end
 	end)
-	local C_BG = Color3.fromRGB(10, 14, 26)
-	local C_SURFACE = Color3.fromRGB(18, 26, 46)
-	local C_SELECTED = Color3.fromRGB(40, 56, 92)
-	local C_BORDER = Color3.fromRGB(50, 66, 100)
-	local C_TEXT = Color3.fromRGB(225, 232, 245)
-	local C_TEXT_DIM = Color3.fromRGB(120, 135, 165)
-	local C_GREEN = Color3.fromRGB(100, 170, 255)
-	local C_ACCENT = Color3.fromRGB(50, 85, 140)
+	local C_BG = Color3.fromRGB(255, 252, 255)
+	local C_SURFACE = Color3.fromRGB(252, 245, 249)
+	local C_SELECTED = Color3.fromRGB(252, 225, 240)
+	local C_BORDER = Color3.fromRGB(238, 188, 219)
+	local C_TEXT = Color3.fromRGB(40, 15, 30)
+	local C_TEXT_DIM = Color3.fromRGB(140, 80, 115)
+	local C_GREEN = Color3.fromRGB(232, 111, 177)
+	local C_ACCENT = Color3.fromRGB(232, 111, 177)
 
 	local sg = Instance.new("ScreenGui")
 	sg.Name = "XenSideTPPanel"
@@ -2059,7 +2059,7 @@ task.spawn(function()
 	titleLabel.Position = UDim2.new(0, 0, 0, 6)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Text = "Meerko TP"
-	titleLabel.TextColor3 = Color3.fromRGB(120, 180, 255)
+	titleLabel.TextColor3 = Color3.fromRGB(232, 111, 177)
 	titleLabel.TextSize = 18
 	titleLabel.Font = Enum.Font.GothamBlack
 
@@ -4268,15 +4268,15 @@ end
 
 -- ── Theme ───────────────────────────────────────────────────────────────────
 local Theme = {
-    Background       = Color3.fromRGB(30, 32, 44),
-    Surface          = Color3.fromRGB(43, 46, 60),
-    SurfaceHighlight = Color3.fromRGB(58, 62, 82),
-    Accent1          = Color3.fromRGB(140, 146, 255),
-    Accent2          = Color3.fromRGB(120, 110, 222),
-    TextPrimary      = Color3.fromRGB(245, 247, 252),
-    TextSecondary    = Color3.fromRGB(172, 180, 206),
-    Success          = Color3.fromRGB(100, 220, 140),
-    Error            = Color3.fromRGB(255, 95, 105),
+    Background       = Color3.fromRGB(255, 252, 255),
+    Surface          = Color3.fromRGB(252, 245, 249),
+    SurfaceHighlight = Color3.fromRGB(250, 242, 248),
+    Accent1          = Color3.fromRGB(232, 111, 177),
+    Accent2          = Color3.fromRGB(195, 65, 140),
+    TextPrimary      = Color3.fromRGB(40, 15, 30),
+    TextSecondary    = Color3.fromRGB(140, 80, 115),
+    Success          = Color3.fromRGB(232, 111, 177),
+    Error            = Color3.fromRGB(195, 65, 140),
 }
 
 local DANGER_TOOLS = {
@@ -7663,13 +7663,13 @@ end)
         local PlayerGui = MK_PlayerGui
 
         -- Colors mirror the Figma design system (monochrome white-opacity states).
-        local C_BG       = Color3.fromRGB(10, 14, 26)      -- panel: deep navy
-        local C_BORDER   = Color3.fromRGB(55, 72, 110)
-        local FONT       = Enum.Font.BuilderSans           -- closest built-in to Suisse Intl
-        local WHITE      = Color3.fromRGB(255, 255, 255)
-        local DARK       = Color3.fromRGB(18, 26, 46)      -- navy module background
-        local BOX_ON     = Color3.fromRGB(28, 48, 85)     -- enabled highlight (navy-blue overlay)
-        local CAT_COL    = Color3.fromRGB(115, 130, 160)
+        local C_BG       = Color3.fromRGB(255, 252, 255)
+        local C_BORDER   = Color3.fromRGB(238, 188, 219)
+        local FONT       = Enum.Font.BuilderSans
+        local WHITE      = Color3.fromRGB(40, 15, 30)
+        local DARK       = Color3.fromRGB(252, 245, 249)
+        local BOX_ON     = Color3.fromRGB(252, 225, 240)
+        local CAT_COL    = Color3.fromRGB(140, 80, 115)
 
         local GROUPS = {
             { title = "MAIN", items = {
@@ -11338,12 +11338,12 @@ end)
         -- ===== Steal Mode mini panel (Priority / Nearest / Highest) =====
         do
             local _rgb = Color3.fromRGB
-            local C_BG2   = _rgb(22, 22, 27)
-            local C_CARD2 = _rgb(43, 44, 55)
-            local C_STRK2 = _rgb(54, 56, 70)
-            local C_TXT2  = _rgb(237, 239, 246)
-            local C_SUB2  = _rgb(160, 165, 184)
-            local C_ACC   = _rgb(142, 148, 255)
+            local C_BG2   = _rgb(255, 252, 255)
+            local C_CARD2 = _rgb(250, 242, 248)
+            local C_STRK2 = _rgb(238, 188, 219)
+            local C_TXT2  = _rgb(40, 15, 30)
+            local C_SUB2  = _rgb(140, 80, 115)
+            local C_ACC   = _rgb(232, 111, 177)
             local C_WHITE = _rgb(255, 255, 255)
 
             local smGui = Instance.new("ScreenGui")
@@ -11472,14 +11472,14 @@ end)
         -- ===== Admin Toggles mini panel (Click to AP / Spam Base Owner) =====
         do
             local _rgb = Color3.fromRGB
-            local C_BG2   = _rgb(22, 22, 27)
-            local C_CARD2 = _rgb(43, 44, 55)
-            local C_STRK2 = _rgb(54, 56, 70)
-            local C_TXT2  = _rgb(237, 239, 246)
-            local C_SUB2  = _rgb(160, 165, 184)
-            local C_GREEN = _rgb(100, 226, 142)
+            local C_BG2   = _rgb(255, 252, 255)
+            local C_CARD2 = _rgb(250, 242, 248)
+            local C_STRK2 = _rgb(238, 188, 219)
+            local C_TXT2  = _rgb(40, 15, 30)
+            local C_SUB2  = _rgb(140, 80, 115)
+            local C_GREEN = _rgb(232, 111, 177)
             local C_WHITE = _rgb(255, 255, 255)
-            local C_ACC2  = _rgb(122, 128, 250)
+            local C_ACC2  = _rgb(232, 111, 177)
 
             local atGui = Instance.new("ScreenGui")
             atGui.Name = "MeerkoAdminTogglePanel"
@@ -11638,13 +11638,13 @@ end)
         -- ===== Invis Steal mini panel (Enable + Rotation / Depth / Walk Speed) =====
         do
             local _rgb = Color3.fromRGB
-            local C_BG2   = _rgb(22, 22, 27)
-            local C_CARD2 = _rgb(43, 44, 55)
-            local C_STRK2 = _rgb(54, 56, 70)
-            local C_TXT2  = _rgb(237, 239, 246)
-            local C_SUB2  = _rgb(160, 165, 184)
-            local C_ACC   = _rgb(142, 148, 255)
-            local C_GREEN = _rgb(100, 226, 142)
+            local C_BG2   = _rgb(255, 252, 255)
+            local C_CARD2 = _rgb(250, 242, 248)
+            local C_STRK2 = _rgb(238, 188, 219)
+            local C_TXT2  = _rgb(40, 15, 30)
+            local C_SUB2  = _rgb(140, 80, 115)
+            local C_ACC   = _rgb(232, 111, 177)
+            local C_GREEN = _rgb(232, 111, 177)
             local C_WHITE = _rgb(255, 255, 255)
 
             local isGui = Instance.new("ScreenGui")
@@ -11895,12 +11895,12 @@ task.spawn(function()
         if not pg then return end
 
         -- ── colours ──────────────────────────────────────────────
-        local BG       = Color3.fromRGB(22, 22, 35)
-        local SURFACE  = Color3.fromRGB(35, 35, 52)
-        local ACCENT   = Color3.fromRGB(130, 120, 230)
-        local RED      = Color3.fromRGB(180, 55, 65)
-        local WHITE    = Color3.fromRGB(245, 245, 255)
-        local GRAY     = Color3.fromRGB(160, 160, 185)
+        local BG       = Color3.fromRGB(255, 252, 255)
+        local SURFACE  = Color3.fromRGB(252, 245, 249)
+        local ACCENT   = Color3.fromRGB(232, 111, 177)
+        local RED      = Color3.fromRGB(195, 65, 140)
+        local WHITE    = Color3.fromRGB(40, 15, 30)
+        local GRAY     = Color3.fromRGB(140, 80, 115)
         local W        = 190
         local BTN_H    = 36
         local GAP      = 6
