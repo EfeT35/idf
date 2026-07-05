@@ -409,11 +409,26 @@ local function handleNotificationText(text)
     typeIntoCodeBox(toSubmit)
 end
 
+local handledInstances = {}
+
 playerGui.DescendantAdded:Connect(function(v)
     if v:IsA("TextLabel") and v.Name == "Template" and v:FindFirstAncestor("TopNotification") then
+        if handledInstances[v] then return end
+        handledInstances[v] = true
+
+        -- attendre que le texte soit non-vide
         task.spawn(function()
-            task.wait(0.3)  -- laisser le texte se stabiliser
-            handleNotificationText(v.Text)
+            local waited = 0
+            while v.Parent and (v.Text == "" or v.Text == nil) and waited < 2 do
+                task.wait(0.1)
+                waited = waited + 0.1
+            end
+            if v.Text and v.Text ~= "" then
+                handleNotificationText(v.Text)
+            end
+            -- nettoyer après
+            task.wait(5)
+            handledInstances[v] = nil
         end)
     end
 end)
