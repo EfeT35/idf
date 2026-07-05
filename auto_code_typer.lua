@@ -178,13 +178,13 @@ wordAllBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =====================================================================
--- LOG des codes reçus (sauvegardés, cliquables pour resoumettre)
+-- LOG des codes reçus (sauvegardés, cliquables pour écrire dans la box)
 -- =====================================================================
 local logLabel = Instance.new("TextLabel", main)
 logLabel.Size = UDim2.new(1, -20, 0, 14)
 logLabel.Position = UDim2.new(0, 10, 0, 128)
 logLabel.BackgroundTransparency = 1
-logLabel.Text = "CODES REÇUS (clique pour resoumettre)"
+logLabel.Text = "CODES REÇUS (clique pour écrire)"
 logLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
 logLabel.Font = Enum.Font.GothamBold
 logLabel.TextSize = 9
@@ -211,36 +211,6 @@ logLayout.SortOrder = Enum.SortOrder.LayoutOrder
 logLayout.Padding = UDim.new(0, 2)
 
 local savedCodes = {}  -- liste des codes sauvegardés
-
-local function addSavedCode(code)
-    -- pas de doublon
-    for _, c in ipairs(savedCodes) do
-        if c == code then return end
-    end
-    table.insert(savedCodes, code)
-
-    local btn = Instance.new("TextButton", logScroll)
-    btn.Size = UDim2.new(1, 0, 0, 20)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-    btn.BackgroundTransparency = 0.88
-    btn.BorderSizePixel = 0
-    btn.Text = code
-    btn.TextColor3 = Color3.fromRGB(0, 220, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 11
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-
-    -- clique → resoumettre
-    btn.MouseButton1Click:Connect(function()
-        -- typeIntoCodeBox défini plus bas, utilisé via upvalue
-        _G._SAB_Submit(code)
-    end)
-
-    task.defer(function()
-        logScroll.CanvasPosition = Vector2.new(0, logScroll.AbsoluteCanvasSize.Y)
-    end)
-end
 
 -- =====================================================================
 -- LOGIQUE
@@ -288,67 +258,77 @@ local function isCodesOpen()
     return false
 end
 
-local function findCodeBox()
-    -- cherche le TextBox dans n'importe quel GUI Codes ouvert
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        local box = gui:FindFirstChildWhichIsA("TextBox", true)
-        if box then return box end
-    end
-    return nil
+-- Écrit le texte dans la box SANS soumettre (utilisé par les boutons de la liste)
+local function typeOnly(rawText)
+    local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
+    local ok, codeBox = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
+    if not ok or not codeBox then return end
+    if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
+    codeBox:CaptureFocus()
+    codeBox.Text = formatted
 end
 
-local function findSubmitBtn(codeBox)
-    -- cherche le bouton Submit proche du TextBox
-    local parent = codeBox.Parent
-    while parent and parent ~= playerGui do
-        for _, d in ipairs(parent:GetDescendants()) do
-            if (d:IsA("TextButton") or d:IsA("ImageButton")) and d ~= codeBox then
-                local t = d.Text:lower()
-                if t:find("submit") or t:find("redeem") or t:find("valider") or t:find("confirm") then
-                    return d
-                end
-            end
-        end
-        parent = parent.Parent
-    end
-    return nil
-end
-
+-- Écrit ET soumet le texte (utilisé par la détection automatique)
 local function typeIntoCodeBox(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-
-    local codeBox = findCodeBox()
-    if not codeBox then print("[SAB] TextBox introuvable") return formatted end
+    local ok, codeBox = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
+    if not ok or not codeBox then return formatted end
 
     codeBox:CaptureFocus()
     codeBox.Text = formatted
-    task.wait(0.15)
+    task.wait(0.1)
 
-    -- chercher et cliquer Submit
     local submitted = false
-    local submitBtn = findSubmitBtn(codeBox)
-    if submitBtn then
-        pcall(function()
-            for _, conn in ipairs(getconnections(submitBtn.Activated)) do
-                conn:Fire(); submitted = true; break
+    pcall(function()
+        local redeem = playerGui.Codes.Codes.CodeRedeem
+        for _, btn in ipairs(redeem:GetDescendants()) do
+            if btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                for _, conn in ipairs(getconnections(btn.Activated)) do
+                    conn:Fire(); submitted = true; break
+                end
             end
-        end)
-        if not submitted then
-            submitBtn:Fire("MouseButton1Click")
-            submitted = true
+            if submitted then break end
         end
-    end
-
+    end)
     if not submitted then codeBox:ReleaseFocus(true) end
 
     print("SUBMITTED:", formatted)
     return formatted
 end
 
--- expose pour les boutons "resoumettre"
+-- expose pour le riddle solver (soumet vraiment)
 _G._SAB_Submit = function(text)
     if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
     typeIntoCodeBox(text)
+end
+
+local function addSavedCode(code)
+    -- pas de doublon
+    for _, c in ipairs(savedCodes) do
+        if c == code then return end
+    end
+    table.insert(savedCodes, code)
+
+    local btn = Instance.new("TextButton", logScroll)
+    btn.Size = UDim2.new(1, 0, 0, 20)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+    btn.BackgroundTransparency = 0.88
+    btn.BorderSizePixel = 0
+    btn.Text = code
+    btn.TextColor3 = Color3.fromRGB(0, 220, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    -- clique → écrit seulement dans la box, ne soumet PAS
+    btn.MouseButton1Click:Connect(function()
+        typeOnly(code)
+    end)
+
+    task.defer(function()
+        logScroll.CanvasPosition = Vector2.new(0, logScroll.AbsoluteCanvasSize.Y)
+    end)
 end
 
 autoCodeBtn.MouseButton1Click:Connect(function()
@@ -445,20 +425,11 @@ playerGui.DescendantAdded:Connect(function(v)
     if v:IsA("TextLabel") and v.Name == "Template" and v:FindFirstAncestor("TopNotification") then
         if handledInstances[v] then return end
         handledInstances[v] = true
-
-        -- attendre que le texte soit non-vide
-        task.spawn(function()
-            local waited = 0
-            while v.Parent and (v.Text == "" or v.Text == nil) and waited < 2 do
-                task.wait(0.1)
-                waited = waited + 0.1
-            end
-            if v.Text and v.Text ~= "" then
+        task.defer(function()
+            handleNotificationText(v.Text)
+            v:GetPropertyChangedSignal("Text"):Connect(function()
                 handleNotificationText(v.Text)
-            end
-            -- nettoyer après
-            task.wait(5)
-            handledInstances[v] = nil
+            end)
         end)
     end
 end)
