@@ -1,644 +1,484 @@
-local player = game.Players.LocalPlayer
-local playerGui = player.PlayerGui
+if not game:IsLoaded() then game.Loaded:Wait() end
 
-if playerGui:FindFirstChild("SABHub") then
-    playerGui.SABHub:Destroy()
+local UserInputService = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+local Players          = game:GetService("Players")
+
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Nettoyer ancienne instance
+if playerGui:FindFirstChild("SwaveHub") then
+    playerGui.SwaveHub:Destroy()
 end
 
+-- ============================================================
+-- CONFIG
+-- ============================================================
+local ACCENT   = Color3.fromRGB(88, 166, 255)
+local BG_DARK  = Color3.fromRGB(12, 14, 22)
+local BG_ROW   = Color3.fromRGB(20, 24, 36)
+local BG_BTN   = Color3.fromRGB(30, 35, 52)
+local BG_ON    = Color3.fromRGB(49, 130, 255)
+local TXT_DIM  = Color3.fromRGB(130, 140, 165)
+local TXT_WHT  = Color3.fromRGB(220, 225, 235)
+local tw       = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
+
+-- ============================================================
+-- ÉTAT
+-- ============================================================
+local monitoring  = false
+local autoWrite   = true
+local autoSubmit  = true
+local submitAfter = 3      -- soumettre la Nième notif
+local caseMode    = "upper"-- "normal" | "upper" | "lower"
+local connexions  = {}
+
+local notifCounter   = 0
+local lastNotifTime  = 0
+local lastText       = ""
+
+-- ============================================================
+-- SCREEN GUI
+-- ============================================================
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SABHub"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+screenGui.Name          = "SwaveHub"
+screenGui.ResetOnSpawn  = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent        = playerGui
 
--- =====================================================================
--- FENETRE PRINCIPALE
--- =====================================================================
+local W, H = 330, 230
+
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 240, 0, 290)
-main.Position = UDim2.new(0.5, -120, 0, 20)
-main.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-main.BackgroundTransparency = 0.1
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-main.Parent = screenGui
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+main.Size             = UDim2.new(0, W, 0, H)
+main.Position         = UDim2.new(0.5, -W/2, 0, 20)
+main.BackgroundColor3 = BG_DARK
+main.BorderSizePixel  = 0
+main.Active           = true
+main.Parent           = screenGui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 local mainStroke = Instance.new("UIStroke", main)
-mainStroke.Color = Color3.fromRGB(0, 200, 255)
-mainStroke.Transparency = 0.7
-mainStroke.Thickness = 1
+mainStroke.Thickness = 1.5
+mainStroke.Color     = Color3.fromRGB(35, 42, 65)
 
--- Header
+-- ============================================================
+-- HEADER
+-- ============================================================
 local header = Instance.new("Frame", main)
-header.Size = UDim2.new(1, 0, 0, 30)
-header.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-header.BackgroundTransparency = 0.85
-header.BorderSizePixel = 0
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
-local dot = Instance.new("Frame", header)
-dot.Size = UDim2.new(0, 7, 0, 7)
-dot.Position = UDim2.new(0, 12, 0.5, -3)
-dot.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
-dot.BorderSizePixel = 0
-Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+header.Size             = UDim2.new(1, 0, 0, 36)
+header.BackgroundColor3 = BG_ROW
+header.BorderSizePixel  = 0
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+-- coins inférieurs du header carrés
+local headerBottom = Instance.new("Frame", header)
+headerBottom.Size             = UDim2.new(1, 0, 0.5, 0)
+headerBottom.Position         = UDim2.new(0, 0, 0.5, 0)
+headerBottom.BackgroundColor3 = BG_ROW
+headerBottom.BorderSizePixel  = 0
+
 local titleLbl = Instance.new("TextLabel", header)
-titleLbl.Size = UDim2.new(1, -24, 1, 0)
-titleLbl.Position = UDim2.new(0, 24, 0, 0)
+titleLbl.Size               = UDim2.new(0, 160, 1, 0)
+titleLbl.Position           = UDim2.new(0, 14, 0, 0)
 titleLbl.BackgroundTransparency = 1
-titleLbl.Text = "AA CODE TYPER"
-titleLbl.TextColor3 = Color3.fromRGB(0, 220, 255)
-titleLbl.Font = Enum.Font.GothamBold
-titleLbl.TextSize = 11
-titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+titleLbl.Text               = "SwaveHub"
+titleLbl.TextColor3         = TXT_WHT
+titleLbl.Font               = Enum.Font.GothamBold
+titleLbl.TextSize           = 14
+titleLbl.TextXAlignment     = Enum.TextXAlignment.Left
 
--- AUTO CODE bouton
-local autoCodeBtn = Instance.new("TextButton", main)
-autoCodeBtn.Size = UDim2.new(1, -20, 0, 28)
-autoCodeBtn.Position = UDim2.new(0, 10, 0, 36)
-autoCodeBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-autoCodeBtn.BackgroundTransparency = 0.85
-autoCodeBtn.BorderSizePixel = 0
-autoCodeBtn.Text = "AUTO CODE: OFF"
-autoCodeBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
-autoCodeBtn.Font = Enum.Font.GothamBold
-autoCodeBtn.TextSize = 12
-Instance.new("UICorner", autoCodeBtn).CornerRadius = UDim.new(0, 8)
-local autoStroke = Instance.new("UIStroke", autoCodeBtn)
-autoStroke.Color = Color3.fromRGB(0, 200, 255)
-autoStroke.Transparency = 0.6
-autoStroke.Thickness = 1
+local serverLbl = Instance.new("TextLabel", header)
+serverLbl.Size              = UDim2.new(0, 140, 1, 0)
+serverLbl.Position          = UDim2.new(0, 95, 0, 0)
+serverLbl.BackgroundTransparency = 1
+serverLbl.Text              = ".gg/NEW5D2C4sC"
+serverLbl.TextColor3        = TXT_DIM
+serverLbl.Font              = Enum.Font.Gotham
+serverLbl.TextSize          = 11
+serverLbl.TextXAlignment    = Enum.TextXAlignment.Left
 
--- UPPER / LOWER
-local upperBtn = Instance.new("TextButton", main)
-upperBtn.Size = UDim2.new(0.5, -13, 0, 24)
-upperBtn.Position = UDim2.new(0, 10, 0, 70)
-upperBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-upperBtn.BackgroundTransparency = 0.75
-upperBtn.BorderSizePixel = 0
-upperBtn.Text = "UPPER"
-upperBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
-upperBtn.Font = Enum.Font.GothamBold
-upperBtn.TextSize = 11
-Instance.new("UICorner", upperBtn).CornerRadius = UDim.new(0, 6)
-local upperStroke = Instance.new("UIStroke", upperBtn)
-upperStroke.Color = Color3.fromRGB(0, 200, 255)
-upperStroke.Transparency = 0.5
-upperStroke.Thickness = 1
-
-local lowerBtn = Instance.new("TextButton", main)
-lowerBtn.Size = UDim2.new(0.5, -13, 0, 24)
-lowerBtn.Position = UDim2.new(0.5, 3, 0, 70)
-lowerBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-lowerBtn.BackgroundTransparency = 0.93
-lowerBtn.BorderSizePixel = 0
-lowerBtn.Text = "lower"
-lowerBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
-lowerBtn.Font = Enum.Font.Gotham
-lowerBtn.TextSize = 11
-Instance.new("UICorner", lowerBtn).CornerRadius = UDim.new(0, 6)
-local lowerStroke = Instance.new("UIStroke", lowerBtn)
-lowerStroke.Color = Color3.fromRGB(100, 100, 120)
-lowerStroke.Transparency = 0.7
-lowerStroke.Thickness = 1
-
--- =====================================================================
--- SELECTEUR DE NOTIF (boutons 1 2 3 4 5 OFF — sélection multiple)
--- =====================================================================
-local notifSelLabel = Instance.new("TextLabel", main)
-notifSelLabel.Size = UDim2.new(1, -20, 0, 14)
-notifSelLabel.Position = UDim2.new(0, 10, 0, 100)
-notifSelLabel.BackgroundTransparency = 1
-notifSelLabel.Text = "NOTIF À SUBMIT :"
-notifSelLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
-notifSelLabel.Font = Enum.Font.GothamBold
-notifSelLabel.TextSize = 10
-notifSelLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- 6 boutons : 1 2 3 4 5 OFF
-local notifBtnLabels = {"1","2","3","4","5","OFF"}
-local notifBtnRefs   = {}
-local notifSelected  = {}   -- set: notifSelected[n] = true si actif
-
-local btnW   = 32
-local btnGap = 3
-local btnY   = 118
-
-for i, lbl in ipairs(notifBtnLabels) do
-    local b = Instance.new("TextButton", main)
-    b.Size             = UDim2.new(0, btnW, 0, 22)
-    b.Position         = UDim2.new(0, 10 + (i-1)*(btnW+btnGap), 0, btnY)
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+-- Boutons header (? - X)
+local function makeHeaderBtn(txt, xOff, col)
+    local b = Instance.new("TextButton", header)
+    b.Size             = UDim2.new(0, 22, 0, 22)
+    b.Position         = UDim2.new(1, xOff, 0.5, -11)
+    b.BackgroundColor3 = BG_BTN
     b.BorderSizePixel  = 0
-    b.Text             = lbl
-    b.TextColor3       = Color3.fromRGB(130, 130, 150)
+    b.Text             = txt
+    b.TextColor3       = col or TXT_DIM
     b.Font             = Enum.Font.GothamBold
     b.TextSize         = 11
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-    notifBtnRefs[i] = b
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+local helpBtn  = makeHeaderBtn("?",  -72, TXT_DIM)
+local minBtn   = makeHeaderBtn("−",  -46, TXT_DIM)
+local closeBtn = makeHeaderBtn("X",  -20, Color3.fromRGB(231, 76, 60))
+
+-- ============================================================
+-- HELPER : créer une ligne label + widget(s)
+-- ============================================================
+local function makeRow(yPos, labelText)
+    local row = Instance.new("Frame", main)
+    row.Size             = UDim2.new(1, -20, 0, 32)
+    row.Position         = UDim2.new(0, 10, 0, yPos)
+    row.BackgroundColor3 = BG_ROW
+    row.BorderSizePixel  = 0
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size               = UDim2.new(0, 160, 1, 0)
+    lbl.Position           = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = labelText
+    lbl.TextColor3         = TXT_DIM
+    lbl.Font               = Enum.Font.Gotham
+    lbl.TextSize           = 12
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    return row
 end
 
--- texte affichant les sélections actives
-local notifSelectedLbl = Instance.new("TextLabel", main)
-notifSelectedLbl.Size                  = UDim2.new(0, 150, 0, 18)
-notifSelectedLbl.Position              = UDim2.new(0, 10, 0, btnY + 26)
-notifSelectedLbl.BackgroundTransparency = 1
-notifSelectedLbl.Text                  = "OFF"
-notifSelectedLbl.TextColor3            = Color3.fromRGB(255, 220, 80)
-notifSelectedLbl.Font                  = Enum.Font.GothamBold
-notifSelectedLbl.TextSize              = 11
-notifSelectedLbl.TextXAlignment        = Enum.TextXAlignment.Left
-
--- bouton SUP
-local supBtn = Instance.new("TextButton", main)
-supBtn.Size             = UDim2.new(0, 40, 0, 18)
-supBtn.Position         = UDim2.new(0, 190, 0, btnY + 26)
-supBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-supBtn.BorderSizePixel  = 0
-supBtn.Text             = "SUP"
-supBtn.TextColor3       = Color3.fromRGB(255, 160, 160)
-supBtn.Font             = Enum.Font.GothamBold
-supBtn.TextSize         = 10
-Instance.new("UICorner", supBtn).CornerRadius = UDim.new(0, 4)
-
-local function refreshNotifBtns()
-    local parts = {}
-    for n = 1, 5 do
-        if notifSelected[n] then table.insert(parts, tostring(n)) end
-    end
-    local anySelected = #parts > 0
-
-    -- mettre à jour le texte
-    notifSelectedLbl.Text = anySelected and table.concat(parts, ", ") or "OFF"
-
-    -- mettre à jour l'apparence des boutons
-    for i, b in ipairs(notifBtnRefs) do
-        local active = false
-        if i <= 5 then
-            active = notifSelected[i] == true
-        else
-            -- bouton OFF : actif si rien n'est sélectionné
-            active = not anySelected
-        end
-        if active then
-            b.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-            b.TextColor3       = Color3.fromRGB(255, 255, 255)
-        else
-            b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            b.TextColor3       = Color3.fromRGB(130, 130, 150)
-        end
-    end
+local function makeBtn(parent, txt, xOff, w, col)
+    local b = Instance.new("TextButton", parent)
+    b.Size             = UDim2.new(0, w or 52, 0, 22)
+    b.Position         = UDim2.new(1, -(xOff or 60), 0.5, -11)
+    b.BackgroundColor3 = col or BG_BTN
+    b.BorderSizePixel  = 0
+    b.Text             = txt
+    b.TextColor3       = TXT_WHT
+    b.Font             = Enum.Font.GothamBold
+    b.TextSize         = 11
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
 end
 
-for i, b in ipairs(notifBtnRefs) do
-    b.MouseButton1Click:Connect(function()
-        if i <= 5 then
-            -- toggle ce numéro
-            notifSelected[i] = not notifSelected[i] or nil
-        else
-            -- OFF → tout effacer
-            notifSelected = {}
+-- ============================================================
+-- ROW 1 : Monitoring Active
+-- ============================================================
+local row1     = makeRow(44, "Monitoring Active:")
+local startBtn = makeBtn(row1, "Start", 118, 52, Color3.fromRGB(49,130,255))
+local stopBtn  = makeBtn(row1, "Stop",  60,  52, BG_BTN)
+
+-- ============================================================
+-- ROW 2 : Text Formatting
+-- ============================================================
+local row2      = makeRow(82, "Text Formatting:")
+local btnNormal = makeBtn(row2, "Normal", 182, 56, BG_BTN)
+local btnUpper  = makeBtn(row2, "UPPER",  120, 56, BG_ON)
+local btnLower  = makeBtn(row2, "lower",   58, 56, BG_BTN)
+
+-- ============================================================
+-- ROW 3 : Auto-Write
+-- ============================================================
+local row3         = makeRow(120, "Auto-Write:")
+local autoWriteBtn = makeBtn(row3, "ON", 62, 52, BG_ON)
+
+-- ============================================================
+-- ROW 4 : Auto-Submit
+-- ============================================================
+local row4           = makeRow(158, "Auto-Submit (Max Speed):")
+local autoSubmitBtn  = makeBtn(row4, "ON", 62, 52, BG_ON)
+
+-- ============================================================
+-- ROW 5 : Submit after (#)
+-- ============================================================
+local row5    = makeRow(196, "Submit after (#):")
+
+local subMinus = makeBtn(row5, "−", 106, 26, BG_BTN)
+local subNumLbl = Instance.new("TextLabel", row5)
+subNumLbl.Size               = UDim2.new(0, 26, 0, 22)
+subNumLbl.Position           = UDim2.new(1, -78, 0.5, -11)
+subNumLbl.BackgroundTransparency = 1
+subNumLbl.Text               = tostring(submitAfter)
+subNumLbl.TextColor3         = TXT_WHT
+subNumLbl.Font               = Enum.Font.GothamBold
+subNumLbl.TextSize           = 13
+subNumLbl.TextXAlignment     = Enum.TextXAlignment.Center
+local subPlus = makeBtn(row5, "+", 50, 26, BG_BTN)
+
+-- ============================================================
+-- STATUS BAR
+-- ============================================================
+local statusBar = Instance.new("Frame", main)
+statusBar.Size             = UDim2.new(1, -20, 0, 22)
+statusBar.Position         = UDim2.new(0, 10, 1, -28)
+statusBar.BackgroundColor3 = BG_ROW
+statusBar.BorderSizePixel  = 0
+Instance.new("UICorner", statusBar).CornerRadius = UDim.new(0, 6)
+
+local statusLbl = Instance.new("TextLabel", statusBar)
+statusLbl.Size               = UDim2.new(1, -10, 1, 0)
+statusLbl.Position           = UDim2.new(0, 8, 0, 0)
+statusLbl.BackgroundTransparency = 1
+statusLbl.Text               = "Status: En attente..."
+statusLbl.TextColor3         = TXT_DIM
+statusLbl.Font               = Enum.Font.Gotham
+statusLbl.TextSize           = 10
+statusLbl.TextXAlignment     = Enum.TextXAlignment.Left
+
+local function setStatus(txt, col)
+    statusLbl.Text       = "Status: " .. txt
+    statusLbl.TextColor3 = col or TXT_DIM
+end
+
+-- ============================================================
+-- DRAG
+-- ============================================================
+do
+    local dragging, dragStart, startPos, dragInput
+    header.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true; dragStart = inp.Position; startPos = main.Position
+            inp.Changed:Connect(function()
+                if inp.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
-        refreshNotifBtns()
+    end)
+    header.InputChanged:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseMovement then dragInput = inp end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if inp == dragInput and dragging then
+            local d = inp.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X,
+                                      startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
     end)
 end
 
-supBtn.MouseButton1Click:Connect(function()
-    notifSelected = {}
-    refreshNotifBtns()
-end)
-
-refreshNotifBtns()
-
--- =====================================================================
--- LOG des codes reçus (sauvegardés, cliquables pour écrire dans la box)
--- =====================================================================
-local logLabel = Instance.new("TextLabel", main)
-logLabel.Size = UDim2.new(1, -20, 0, 14)
-logLabel.Position = UDim2.new(0, 10, 0, 150)
-logLabel.BackgroundTransparency = 1
-logLabel.Text = "CODES REÇUS (clique pour écrire)"
-logLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
-logLabel.Font = Enum.Font.GothamBold
-logLabel.TextSize = 9
-logLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local logFrame = Instance.new("Frame", main)
-logFrame.Size = UDim2.new(1, -20, 0, 118)
-logFrame.Position = UDim2.new(0, 10, 0, 166)
-logFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-logFrame.BackgroundTransparency = 0.95
-logFrame.BorderSizePixel = 0
-Instance.new("UICorner", logFrame).CornerRadius = UDim.new(0, 8)
-
-local logScroll = Instance.new("ScrollingFrame", logFrame)
-logScroll.Size = UDim2.new(1, -8, 1, -8)
-logScroll.Position = UDim2.new(0, 4, 0, 4)
-logScroll.BackgroundTransparency = 1
-logScroll.BorderSizePixel = 0
-logScroll.ScrollBarThickness = 3
-logScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-logScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-local logLayout = Instance.new("UIListLayout", logScroll)
-logLayout.SortOrder = Enum.SortOrder.LayoutOrder
-logLayout.Padding = UDim.new(0, 2)
-
-local savedCodes = {}  -- liste des codes sauvegardés
-
--- =====================================================================
--- LOGIQUE
--- =====================================================================
-local autoCodeEnabled = false
-local caseMode = "upper"
-
-local function setCase(mode)
-    caseMode = mode
-    if mode == "upper" then
-        upperBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-        upperBtn.BackgroundTransparency = 0.75
-        upperBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
-        upperStroke.Transparency = 0.5
-        lowerBtn.BackgroundTransparency = 0.93
-        lowerBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
-        lowerStroke.Transparency = 0.7
-    else
-        lowerBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-        lowerBtn.BackgroundTransparency = 0.75
-        lowerBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
-        lowerStroke.Transparency = 0.5
-        upperBtn.BackgroundTransparency = 0.93
-        upperBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
-        upperStroke.Transparency = 0.7
-    end
+-- ============================================================
+-- HELPERS UI
+-- ============================================================
+local function setToggle(btn, state)
+    TweenService:Create(btn, tw, {
+        BackgroundColor3 = state and BG_ON or BG_BTN
+    }):Play()
+    btn.Text = state and "ON" or "OFF"
 end
-upperBtn.MouseButton1Click:Connect(function() setCase("upper") end)
-lowerBtn.MouseButton1Click:Connect(function() setCase("lower") end)
+
+local function setFormatBtn(mode)
+    caseMode = mode
+    TweenService:Create(btnNormal, tw, {BackgroundColor3 = mode=="normal" and BG_ON or BG_BTN}):Play()
+    TweenService:Create(btnUpper,  tw, {BackgroundColor3 = mode=="upper"  and BG_ON or BG_BTN}):Play()
+    TweenService:Create(btnLower,  tw, {BackgroundColor3 = mode=="lower"  and BG_ON or BG_BTN}):Play()
+end
+
+local function setMonitoring(state)
+    monitoring = state
+    TweenService:Create(startBtn, tw, {BackgroundColor3 = state and BG_ON or BG_BTN}):Play()
+    TweenService:Create(stopBtn,  tw, {BackgroundColor3 = state and BG_BTN or Color3.fromRGB(180,40,40)}):Play()
+    setStatus(state and "Monitoring actif" or "Monitoring arrêté",
+              state and Color3.fromRGB(80,200,120) or TXT_DIM)
+end
+
+-- ============================================================
+-- LOGIQUE : trouver le code box du jeu
+-- ============================================================
+local function findCodeBox()
+    local ok, box = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
+    if ok and box and box:IsA("TextBox") then return box end
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name == "SwaveHub" then continue end
+        for _, d in ipairs(gui:GetDescendants()) do
+            if d:IsA("TextBox") then
+                local n  = d.Name:lower()
+                local p  = d.Parent and d.Parent.Name:lower() or ""
+                local ph = (d.PlaceholderText or ""):lower()
+                if n:find("code") or p:find("code") or p:find("redeem") or ph:find("code") or ph:find("ici") then
+                    return d
+                end
+            end
+        end
+    end
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name == "SwaveHub" then continue end
+        for _, d in ipairs(gui:GetDescendants()) do
+            if d:IsA("TextBox") and d.Visible then return d end
+        end
+    end
+    return nil
+end
 
 local function openCodesMenu()
     pcall(function()
         local codesBtn = playerGui.LeftCenter.LeftCenter.Buttons.Codes
-        for _, conn in ipairs(getconnections(codesBtn.Activated)) do conn:Fire() end
+        for _, c in ipairs(getconnections(codesBtn.Activated)) do c:Fire() end
     end)
 end
 
 local function isCodesOpen()
-    local codesGui = playerGui:FindFirstChild("Codes")
-    if codesGui then
-        local inner = codesGui:FindFirstChild("Codes")
+    local g = playerGui:FindFirstChild("Codes")
+    if g then
+        local inner = g:FindFirstChild("Codes")
         if inner then return inner.Visible end
-        return codesGui.Enabled
+        return g.Enabled
     end
     return false
 end
 
--- Trouve la TextBox du menu codes (cherche dynamiquement, exclut notre GUI)
-local function findCodeBox()
-    -- chemin direct d'abord
-    local ok, box = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
-    if ok and box and box:IsA("TextBox") then return box end
-    -- recherche dans tout le PlayerGui en excluant SABHub
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name == "SABHub" then continue end
-        for _, desc in ipairs(gui:GetDescendants()) do
-            if desc:IsA("TextBox") then
-                local name   = desc.Name:lower()
-                local parent = desc.Parent and desc.Parent.Name:lower() or ""
-                local ph     = desc.PlaceholderText and desc.PlaceholderText:lower() or ""
-                if name:find("code") or parent:find("code") or parent:find("redeem")
-                   or ph:find("code") or ph:find("ici") then
-                    return desc
-                end
-            end
-        end
-    end
-    -- fallback: première TextBox visible hors SABHub
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name == "SABHub" then continue end
-        for _, desc in ipairs(gui:GetDescendants()) do
-            if desc:IsA("TextBox") and desc.Visible then
-                return desc
-            end
-        end
-    end
-    return nil
-end
-
--- Attend que la TextBox du jeu soit disponible (max 3s)
 local function waitForCodeBox()
     local deadline = tick() + 3
     local box
-    repeat
-        box = findCodeBox()
-        if not box then task.wait(0.1) end
+    repeat box = findCodeBox(); if not box then task.wait(0.1) end
     until box or tick() > deadline
-    if box then
-        print("[ACT] box trouvée:", box:GetFullName())
-    else
-        print("[ACT] box introuvable")
-    end
     return box
 end
 
--- Écrit le texte dans la box SANS soumettre (utilisé par les boutons de la liste)
-local function typeOnly(rawText)
-    local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-    if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
-    local codeBox = waitForCodeBox()
-    if not codeBox then return end
-    codeBox.Text = formatted
-    codeBox:CaptureFocus()
-    print("[ACT] écrit:", formatted)
+local function formatText(raw)
+    if caseMode == "upper"  then return raw:upper() end
+    if caseMode == "lower"  then return raw:lower() end
+    return raw
 end
 
--- Écrit ET soumet le texte (utilisé par la détection automatique)
-local function typeIntoCodeBox(rawText)
-    local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-    if not isCodesOpen() then openCodesMenu() task.wait(0.5) end
-    local codeBox = waitForCodeBox()
-    if not codeBox then return formatted end
+-- Écrit seulement (depuis la liste sauvegardée)
+local function typeOnly(rawText)
+    local txt = formatText(rawText)
+    if not isCodesOpen() then openCodesMenu(); task.wait(0.5) end
+    local box = waitForCodeBox()
+    if not box then setStatus("Box introuvable", Color3.fromRGB(231,76,60)); return end
+    box.Text = txt
+    box:CaptureFocus()
+    setStatus("Écrit: " .. txt, Color3.fromRGB(255,220,80))
+end
 
-    codeBox.Text = formatted
-    codeBox:CaptureFocus()
-    task.wait(0.15)
+-- Écrit ET soumet
+local function typeAndSubmit(rawText)
+    local txt = formatText(rawText)
+    if not isCodesOpen() then openCodesMenu(); task.wait(0.5) end
+    local box = waitForCodeBox()
+    if not box then setStatus("Box introuvable", Color3.fromRGB(231,76,60)); return end
 
-    local submitted = false
-    pcall(function()
-        -- cherche un bouton Submit dans toute la UI Codes
-        local codesGui = playerGui:FindFirstChild("Codes")
-        if not codesGui then return end
-        for _, desc in ipairs(codesGui:GetDescendants()) do
-            if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
-                local n = desc.Name:lower()
-                if n:find("submit") or n:find("redeem") or n:find("confirm") then
-                    for _, conn in ipairs(getconnections(desc.Activated)) do
-                        conn:Fire(); submitted = true; break
+    box.Text = txt
+    box:CaptureFocus()
+    task.wait(0.1)
+
+    if autoSubmit then
+        local submitted = false
+        pcall(function()
+            local codesGui = playerGui:FindFirstChild("Codes")
+            if not codesGui then return end
+            for _, d in ipairs(codesGui:GetDescendants()) do
+                if (d:IsA("TextButton") or d:IsA("ImageButton")) and d.Visible then
+                    local n = d.Name:lower()
+                    if n:find("submit") or n:find("redeem") or n:find("confirm") then
+                        for _, c in ipairs(getconnections(d.Activated)) do c:Fire(); submitted = true; break end
                     end
                 end
-            end
-            if submitted then break end
-        end
-    end)
-    if not submitted then codeBox:ReleaseFocus(true) end
-
-    print("[ACT] submitted:", formatted)
-    return formatted
-end
-
--- expose pour le riddle solver (soumet vraiment)
-_G._SAB_Submit = function(text)
-    if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
-    typeIntoCodeBox(text)
-end
-
-local function addSavedCode(code)
-    -- pas de doublon
-    for _, c in ipairs(savedCodes) do
-        if c == code then return end
-    end
-    table.insert(savedCodes, code)
-
-    local btn = Instance.new("TextButton", logScroll)
-    btn.Size = UDim2.new(1, 0, 0, 20)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-    btn.BackgroundTransparency = 0.88
-    btn.BorderSizePixel = 0
-    btn.Text = code
-    btn.TextColor3 = Color3.fromRGB(0, 220, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 11
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-
-    -- clique → écrit seulement dans la box, ne soumet PAS
-    btn.MouseButton1Click:Connect(function()
-        typeOnly(code)
-    end)
-
-    task.defer(function()
-        logScroll.CanvasPosition = Vector2.new(0, logScroll.AbsoluteCanvasSize.Y)
-    end)
-end
-
-autoCodeBtn.MouseButton1Click:Connect(function()
-    autoCodeEnabled = not autoCodeEnabled
-    if autoCodeEnabled then
-        autoCodeBtn.Text = "AUTO CODE: ON"
-        autoCodeBtn.TextColor3 = Color3.fromRGB(80, 255, 160)
-        autoStroke.Color = Color3.fromRGB(80, 255, 160)
-        task.spawn(function()
-            while autoCodeEnabled do
-                if not isCodesOpen() then openCodesMenu() end
-                task.wait(0.5)
+                if submitted then break end
             end
         end)
+        if not submitted then box:ReleaseFocus(true); submitted = true end
+        setStatus("Submitted: " .. txt .. (submitted and " ✓" or ""), Color3.fromRGB(80,200,120))
     else
-        autoCodeEnabled = false
-        autoCodeBtn.Text = "AUTO CODE: OFF"
-        autoCodeBtn.TextColor3 = Color3.fromRGB(0, 220, 255)
-        autoStroke.Color = Color3.fromRGB(0, 200, 255)
+        setStatus("Écrit: " .. txt .. " (submit OFF)", Color3.fromRGB(255,220,80))
     end
-end)
-
--- =====================================================================
--- RIDDLE TABLE
--- =====================================================================
-local riddleTable = {
-    { keywords = {"mutation", "favourite"}, answer = "Candy24Sammy" },
-    { keywords = {"admin", "wars"},         answer = "" },
-    { keywords = {"2nd mutation"},          answer = "" },
-    { keywords = {"favourite", "brainrot"}, answer = "" },
-    { keywords = {"facts", "owner"},        answer = "" },
-}
-
-local function findRiddleAnswer(text)
-    local lowerText = text:lower()
-    for _, entry in ipairs(riddleTable) do
-        if entry.answer ~= "" then
-            local allFound = true
-            for _, kw in ipairs(entry.keywords) do
-                if not lowerText:find(kw:lower(), 1, true) then allFound = false break end
-            end
-            if allFound then return entry.answer end
-        end
-    end
-    return nil
 end
 
--- =====================================================================
--- HANDLER NOTIFICATION — soumet la Nième notif de la séquence
--- =====================================================================
-local lastNotifTime = 0
-local notifCounter  = 0
-local lastText      = ""
+-- ============================================================
+-- LOGIQUE : détection des notifications
+-- ============================================================
+local savedCodes = {}
 
-local function handleNotificationText(text)
-    if text == "" then return end
+local function addSavedCode(code)
+    for _, c in ipairs(savedCodes) do if c == code then return end end
+    table.insert(savedCodes, code)
+end
 
-    -- éviter les doublons immédiats du même texte
+local function handleNotif(text)
+    if not monitoring or text == "" then return end
     if text == lastText then return end
     lastText = text
 
-    if not autoCodeEnabled then return end
-
     local now = tick()
-    -- si plus de 3 secondes sans notif, on repart à 0
     if (now - lastNotifTime) > 3 then notifCounter = 0 end
     lastNotifTime = now
     notifCounter  = notifCounter + 1
 
-    -- vérifier riddle d'abord (priorité absolue)
-    local riddleAnswer = findRiddleAnswer(text)
-    if riddleAnswer then
-        addSavedCode(riddleAnswer)
-        if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
-        typeIntoCodeBox(riddleAnswer)
-        return
-    end
-
-    -- toujours sauvegarder dans la liste
     addSavedCode(text)
+    setStatus("Notif #" .. notifCounter .. ": " .. text:sub(1,28), TXT_DIM)
 
-    -- soumettre selon notifSelected
-    -- si rien sélectionné (OFF) → ne pas soumettre
-    local anySelected = false
-    for _ in pairs(notifSelected) do anySelected = true break end
-    if not anySelected then return end
-    if not notifSelected[notifCounter] then return end
+    if notifCounter ~= submitAfter then return end
 
-    if not isCodesOpen() then openCodesMenu() task.wait(0.3) end
-    typeIntoCodeBox(text)
+    if autoWrite then
+        typeAndSubmit(text)
+    end
 end
 
-playerGui.DescendantAdded:Connect(function(v)
+local function connectDescendant(obj)
+    if obj:IsA("TextLabel") or obj:IsA("TextBox") then
+        local c = obj:GetPropertyChangedSignal("Text"):Connect(function()
+            handleNotif(obj.Text)
+        end)
+        table.insert(connexions, c)
+        if obj.Text ~= "" then handleNotif(obj.Text) end
+    end
+end
+
+-- Brancher sur TopNotification
+local topNotif = playerGui:FindFirstChild("TopNotification")
+if topNotif then
+    for _, d in ipairs(topNotif:GetDescendants()) do connectDescendant(d) end
+    local c = topNotif.DescendantAdded:Connect(connectDescendant)
+    table.insert(connexions, c)
+end
+
+-- Fallback : DescendantAdded sur playerGui (Template labels)
+local pgConn = playerGui.DescendantAdded:Connect(function(v)
     if v:IsA("TextLabel") and v.Name == "Template" and v:FindFirstAncestor("TopNotification") then
         task.defer(function()
-            handleNotificationText(v.Text)
-            v:GetPropertyChangedSignal("Text"):Connect(function()
-                handleNotificationText(v.Text)
-            end)
+            handleNotif(v.Text)
+            local c = v:GetPropertyChangedSignal("Text"):Connect(function() handleNotif(v.Text) end)
+            table.insert(connexions, c)
         end)
     end
 end)
+table.insert(connexions, pgConn)
 
--- =====================================================================
--- FENETRE RIDDLE SOLVER
--- =====================================================================
-local riddleWin = Instance.new("Frame", screenGui)
-riddleWin.Name = "RiddleSolver"
-riddleWin.Size = UDim2.new(0, 240, 0, 168)
-riddleWin.Position = UDim2.new(0.5, -120, 0, 310)
-riddleWin.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-riddleWin.BackgroundTransparency = 0.1
-riddleWin.BorderSizePixel = 0
-riddleWin.Active = true
-riddleWin.Draggable = true
-Instance.new("UICorner", riddleWin).CornerRadius = UDim.new(0, 14)
-local riddleStroke = Instance.new("UIStroke", riddleWin)
-riddleStroke.Color = Color3.fromRGB(255, 170, 60)
-riddleStroke.Transparency = 0.6
-riddleStroke.Thickness = 1
+-- ============================================================
+-- BOUTONS UI
+-- ============================================================
+startBtn.MouseButton1Click:Connect(function() setMonitoring(true) end)
+stopBtn.MouseButton1Click:Connect(function()  setMonitoring(false) end)
 
-local riddleHeader = Instance.new("Frame", riddleWin)
-riddleHeader.Size = UDim2.new(1, 0, 0, 30)
-riddleHeader.BackgroundColor3 = Color3.fromRGB(255, 170, 60)
-riddleHeader.BackgroundTransparency = 0.85
-riddleHeader.BorderSizePixel = 0
-Instance.new("UICorner", riddleHeader).CornerRadius = UDim.new(0, 14)
-local riddleDot = Instance.new("Frame", riddleHeader)
-riddleDot.Size = UDim2.new(0, 7, 0, 7)
-riddleDot.Position = UDim2.new(0, 12, 0.5, -3)
-riddleDot.BackgroundColor3 = Color3.fromRGB(255, 190, 90)
-riddleDot.BorderSizePixel = 0
-Instance.new("UICorner", riddleDot).CornerRadius = UDim.new(1, 0)
-local riddleTitleLbl = Instance.new("TextLabel", riddleHeader)
-riddleTitleLbl.Size = UDim2.new(1, -24, 1, 0)
-riddleTitleLbl.Position = UDim2.new(0, 24, 0, 0)
-riddleTitleLbl.BackgroundTransparency = 1
-riddleTitleLbl.Text = "RIDDLE SOLVER"
-riddleTitleLbl.TextColor3 = Color3.fromRGB(255, 190, 90)
-riddleTitleLbl.Font = Enum.Font.GothamBold
-riddleTitleLbl.TextSize = 11
-riddleTitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+btnNormal.MouseButton1Click:Connect(function() setFormatBtn("normal") end)
+btnUpper.MouseButton1Click:Connect(function()  setFormatBtn("upper") end)
+btnLower.MouseButton1Click:Connect(function()  setFormatBtn("lower") end)
 
-local riddleInputFrame = Instance.new("Frame", riddleWin)
-riddleInputFrame.Size = UDim2.new(1, -20, 0, 56)
-riddleInputFrame.Position = UDim2.new(0, 10, 0, 38)
-riddleInputFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-riddleInputFrame.BackgroundTransparency = 0.95
-riddleInputFrame.BorderSizePixel = 0
-Instance.new("UICorner", riddleInputFrame).CornerRadius = UDim.new(0, 8)
-
-local riddleInputBox = Instance.new("TextBox", riddleInputFrame)
-riddleInputBox.Size = UDim2.new(1, -12, 1, -8)
-riddleInputBox.Position = UDim2.new(0, 6, 0, 4)
-riddleInputBox.BackgroundTransparency = 1
-riddleInputBox.PlaceholderText = "Paste riddle text here..."
-riddleInputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-riddleInputBox.Text = ""
-riddleInputBox.TextColor3 = Color3.fromRGB(230, 230, 235)
-riddleInputBox.Font = Enum.Font.Gotham
-riddleInputBox.TextSize = 12
-riddleInputBox.TextWrapped = true
-riddleInputBox.MultiLine = true
-riddleInputBox.ClearTextOnFocus = false
-riddleInputBox.TextXAlignment = Enum.TextXAlignment.Left
-riddleInputBox.TextYAlignment = Enum.TextYAlignment.Top
-
-local riddleResultLabel = Instance.new("TextLabel", riddleWin)
-riddleResultLabel.Size = UDim2.new(1, -20, 0, 16)
-riddleResultLabel.Position = UDim2.new(0, 10, 0, 98)
-riddleResultLabel.BackgroundTransparency = 1
-riddleResultLabel.Text = "Answer will appear here"
-riddleResultLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
-riddleResultLabel.Font = Enum.Font.GothamBold
-riddleResultLabel.TextSize = 11
-riddleResultLabel.TextWrapped = true
-riddleResultLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local solveBtn = Instance.new("TextButton", riddleWin)
-solveBtn.Size = UDim2.new(0.6, -13, 0, 26)
-solveBtn.Position = UDim2.new(0, 10, 0, 130)
-solveBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 60)
-solveBtn.BackgroundTransparency = 0.75
-solveBtn.BorderSizePixel = 0
-solveBtn.Text = "SOLVE & SUBMIT"
-solveBtn.TextColor3 = Color3.fromRGB(255, 200, 110)
-solveBtn.Font = Enum.Font.GothamBold
-solveBtn.TextSize = 11
-Instance.new("UICorner", solveBtn).CornerRadius = UDim.new(0, 6)
-
-local clearBtn = Instance.new("TextButton", riddleWin)
-clearBtn.Size = UDim2.new(0.4, -7, 0, 26)
-clearBtn.Position = UDim2.new(0.6, 10, 0, 130)
-clearBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-clearBtn.BackgroundTransparency = 0.93
-clearBtn.BorderSizePixel = 0
-clearBtn.Text = "CLEAR"
-clearBtn.TextColor3 = Color3.fromRGB(150, 150, 170)
-clearBtn.Font = Enum.Font.Gotham
-clearBtn.TextSize = 11
-Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(0, 6)
-
-solveBtn.MouseButton1Click:Connect(function()
-    local txt = riddleInputBox.Text
-    if not txt or txt:gsub("%s","") == "" then
-        riddleResultLabel.Text = "Type or paste a riddle first"
-        riddleResultLabel.TextColor3 = Color3.fromRGB(255,170,60)
-        return
-    end
-    local answer = findRiddleAnswer(txt)
-    if answer then
-        _G._SAB_Submit(answer)
-        addSavedCode(answer)
-        riddleResultLabel.Text = "Submitted: " .. answer
-        riddleResultLabel.TextColor3 = Color3.fromRGB(80,255,160)
-    else
-        riddleResultLabel.Text = "No match in riddle table"
-        riddleResultLabel.TextColor3 = Color3.fromRGB(255,100,100)
-    end
+autoWriteBtn.MouseButton1Click:Connect(function()
+    autoWrite = not autoWrite
+    setToggle(autoWriteBtn, autoWrite)
 end)
 
-clearBtn.MouseButton1Click:Connect(function()
-    riddleInputBox.Text = ""
-    riddleResultLabel.Text = "Answer will appear here"
-    riddleResultLabel.TextColor3 = Color3.fromRGB(150,150,170)
+autoSubmitBtn.MouseButton1Click:Connect(function()
+    autoSubmit = not autoSubmit
+    setToggle(autoSubmitBtn, autoSubmit)
 end)
+
+subMinus.MouseButton1Click:Connect(function()
+    if submitAfter > 1 then submitAfter = submitAfter - 1 end
+    subNumLbl.Text = tostring(submitAfter)
+end)
+subPlus.MouseButton1Click:Connect(function()
+    submitAfter = submitAfter + 1
+    subNumLbl.Text = tostring(submitAfter)
+end)
+
+-- Fermeture
+closeBtn.MouseButton1Click:Connect(function()
+    monitoring = false
+    for _, c in ipairs(connexions) do pcall(function() c:Disconnect() end) end
+    TweenService:Create(main, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    task.wait(0.22)
+    screenGui:Destroy()
+end)
+
+-- Minimiser
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetH = minimized and 36 or H
+    TweenService:Create(main, tw, {Size = UDim2.new(0, W, 0, targetH)}):Play()
+end)
+
+-- ============================================================
+print("[SwaveHub] Prêt — clique Start pour activer")
