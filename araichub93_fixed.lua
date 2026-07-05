@@ -11602,17 +11602,27 @@ end)
             end)
         end
 
-        -- ===== Invis Steal mini panel (Enable + Rotation / Depth / Walk Speed) =====
+        -- ===== Invis Steal mini panel — style SXE exact =====
         do
             local _rgb = Color3.fromRGB
-            local C_BG2   = _rgb(255, 252, 255)
-            local C_CARD2 = _rgb(250, 242, 248)
-            local C_STRK2 = _rgb(238, 188, 219)
-            local C_TXT2  = _rgb(40, 15, 30)
-            local C_SUB2  = _rgb(140, 80, 115)
-            local C_ACC   = _rgb(232, 111, 177)
-            local C_GREEN = _rgb(232, 111, 177)
-            local C_WHITE = _rgb(255, 255, 255)
+            -- Couleurs identiques au thème Light de SXE
+            local C_BG      = _rgb(255, 255, 255)       -- Theme.Background
+            local C_PANEL   = _rgb(255, 249, 252)       -- Theme.Panel
+            local C_STROKE  = _rgb(248, 188, 219)       -- Theme.Stroke
+            local C_TEXT    = _rgb(236, 108, 174)       -- Theme.Text (pink)
+            local C_DIM     = _rgb(205, 151, 180)       -- Theme.Dim
+            local C_ACCENT  = _rgb(232, 111, 177)       -- Theme.Accent
+            local C_TOGOFF  = _rgb(255, 236, 245)       -- Theme.ToggleOff2
+            local C_SLBG    = _rgb(243, 204, 223)       -- Theme.SliderBg
+            local C_WHITE   = _rgb(255, 255, 255)
+            -- alias pour compatibilité avec le reste du code ci-dessous
+            local C_BG2   = C_BG
+            local C_CARD2 = C_PANEL
+            local C_STRK2 = C_STROKE
+            local C_TXT2  = C_TEXT
+            local C_SUB2  = C_DIM
+            local C_ACC   = C_ACCENT
+            local C_GREEN = C_ACCENT
 
             local isGui = Instance.new("ScreenGui")
             isGui.Name = "MeerkoInvisStealPanel"
@@ -11621,118 +11631,127 @@ end)
             pcall(function() isGui.Parent = (cloneref and cloneref(game:GetService("CoreGui"))) or game:GetService("CoreGui") end)
             if not isGui.Parent then isGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end
 
-            local ROW_H, HEAD_H, SLIDER_H = 24, 30, 40
-            local EXP_H = HEAD_H + (3 * ROW_H) + 12 + (3 * SLIDER_H) + 8
+            local ROW_H, HEAD_H, SLIDER_H = 34, 36, 50
+            local EXP_H = HEAD_H + (3 * ROW_H) + (3 * SLIDER_H) + 20
 
             local panel = Instance.new("Frame")
             panel.AnchorPoint = Vector2.new(1, 0)
             panel.Position = UDim2.new(1, tonumber(Config.InvisStealPanelX) or -16, 0, tonumber(Config.InvisStealPanelY) or 390)
-            panel.Size = UDim2.fromOffset(200, EXP_H)
-            panel.BackgroundColor3 = C_BG2
-            panel.BackgroundTransparency = 0.05
+            panel.Size = UDim2.fromOffset(230, EXP_H)
+            panel.BackgroundColor3 = C_BG
+            panel.BackgroundTransparency = 0.04
             panel.BorderSizePixel = 0
             panel.Active = true
+            panel.ClipsDescendants = true
             panel.Parent = isGui
-            Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 10)
+            Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
             local pstr = Instance.new("UIStroke", panel)
-            pstr.Color = C_STRK2; pstr.Thickness = 1; pstr.Transparency = 0.15
+            pstr.Color = C_STROKE; pstr.Thickness = 1.25; pstr.Transparency = 0.08
 
+            -- header SXE style: fond Panel légèrement coloré, titre Text, bouton □ à droite
             local header = Instance.new("TextButton", panel)
             header.Size = UDim2.new(1, 0, 0, HEAD_H)
-            header.BackgroundTransparency = 1
+            header.BackgroundColor3 = C_PANEL
+            header.BackgroundTransparency = 0.18
             header.Text = ""
             header.AutoButtonColor = false
+            header.BorderSizePixel = 0
+            Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
             local htitle = Instance.new("TextLabel", header)
             htitle.BackgroundTransparency = 1
             htitle.Position = UDim2.new(0, 12, 0, 0)
             htitle.Size = UDim2.new(1, -40, 1, 0)
-            htitle.Font = Enum.Font.GothamBold
-            htitle.TextSize = 12
-            htitle.TextColor3 = C_TXT2
+            htitle.Font = Enum.Font.GothamBlack
+            htitle.TextSize = 13
+            htitle.TextColor3 = C_TEXT
             htitle.TextXAlignment = Enum.TextXAlignment.Left
             htitle.Text = "Invis Steal"
             local chev = Instance.new("TextLabel", header)
             chev.BackgroundTransparency = 1
             chev.AnchorPoint = Vector2.new(1, 0.5)
             chev.Position = UDim2.new(1, -12, 0.5, 0)
-            chev.Size = UDim2.fromOffset(14, 14)
+            chev.Size = UDim2.fromOffset(16, 16)
             chev.Font = Enum.Font.GothamBold
             chev.TextSize = 12
-            chev.TextColor3 = C_SUB2
-            chev.Text = "▾"
+            chev.TextColor3 = C_DIM
+            chev.Text = "□"
 
-            local list = Instance.new("Frame", panel)
-            list.Position = UDim2.new(0, 0, 0, HEAD_H)
-            list.Size = UDim2.new(1, 0, 1, -HEAD_H)
+            local list = Instance.new("ScrollingFrame", panel)
+            list.Position = UDim2.new(0, 6, 0, HEAD_H + 4)
+            list.Size = UDim2.new(1, -12, 1, -(HEAD_H + 8))
             list.BackgroundTransparency = 1
+            list.BorderSizePixel = 0
+            list.ScrollBarThickness = 3
+            list.ScrollBarImageColor3 = C_ACCENT
+            list.CanvasSize = UDim2.new(0, 0, 0, 0)
             local llay = Instance.new("UIListLayout", list)
-            llay.Padding = UDim.new(0, 3); llay.SortOrder = Enum.SortOrder.LayoutOrder
-            local lpad = Instance.new("UIPadding", list)
-            lpad.PaddingLeft = UDim.new(0, 10); lpad.PaddingRight = UDim.new(0, 10); lpad.PaddingBottom = UDim.new(0, 8)
+            llay.Padding = UDim.new(0, 6); llay.SortOrder = Enum.SortOrder.LayoutOrder
+            llay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                list.CanvasSize = UDim2.new(0, 0, 0, llay.AbsoluteContentSize.Y + 10)
+            end)
 
+            -- style SXE exact: label à gauche, bouton ON/OFF rectangulaire arrondi à droite
             local function makeToggleRow(name, initOn, onClick)
                 local row = Instance.new("Frame", list)
-                row.Size = UDim2.new(1, 0, 0, ROW_H)
+                row.Size = UDim2.new(1, -4, 0, 34)
                 row.BackgroundTransparency = 1
                 local nm = Instance.new("TextLabel", row)
                 nm.BackgroundTransparency = 1
-                nm.Size = UDim2.new(1, -46, 1, 0)
-                nm.Font = Enum.Font.GothamMedium
-                nm.TextSize = 11
-                nm.TextColor3 = C_SUB2
+                nm.Size = UDim2.new(1, -84, 1, 0)
+                nm.Position = UDim2.new(0, 4, 0, 0)
+                nm.Font = Enum.Font.GothamSemibold
+                nm.TextSize = 12
+                nm.TextColor3 = C_TEXT
                 nm.TextXAlignment = Enum.TextXAlignment.Left
+                nm.TextTruncate = Enum.TextTruncate.AtEnd
                 nm.Text = name
                 local btn = Instance.new("TextButton", row)
-                btn.AnchorPoint = Vector2.new(1, 0.5)
-                btn.Position = UDim2.new(1, 0, 0.5, 0)
-                btn.Size = UDim2.fromOffset(34, 16)
-                btn.BackgroundColor3 = initOn and C_GREEN or C_CARD2
+                btn.Size = UDim2.new(0, 72, 0, 30)
+                btn.Position = UDim2.new(1, -74, 0.5, -15)
+                btn.TextColor3 = C_WHITE
+                btn.Font = Enum.Font.GothamBlack
+                btn.TextSize = 12
                 btn.AutoButtonColor = false
-                btn.Text = ""
                 btn.BorderSizePixel = 0
-                Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-                local knob = Instance.new("Frame", btn)
-                knob.Size = UDim2.fromOffset(12, 12)
-                knob.AnchorPoint = initOn and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
-                knob.Position = initOn and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-                knob.BackgroundColor3 = C_WHITE
-                knob.BorderSizePixel = 0
-                Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
                 local on = initOn
                 local function paint()
-                    btn.BackgroundColor3 = on and C_GREEN or C_CARD2
-                    knob.AnchorPoint = on and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
-                    knob.Position = on and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                    btn.BackgroundColor3 = on and C_ACCENT or C_TOGOFF
+                    btn.Text = on and "ON" or "OFF"
+                    btn.TextColor3 = on and C_WHITE or C_DIM
                 end
+                paint()
                 btn.MouseButton1Click:Connect(function()
-                    on = not on
-                    paint()
-                    onClick(on)
+                    on = not on; paint(); onClick(on)
                 end)
+                return function(v) on = v; paint() end
             end
 
             -- "Enabled" = toggle manuel invis (comme SXE)
-            local enableKnob, enableBtn
+            local enableBtn
             do
                 local row = Instance.new("Frame", list)
-                row.Size = UDim2.new(1, 0, 0, ROW_H); row.BackgroundTransparency = 1; row.LayoutOrder = 0
+                row.Size = UDim2.new(1, -4, 0, ROW_H); row.BackgroundTransparency = 1; row.LayoutOrder = 0
                 local nm = Instance.new("TextLabel", row)
-                nm.BackgroundTransparency = 1; nm.Size = UDim2.new(1, -46, 1, 0)
-                nm.Font = Enum.Font.GothamMedium; nm.TextSize = 11; nm.TextColor3 = C_SUB2
+                nm.BackgroundTransparency = 1; nm.Size = UDim2.new(1, -84, 1, 0)
+                nm.Position = UDim2.new(0, 4, 0, 0)
+                nm.Font = Enum.Font.GothamSemibold; nm.TextSize = 12; nm.TextColor3 = C_TEXT
                 nm.TextXAlignment = Enum.TextXAlignment.Left; nm.Text = "Enable"
                 enableBtn = Instance.new("TextButton", row)
-                enableBtn.AnchorPoint = Vector2.new(1, 0.5); enableBtn.Position = UDim2.new(1, 0, 0.5, 0)
-                enableBtn.Size = UDim2.fromOffset(34, 16); enableBtn.BackgroundColor3 = C_CARD2
-                enableBtn.AutoButtonColor = false; enableBtn.Text = ""; enableBtn.BorderSizePixel = 0
-                Instance.new("UICorner", enableBtn).CornerRadius = UDim.new(1, 0)
-                enableKnob = Instance.new("Frame", enableBtn)
-                enableKnob.Size = UDim2.fromOffset(12, 12); enableKnob.AnchorPoint = Vector2.new(0, 0.5)
-                enableKnob.Position = UDim2.new(0, 2, 0.5, 0); enableKnob.BackgroundColor3 = C_WHITE
-                enableKnob.BorderSizePixel = 0; Instance.new("UICorner", enableKnob).CornerRadius = UDim.new(1, 0)
+                enableBtn.Size = UDim2.new(0, 72, 0, 30)
+                enableBtn.Position = UDim2.new(1, -74, 0.5, -15)
+                enableBtn.TextColor3 = C_WHITE
+                enableBtn.Font = Enum.Font.GothamBlack
+                enableBtn.TextSize = 12
+                enableBtn.AutoButtonColor = false
+                enableBtn.BorderSizePixel = 0
+                enableBtn.BackgroundColor3 = C_TOGOFF
+                enableBtn.Text = "OFF"
+                Instance.new("UICorner", enableBtn).CornerRadius = UDim.new(0, 6)
                 local function paintEnable(on)
-                    enableBtn.BackgroundColor3 = on and C_GREEN or C_CARD2
-                    enableKnob.AnchorPoint = on and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
-                    enableKnob.Position = on and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                    enableBtn.BackgroundColor3 = on and C_ACCENT or C_TOGOFF
+                    enableBtn.Text = on and "ON" or "OFF"
+                    enableBtn.TextColor3 = on and C_WHITE or C_DIM
                 end
                 -- sync with _G.invisibleStealEnabled
                 task.spawn(function()
@@ -11760,111 +11779,81 @@ end)
                 if SaveConfig then pcall(SaveConfig) end
             end)
 
-            local isSliderUIS = game:GetService("UserInputService")
-            local function makeSliderRow(labelText, minV, maxV, step, initVal, fmt, onChange)
-                local row = Instance.new("Frame", list)
-                row.Size = UDim2.new(1, 0, 0, SLIDER_H)
-                row.BackgroundTransparency = 1
-                local nm = Instance.new("TextLabel", row)
-                nm.BackgroundTransparency = 1
-                nm.Size = UDim2.new(0.6, 0, 0, 14)
-                nm.Font = Enum.Font.GothamMedium
-                nm.TextSize = 11
-                nm.TextColor3 = C_SUB2
-                nm.TextXAlignment = Enum.TextXAlignment.Left
-                nm.Text = labelText
-                local valLbl = Instance.new("TextLabel", row)
-                valLbl.BackgroundTransparency = 1
-                valLbl.Size = UDim2.new(1, 0, 0, 14)
-                valLbl.Font = Enum.Font.GothamSemibold
-                valLbl.TextSize = 11
-                valLbl.TextColor3 = C_TXT2
-                valLbl.TextXAlignment = Enum.TextXAlignment.Right
-                valLbl.Text = fmt(initVal)
-                local track = Instance.new("Frame", row)
-                track.Position = UDim2.new(0, 0, 0, 22)
-                track.Size = UDim2.new(1, 0, 0, 5)
-                track.BackgroundColor3 = C_STRK2
-                track.BorderSizePixel = 0
-                Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-                local fill = Instance.new("Frame", track)
-                fill.BackgroundColor3 = C_ACC
+            -- style SXE exact: makeQuickSlider — "Label: valeur" dans un seul TextLabel
+            local sxeUIS = game:GetService("UserInputService")
+            local function makeSliderRow(labelText, minV, maxV, initVal, suffix, onChange)
+                local holder = Instance.new("Frame", list)
+                holder.Size = UDim2.new(1, -4, 0, 50)
+                holder.BackgroundTransparency = 1
+                local lbl = Instance.new("TextLabel", holder)
+                lbl.Size = UDim2.new(1, 0, 0, 16)
+                lbl.Position = UDim2.new(0, 4, 0, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.TextColor3 = C_TEXT
+                lbl.Font = Enum.Font.GothamMedium
+                lbl.TextSize = 10
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+                local function fmtVal(v) return math.floor(v*10+0.5)/10 end
+                lbl.Text = labelText .. ": " .. tostring(fmtVal(initVal)) .. (suffix or "")
+                local bar = Instance.new("Frame", holder)
+                bar.Size = UDim2.new(1, -10, 0, 6)
+                bar.Position = UDim2.new(0, 4, 0, 26)
+                bar.BackgroundColor3 = C_SLBG
+                bar.BorderSizePixel = 0
+                Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+                local fill = Instance.new("Frame", bar)
+                fill.BackgroundColor3 = C_ACCENT
                 fill.BorderSizePixel = 0
-                fill.Size = UDim2.new((initVal - minV) / (maxV - minV), 0, 1, 0)
+                local initRel = math.clamp((initVal - minV) / (maxV - minV), 0, 1)
+                fill.Size = UDim2.new(initRel, 0, 1, 0)
                 Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-                local knob = Instance.new("Frame", track)
+                local knob = Instance.new("Frame", bar)
+                knob.Size = UDim2.new(0, 14, 0, 14)
                 knob.AnchorPoint = Vector2.new(0.5, 0.5)
-                knob.Size = UDim2.fromOffset(11, 11)
-                knob.Position = UDim2.new((initVal - minV) / (maxV - minV), 0, 0.5, 0)
+                knob.Position = UDim2.new(initRel, 0, 0.5, 0)
                 knob.BackgroundColor3 = C_WHITE
                 knob.BorderSizePixel = 0
                 Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-                local dragBtn = Instance.new("TextButton", track)
-                dragBtn.BackgroundTransparency = 1
-                dragBtn.Text = ""
-                dragBtn.Position = UDim2.new(0, 0, 0, -8)
-                dragBtn.Size = UDim2.new(1, 0, 0, 20)
-                local sliding = false
-                local function set(v)
-                    v = math.clamp(math.floor((v - minV) / step + 0.5) * step + minV, minV, maxV)
-                    local rel = (maxV == minV) and 0 or (v - minV) / (maxV - minV)
+                local dragging = false
+                local function update(x)
+                    local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+                    local v = math.floor((minV + (maxV - minV) * rel) * 10 + 0.5) / 10
                     fill.Size = UDim2.new(rel, 0, 1, 0)
                     knob.Position = UDim2.new(rel, 0, 0.5, 0)
-                    valLbl.Text = fmt(v)
+                    lbl.Text = labelText .. ": " .. tostring(v) .. (suffix or "")
                     if onChange then onChange(v) end
                 end
-                local function update(input)
-                    local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-                    set(minV + (maxV - minV) * rel)
-                end
-                dragBtn.InputBegan:Connect(function(i)
+                bar.InputBegan:Connect(function(i)
                     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                        sliding = true
-                        update(i)
+                        dragging = true; update(i.Position.X)
                     end
                 end)
-                isSliderUIS.InputChanged:Connect(function(i)
-                    if sliding and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-                        update(i)
-                    end
+                sxeUIS.InputEnded:Connect(function(i)
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
                 end)
-                isSliderUIS.InputEnded:Connect(function(i)
-                    if sliding and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
-                        sliding = false
-                    end
+                sxeUIS.InputChanged:Connect(function(i)
+                    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update(i.Position.X) end
                 end)
             end
 
-            makeSliderRow("Rotation", 0, 360, 1, Config.InvisRotation or 225,
-                function(v) return tostring(math.floor(v)) .. "°" end,
-                function(v)
-                    Config.InvisRotation = v
-                    _G.VanishInvisAngle = v
-                    _G.InvisStealAngle = v
-                    if SaveConfig then pcall(SaveConfig) end
-                end)
-            makeSliderRow("Depth", 0, 18, 0.1, Config.InvisDepth or 7,
-                function(v) return string.format("%.1f", v) end,
-                function(v)
-                    Config.InvisDepth = v
-                    _G.VanishInvisDepth = v
-                    _G.SinkSliderValue = v
-                    if SaveConfig then pcall(SaveConfig) end
-                end)
-            makeSliderRow("Walk Speed", 15, 32, 1, Config.InvisWalkSpeed or 16,
-                function(v) return tostring(math.floor(v)) end,
-                function(v)
-                    Config.InvisWalkSpeed = v
-                    _G.VanishInvisWalkSpeed = v
-                    if SaveConfig then pcall(SaveConfig) end
-                end)
+            makeSliderRow("Rotation", 0, 360, Config.InvisRotation or 225, "°", function(v)
+                Config.InvisRotation = v; _G.VanishInvisAngle = v; _G.InvisStealAngle = v
+                if SaveConfig then pcall(SaveConfig) end
+            end)
+            makeSliderRow("Depth", 0, 18, Config.InvisDepth or 7, "", function(v)
+                Config.InvisDepth = v; _G.VanishInvisDepth = v; _G.SinkSliderValue = v
+                if SaveConfig then pcall(SaveConfig) end
+            end)
+            makeSliderRow("Walk Speed", 15, 32, Config.InvisWalkSpeed or 16, "", function(v)
+                Config.InvisWalkSpeed = v; _G.VanishInvisWalkSpeed = v
+                if SaveConfig then pcall(SaveConfig) end
+            end)
 
             local collapsed = false
             local function toggleCollapse()
                 collapsed = not collapsed
                 list.Visible = not collapsed
-                chev.Text = collapsed and "▸" or "▾"
-                panel.Size = UDim2.fromOffset(200, collapsed and HEAD_H or EXP_H)
+                panel.Size = UDim2.fromOffset(230, collapsed and HEAD_H or EXP_H)
             end
 
             mkPanelDraggable(header, panel, "InvisStealPanelX", "InvisStealPanelY", toggleCollapse)
