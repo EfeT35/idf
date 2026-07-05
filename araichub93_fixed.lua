@@ -3539,6 +3539,8 @@ do
 
         stopInvisSteal = function()
             semiIsActive = false; invisIsStuck = false; invisStuckPosition = nil
+            _G.invisibleStealEnabled = false
+            clearLagbackGhosts()
             teardownAntiDie()
             if invisOrigTransparency then
                 for p, orig in pairs(invisOrigTransparency) do
@@ -3622,6 +3624,7 @@ do
             end
             tempParent:Destroy()
             semiIsActive = true
+            _G.invisibleStealEnabled = true
             local function playAnimTrick()
                 if char and char:FindFirstChild("Humanoid") and hum.Health > 0 then
                     local anim = Instance.new("Animation")
@@ -3693,14 +3696,17 @@ do
                         elseif lastSetPosition then
                             local currentPos = invisOldHRP.Position
                             local jumpDistance = (currentPos - lastSetPosition).Magnitude
-                            if jumpDistance > 3 and not _G.RecoveryInProgress then
+                            if jumpDistance > 6 and not _G.RecoveryInProgress and LP:GetAttribute("Stealing") then
                                 lastSetPosition = nil
-                                if _G.VanishInvisToggle then
+                                createLagbackGhost(currentPos)
+                                if _G.AutoRecoverLagback and _G._forceInvisToggle then
                                     _G.RecoveryInProgress = true
                                     task.spawn(function()
-                                        pcall(_G.VanishInvisToggle)
-                                        task.wait(0.5)
-                                        pcall(_G.VanishInvisToggle)
+                                        pcall(_G._forceInvisToggle)
+                                        task.wait(0.6)
+                                        if LP:GetAttribute("Stealing") then
+                                            pcall(_G._forceInvisToggle)
+                                        end
                                         _G.RecoveryInProgress = false
                                     end)
                                 end
@@ -3737,9 +3743,45 @@ do
             return true
         end
 
+        -- lagback ghost (red ball at server position, like SXE)
+        local _lbGhosts = {}
+        local _lbCount = 0; local _lbWindowStart = 0; local _lbLastTime = 0
+        local _lbErrorActive = false
+        local function clearLagbackGhosts()
+            for _, g in pairs(_lbGhosts) do pcall(function() if g and g.Parent then g:Destroy() end end) end
+            _lbGhosts = {}; _lbCount = 0; _lbLastTime = 0; _lbErrorActive = false
+        end
+        local function createLagbackGhost(position)
+            if _lbErrorActive then return end
+            local now = tick()
+            if now - _lbLastTime < 0.05 then return end
+            _lbLastTime = now
+            if now - _lbWindowStart > 1 then _lbCount = 0; _lbWindowStart = now end
+            _lbCount = _lbCount + 1
+            if _lbCount >= 7 then _lbErrorActive = true; return end
+            for _, g in pairs(_lbGhosts) do pcall(function() if g and g.Parent then g:Destroy() end end) end
+            _lbGhosts = {}
+            local ghost = Instance.new("Part")
+            ghost.Name = "LagbackGhost"; ghost.Shape = Enum.PartType.Ball
+            ghost.Size = Vector3.new(3, 3, 3); ghost.Color = Color3.fromRGB(255, 0, 0)
+            ghost.Material = Enum.Material.Glass; ghost.Transparency = 0.3
+            ghost.CanCollide = false; ghost.Anchored = true; ghost.CastShadow = false
+            ghost.Position = position + Vector3.new(0, 5, 0)
+            ghost.Parent = workspace.CurrentCamera
+            table.insert(_lbGhosts, ghost)
+        end
+
+        _G.AutoRecoverLagback = true
+
+        local _invisToggleCooldown = 0
         local function toggleInvisSteal()
+            if (tick() - _invisToggleCooldown) < 0.3 then return end
+            _invisToggleCooldown = tick()
             if semiIsActive then stopInvisSteal()
             else startInvisSteal() end
+        end
+        _G._forceInvisToggle = function()
+            if semiIsActive then stopInvisSteal() else startInvisSteal() end
         end
 
         -- ── Auto-invis: monitor the "Stealing" attribute and toggle on/off ──
@@ -3794,9 +3836,13 @@ do
         end
 
         _G.VanishInvisActive    = false
+        _G.invisibleStealEnabled = false
         _G.VanishInvisAngle     = Config.InvisRotation or 180
+        _G.InvisStealAngle      = Config.InvisRotation or 225
         _G.VanishInvisDepth     = Config.InvisDepth or 5
+        _G.SinkSliderValue      = Config.InvisDepth or 7
         _G.VanishInvisWalkSpeed = Config.InvisWalkSpeed or 16
+        _G.AutoInvisDuringSteal = Config.InvisOnSteal or false
         _G.VanishInvisToggle    = function() toggleInvisSteal() end
         _G.VanishInvisAutoStart = function() startAutoMonitor() end
         _G.VanishInvisAutoStop  = function() stopAutoMonitor() end
