@@ -3444,11 +3444,11 @@ do
         while not LP do task.wait(0.2); LP = Players.LocalPlayer end
 
         local function curDepth()
-            local d = tonumber(_G.VanishInvisDepth) or Config.InvisDepth or 5
+            local d = tonumber(_G.SinkSliderValue) or tonumber(_G.VanishInvisDepth) or Config.InvisDepth or 7
             return d * 0.5
         end
         local function curRotation()
-            local a = tonumber(_G.VanishInvisAngle) or Config.InvisRotation or 180
+            local a = tonumber(_G.InvisStealAngle) or tonumber(_G.VanishInvisAngle) or Config.InvisRotation or 225
             return math.clamp(a, 0, 360)
         end
         local function curWalkSpeed()
@@ -11622,7 +11622,7 @@ end)
             if not isGui.Parent then isGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end
 
             local ROW_H, HEAD_H, SLIDER_H = 24, 30, 40
-            local EXP_H = HEAD_H + ROW_H + 4 + (3 * SLIDER_H) + 8
+            local EXP_H = HEAD_H + (3 * ROW_H) + 12 + (3 * SLIDER_H) + 8
 
             local panel = Instance.new("Frame")
             panel.AnchorPoint = Vector2.new(1, 0)
@@ -11711,11 +11711,53 @@ end)
                 end)
             end
 
-            makeToggleRow("Enable", Config.InvisOnSteal == true, function(v)
+            -- "Enabled" = toggle manuel invis (comme SXE)
+            local enableKnob, enableBtn
+            do
+                local row = Instance.new("Frame", list)
+                row.Size = UDim2.new(1, 0, 0, ROW_H); row.BackgroundTransparency = 1; row.LayoutOrder = 0
+                local nm = Instance.new("TextLabel", row)
+                nm.BackgroundTransparency = 1; nm.Size = UDim2.new(1, -46, 1, 0)
+                nm.Font = Enum.Font.GothamMedium; nm.TextSize = 11; nm.TextColor3 = C_SUB2
+                nm.TextXAlignment = Enum.TextXAlignment.Left; nm.Text = "Enable"
+                enableBtn = Instance.new("TextButton", row)
+                enableBtn.AnchorPoint = Vector2.new(1, 0.5); enableBtn.Position = UDim2.new(1, 0, 0.5, 0)
+                enableBtn.Size = UDim2.fromOffset(34, 16); enableBtn.BackgroundColor3 = C_CARD2
+                enableBtn.AutoButtonColor = false; enableBtn.Text = ""; enableBtn.BorderSizePixel = 0
+                Instance.new("UICorner", enableBtn).CornerRadius = UDim.new(1, 0)
+                enableKnob = Instance.new("Frame", enableBtn)
+                enableKnob.Size = UDim2.fromOffset(12, 12); enableKnob.AnchorPoint = Vector2.new(0, 0.5)
+                enableKnob.Position = UDim2.new(0, 2, 0.5, 0); enableKnob.BackgroundColor3 = C_WHITE
+                enableKnob.BorderSizePixel = 0; Instance.new("UICorner", enableKnob).CornerRadius = UDim.new(1, 0)
+                local function paintEnable(on)
+                    enableBtn.BackgroundColor3 = on and C_GREEN or C_CARD2
+                    enableKnob.AnchorPoint = on and Vector2.new(1, 0.5) or Vector2.new(0, 0.5)
+                    enableKnob.Position = on and UDim2.new(1, -2, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                end
+                -- sync with _G.invisibleStealEnabled
+                task.spawn(function()
+                    while enableBtn and enableBtn.Parent do
+                        task.wait(0.2)
+                        pcall(function() paintEnable(_G.invisibleStealEnabled == true) end)
+                    end
+                end)
+                enableBtn.MouseButton1Click:Connect(function()
+                    if _G.VanishInvisToggle then pcall(_G.VanishInvisToggle) end
+                end)
+            end
+
+            makeToggleRow("Auto Invis", Config.InvisOnSteal == true, function(v)
                 Config.InvisOnSteal = v
+                _G.AutoInvisDuringSteal = v
                 if SaveConfig then pcall(SaveConfig) end
                 if v then if _G.VanishInvisAutoStart then pcall(_G.VanishInvisAutoStart) end
                 else if _G.VanishInvisAutoStop then pcall(_G.VanishInvisAutoStop) end end
+            end)
+
+            makeToggleRow("Auto Recover", _G.AutoRecoverLagback == true, function(v)
+                _G.AutoRecoverLagback = v
+                Config.AutoRecoverLagback = v
+                if SaveConfig then pcall(SaveConfig) end
             end)
 
             local isSliderUIS = game:GetService("UserInputService")
@@ -11793,21 +11835,23 @@ end)
                 end)
             end
 
-            makeSliderRow("Rotation", 0, 360, 1, Config.InvisRotation or 180,
+            makeSliderRow("Rotation", 0, 360, 1, Config.InvisRotation or 225,
                 function(v) return tostring(math.floor(v)) .. "°" end,
                 function(v)
                     Config.InvisRotation = v
                     _G.VanishInvisAngle = v
+                    _G.InvisStealAngle = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
-            makeSliderRow("Depth", 0.5, 10, 0.1, Config.InvisDepth or 5,
+            makeSliderRow("Depth", 0, 18, 0.1, Config.InvisDepth or 7,
                 function(v) return string.format("%.1f", v) end,
                 function(v)
                     Config.InvisDepth = v
                     _G.VanishInvisDepth = v
+                    _G.SinkSliderValue = v
                     if SaveConfig then pcall(SaveConfig) end
                 end)
-            makeSliderRow("Walk Speed", 5, 32, 1, Config.InvisWalkSpeed or 16,
+            makeSliderRow("Walk Speed", 15, 32, 1, Config.InvisWalkSpeed or 16,
                 function(v) return tostring(math.floor(v)) end,
                 function(v)
                     Config.InvisWalkSpeed = v
