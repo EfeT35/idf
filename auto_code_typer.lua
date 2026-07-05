@@ -670,8 +670,15 @@ hintToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+local lastHandled = ""
+local lastHandledTime = 0
+
 local function handleNotificationText(text)
     if text == "" then return end
+    local now = tick()
+    if text == lastHandled and (now - lastHandledTime) < 3 then return end
+    lastHandled = text
+    lastHandledTime = now
 
     if hintLoggerEnabled then addHintEntry(text) end
 
