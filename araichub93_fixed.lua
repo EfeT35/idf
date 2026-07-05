@@ -6694,10 +6694,7 @@ end)
 
         -- port exact de isPromptAvailable() de SXE
         local function sxeIsAvailable(pr, hrpPos)
-            local stealActive = _G.MeerkoStealMode ~= nil
-                or Config.StealNearest or Config.StealHighest or Config.StealPriority
-                or _G.MeerkoStealTargetUID ~= nil
-            if not stealActive then return false end
+            if _G.MeerkoStealMode == nil then return false end
             if not pr or not pr.Parent or not pr.Enabled then return false end
             local pos = sxeGetPromptPos(pr)
             if not pos then return false end
@@ -6723,8 +6720,9 @@ end)
                     end
                 end
             end
-            -- mode Nearest → fire tout ce qui est dans le rayon (port exact SXE)
-            if not _G.NEAREST_INSTANT_MODE then
+            -- nearest OU pas de target trouvé → fire tout ce qui est dans le rayon
+            local hasTarget = _G.MeerkoCurrentSteal ~= nil
+            if not _G.NEAREST_INSTANT_MODE and hasTarget then
                 if not sxeMatchesTarget(pr) then return false end
             end
             return (pos - hrpPos).Magnitude <= GRAB_RADIUS
@@ -6839,18 +6837,11 @@ end)
 
                 if os.clock() < _stealReadyAt then continue end
 
-                -- NEAREST_INSTANT_MODE: fire tout ce qui est dans le rayon
-                _G.NEAREST_INSTANT_MODE = Config.StealNearest or _G.MeerkoStealMode == "nearest"
+                -- NEAREST_INSTANT_MODE: fire tout ce qui est dans le rayon sans filtrer par target
+                _G.NEAREST_INSTANT_MODE = _G.MeerkoStealMode == "nearest"
 
                 local stealOn = _G.MeerkoStealMode ~= nil
-                    or Config.StealNearest or Config.StealHighest or Config.StealPriority
-                    or _G.MeerkoStealTargetUID ~= nil
 
-                if not _firstGrabDone and not stealOn then
-                    if barActive then hideBar() end
-                    SXE_CONFIG.AUTO_STEAL = false
-                    continue
-                end
                 if not stealOn then
                     if barActive then hideBar() end
                     SXE_CONFIG.AUTO_STEAL = false
