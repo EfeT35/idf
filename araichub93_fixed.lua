@@ -6638,11 +6638,11 @@ end)
         -- SXE AUTO GRAB ENGINE — port exact de SXE PRIVATE
         -- ══════════════════════════════════════════════════════════════════
         local SXE_CONFIG      = { AUTO_STEAL = false }
-        local FIRE_DEBOUNCE   = 0.12
-        local FIRE_BURST      = 4
-        local ENABLE_BURST    = 35
+        local FIRE_DEBOUNCE   = 0.00
+        local FIRE_BURST      = 50
+        local ENABLE_BURST    = 50
         local ENABLE_DEBOUNCE = 0.00
-        local ENABLE_COOLDOWN = 0.08
+        local ENABLE_COOLDOWN = 0.05
         local GRAB_RADIUS     = Config.AutoGrabRadius or 60
 
         local sxeTracked      = {}
@@ -6738,9 +6738,12 @@ end)
 
         local function sxeFirePrompt(pr, burst, debounce)
             if not pr or not pr.Parent or not pr.Enabled then return end
-            if not sxeCanFire(pr, debounce) then return end
+            if debounce and debounce > 0 and not sxeCanFire(pr, debounce) then return end
             if typeof(fireproximityprompt) ~= "function" then return end
-            for _ = 1, burst do pcall(function() fireproximityprompt(pr, 0) end) end
+            for _ = 1, burst do
+                pcall(function() fireproximityprompt(pr, 0) end)
+                pcall(function() fireproximityprompt(pr) end)
+            end
         end
 
         local function sxeTrackPrompt(pr)
@@ -6904,7 +6907,7 @@ end)
                     end
                     anyAvailable = true
                     if SXE_CONFIG.AUTO_STEAL then
-                        sxeFirePrompt(pr, FIRE_BURST, FIRE_DEBOUNCE)
+                        sxeFirePrompt(pr, FIRE_BURST, 0)
                         fired = true
                     end
                 end
