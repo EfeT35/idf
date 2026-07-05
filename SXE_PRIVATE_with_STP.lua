@@ -11040,14 +11040,13 @@ do
         task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
 
         -- Arm the steal and fire the clone at the same instant.
-        -- The Heartbeat steal loop sees isTeleporting=true + _cloneTP=true + _cloneFired=true
-        -- → bypasses proximity and grabs the pet simultaneously with the clone swap.
+        -- isTeleporting stays TRUE through the entire clone+goToBrainrot phase so the
+        -- steal Heartbeat sees _inCloneTP=true and bypasses proximity. It only goes false
+        -- at the very end, preventing any double-steal that would freeze the character.
         armSteal(pet)
         _cloneFired = true
         local _cloneOk = doClone()
         if _clonePlat then pcall(function() _clonePlat:Destroy() end); _clonePlat = nil end
-
-        isTeleporting = false
 
         do
             local _t0 = os.clock()
@@ -11068,6 +11067,8 @@ do
         if _cloneOk then
             goToBrainrot(petPos)
         end
+        disarmSteal()
+        isTeleporting = false
     end
 
     doGrabbleVelocityTP = doVelocityTP
