@@ -288,27 +288,57 @@ local function isCodesOpen()
     return false
 end
 
+local function findCodeBox()
+    -- cherche le TextBox dans n'importe quel GUI Codes ouvert
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        local box = gui:FindFirstChildWhichIsA("TextBox", true)
+        if box then return box end
+    end
+    return nil
+end
+
+local function findSubmitBtn(codeBox)
+    -- cherche le bouton Submit proche du TextBox
+    local parent = codeBox.Parent
+    while parent and parent ~= playerGui do
+        for _, d in ipairs(parent:GetDescendants()) do
+            if (d:IsA("TextButton") or d:IsA("ImageButton")) and d ~= codeBox then
+                local t = d.Text:lower()
+                if t:find("submit") or t:find("redeem") or t:find("valider") or t:find("confirm") then
+                    return d
+                end
+            end
+        end
+        parent = parent.Parent
+    end
+    return nil
+end
+
 local function typeIntoCodeBox(rawText)
     local formatted = caseMode == "upper" and rawText:upper() or rawText:lower()
-    local ok, codeBox = pcall(function() return playerGui.Codes.Codes.CodeRedeem.TextBox end)
-    if not ok or not codeBox then return formatted end
+
+    local codeBox = findCodeBox()
+    if not codeBox then print("[SAB] TextBox introuvable") return formatted end
 
     codeBox:CaptureFocus()
     codeBox.Text = formatted
-    task.wait(0.1)
+    task.wait(0.15)
 
+    -- chercher et cliquer Submit
     local submitted = false
-    pcall(function()
-        local redeem = playerGui.Codes.Codes.CodeRedeem
-        for _, btn in ipairs(redeem:GetDescendants()) do
-            if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                for _, conn in ipairs(getconnections(btn.Activated)) do
-                    conn:Fire(); submitted = true; break
-                end
+    local submitBtn = findSubmitBtn(codeBox)
+    if submitBtn then
+        pcall(function()
+            for _, conn in ipairs(getconnections(submitBtn.Activated)) do
+                conn:Fire(); submitted = true; break
             end
-            if submitted then break end
+        end)
+        if not submitted then
+            submitBtn:Fire("MouseButton1Click")
+            submitted = true
         end
-    end)
+    end
+
     if not submitted then codeBox:ReleaseFocus(true) end
 
     print("SUBMITTED:", formatted)
