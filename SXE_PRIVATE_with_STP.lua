@@ -8015,48 +8015,6 @@ main,mainBody=makeMainPanel("SXE HUB PRIVAT",UDim2.new(0,375,0,480),UDim2.new(0.
 -- Reposition mainBody to leave room for the left sidebar (75px) + padding
 mainBody.Position = UDim2.new(0, 81, 0, 49)
 mainBody.Size     = UDim2.new(1, -87, 1, -55)
--- "Summer Fuse / 0/4" style top-right status labels in the header
-do
-    local hdr = main:FindFirstChildWhichIsA("Frame")
-    if hdr then
-        local stLabel = Instance.new("TextLabel")
-        stLabel.Name = "SidebarStatusLabel"
-        stLabel.Size = UDim2.new(0, 100, 0, 14)
-        stLabel.Position = UDim2.new(1, -108, 0, 7)
-        stLabel.BackgroundTransparency = 1
-        stLabel.Text = ""
-        stLabel.TextColor3 = Theme.Accent
-        stLabel.Font = Enum.Font.GothamBold
-        stLabel.TextSize = 9
-        stLabel.TextXAlignment = Enum.TextXAlignment.Right
-        stLabel.Parent = hdr
-        local subLabel = Instance.new("TextLabel")
-        subLabel.Name = "SidebarSubLabel"
-        subLabel.Size = UDim2.new(0, 100, 0, 12)
-        subLabel.Position = UDim2.new(1, -108, 0, 22)
-        subLabel.BackgroundTransparency = 1
-        subLabel.Text = ""
-        subLabel.TextColor3 = Theme.Dim
-        subLabel.Font = Enum.Font.GothamMedium
-        subLabel.TextSize = 8
-        subLabel.TextXAlignment = Enum.TextXAlignment.Right
-        subLabel.Parent = hdr
-        -- Update dynamically: show current steal target + pet count
-        RunService.Heartbeat:Connect(function()
-            pcall(function()
-                local ok, pets = pcall(scanAllPets)
-                if ok and pets then
-                    if #pets > 0 then
-                        stLabel.Text = pets[1].name or ""
-                        subLabel.Text = tostring(#pets) .. " pet" .. (#pets==1 and "" or "s")
-                    else
-                        stLabel.Text = ""; subLabel.Text = ""
-                    end
-                end
-            end)
-        end)
-    end
-end
 if Config.AutoCloseOnExec then main.Visible = false end
 panels["Invisible Steal Panel"],panels["InvisStealBody"]=makeQuickPanel("SXE HUB PRIVAT\nInvisible Steal",UDim2.new(0,230,0,375),UDim2.new(0,80,0.5,-220))
 panels["InvisStealBody"].ScrollBarThickness = 0
