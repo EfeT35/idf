@@ -11035,24 +11035,6 @@ do
 
             if _cloneOk2 then
                 goToBrainrot(petPos)
-                -- Hold position while steal animation plays so character doesn't fall
-                local _stealHoldT = os.clock()
-                local _stealHoldConn
-                _stealHoldConn = RunService.Heartbeat:Connect(function()
-                    if os.clock() - _stealHoldT > 6 then _stealHoldConn:Disconnect(); return end
-                    if not LP:GetAttribute("Stealing") and os.clock() - _stealHoldT > 0.3 then
-                        _stealHoldConn:Disconnect(); return
-                    end
-                    local _hh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    if _hh and _hh.Parent then
-                        _hh.AssemblyLinearVelocity = Vector3.zero
-                        _hh.AssemblyAngularVelocity = Vector3.zero
-                    end
-                end)
-                -- Wait until steal finishes or timeout
-                local _wt = os.clock()
-                repeat task.wait(0.05) until not LP:GetAttribute("Stealing") or os.clock() - _wt > 6
-                if _stealHoldConn then pcall(function() _stealHoldConn:Disconnect() end) end
             end
             isTeleporting = false
             return
@@ -11250,23 +11232,6 @@ do
 
         if _cloneOk then
             goToBrainrot(petPos)
-            -- Hold position while steal animation plays so character doesn't fall
-            local _stealHoldT = os.clock()
-            local _stealHoldConn
-            _stealHoldConn = RunService.Heartbeat:Connect(function()
-                if os.clock() - _stealHoldT > 6 then _stealHoldConn:Disconnect(); return end
-                if not LP:GetAttribute("Stealing") and os.clock() - _stealHoldT > 0.3 then
-                    _stealHoldConn:Disconnect(); return
-                end
-                local _hh = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                if _hh and _hh.Parent then
-                    _hh.AssemblyLinearVelocity = Vector3.zero
-                    _hh.AssemblyAngularVelocity = Vector3.zero
-                end
-            end)
-            local _wt = os.clock()
-            repeat task.wait(0.05) until not LP:GetAttribute("Stealing") or os.clock() - _wt > 6
-            if _stealHoldConn then pcall(function() _stealHoldConn:Disconnect() end) end
         end
         isTeleporting = false
     end
