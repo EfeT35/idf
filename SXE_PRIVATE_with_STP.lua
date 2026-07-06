@@ -9959,9 +9959,8 @@ do
                 end
             end
         end
-        local ok, cf = pcall(function() return podium:GetPivot() end)
-        if ok then return cf.Position end
-        return podium.Position
+        -- No visible model found → pet was already claimed or not rendered yet; skip it
+        return nil
     end
 
     -- ===== Fusing check =====
@@ -10845,6 +10844,20 @@ do
 
         local petPos = pet.position
         local petName = pet.name
+
+        -- Verify the pet model still exists in the podium before committing to the TP
+        if pet.plot and pet.slot then
+            local _plots = workspace:FindFirstChild("Plots")
+            local _plotObj = _plots and _plots:FindFirstChild(pet.plot)
+            if _plotObj then
+                local _freshPos = getPetPosition(_plotObj, pet.slot)
+                if not _freshPos then
+                    isTeleporting = false
+                    return -- pet was already collected or not rendered
+                end
+                petPos = _freshPos
+            end
+        end
 
         local adjY = petPos.Y
         if TALL_PETS[petName] then adjY = petPos.Y - TALL_OFFSET end
