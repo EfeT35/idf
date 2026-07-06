@@ -10942,8 +10942,23 @@ do
             end
             healConn2:Disconnect()
 
-            -- Base already open → steal directly with C key, no clone needed
+            -- Base already open → place platform then steal with C key (no clone)
             if isPlotUnlocked(pet.plot) then
+                local _ahrpO = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                local _clonePosO = (_ahrpO and _ahrpO.Parent and _ahrpO.Position) or belowPos
+                local _platO = Instance.new("Part")
+                _platO.Name = "XenHubClonePlatform2"
+                _platO.Size = Vector3.new(12, 1, 12)
+                _platO.Position = Vector3.new(_clonePosO.X, _clonePosO.Y - 3, _clonePosO.Z)
+                _platO.Anchored = true; _platO.CanCollide = true
+                _platO.Transparency = 1; _platO.Material = Enum.Material.SmoothPlastic
+                _platO.Parent = workspace
+                if _ahrpO and _ahrpO.Parent then
+                    _ahrpO.AssemblyLinearVelocity = Vector3.zero
+                    _ahrpO.AssemblyAngularVelocity = Vector3.zero
+                end
+                task.wait(0.15)
+                pcall(function() _platO:Destroy() end)
                 isTeleporting = false
                 pcall(function()
                     local vim = Instance.new("VirtualInputManager")
