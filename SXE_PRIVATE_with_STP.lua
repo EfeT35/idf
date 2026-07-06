@@ -9942,11 +9942,24 @@ do
     end
 
     -- ===== Pet position =====
+    -- Returns the world position of the pet in this slot, or nil if no stealable pet is present.
+    -- Uses the steal ProximityPrompt as the ground truth: if the prompt doesn't exist or isn't
+    -- enabled the base is empty (already claimed, being fused, etc.).
     local function getPetPosition(plot, slot)
         local podiums = plot:FindFirstChild("AnimalPodiums")
         if not podiums then return nil end
         local podium = podiums:FindFirstChild(tostring(slot))
         if not podium then return nil end
+
+        -- Primary check: steal prompt must exist and be enabled
+        local _base  = podium:FindFirstChild("Base")
+        local _spawn = _base and _base:FindFirstChild("Spawn")
+        local _att   = _spawn and _spawn:FindFirstChild("PromptAttachment")
+        local _pr    = _att and _att:FindFirstChildWhichIsA("ProximityPrompt")
+        local hasPrompt = _pr and _pr.Enabled and (_pr.ActionText:lower():find("steal") or _pr.ActionText == "")
+        if not hasPrompt then return nil end
+
+        -- Find the pet model's world position
         for _, desc in ipairs(podium:GetDescendants()) do
             if desc:IsA("Model") and desc.Name ~= "Claim" and desc.Name ~= "Base" and desc.Name ~= "Decorations" then
                 local hasMesh = false
@@ -9959,7 +9972,8 @@ do
                 end
             end
         end
-        -- No visible model found → pet was already claimed or not rendered yet; skip it
+        -- Prompt exists but model not streamed yet — use the spawn part position as fallback
+        if _spawn then return _spawn.Position end
         return nil
     end
 
@@ -10845,7 +10859,7 @@ do
         local petPos = pet.position
         local petName = pet.name
 
-        -- Verify the pet model still exists in the podium before committing to the TP
+        -- Re-verify: steal prompt must still exist before we fly over
         if pet.plot and pet.slot then
             local _plots = workspace:FindFirstChild("Plots")
             local _plotObj = _plots and _plots:FindFirstChild(pet.plot)
@@ -10853,7 +10867,7 @@ do
                 local _freshPos = getPetPosition(_plotObj, pet.slot)
                 if not _freshPos then
                     isTeleporting = false
-                    return -- pet was already collected or not rendered
+                    return -- prompt gone → pet already claimed
                 end
                 petPos = _freshPos
             end
