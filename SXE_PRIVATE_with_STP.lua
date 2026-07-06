@@ -10878,7 +10878,7 @@ do
             return
         end
 
-        -- SECOND FLOOR: approach via LOWER ground-level coords (outside portal) then clone
+        -- SECOND FLOOR: approche via coords LOWER (dehors portail) puis clone
         if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
             local lowerData, _ = findClosest(petPos, LOWER)
             local belowPos = lowerData and lowerData.coord or Vector3.new(petPos.X, -4, petPos.Z)
@@ -10905,6 +10905,7 @@ do
             end
             healConn2:Disconnect()
 
+            -- Plaque invisible pile sous les pieds pour pas tomber
             local _footHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             local _footPos = (_footHrp and _footHrp.Parent and _footHrp.Position) or belowPos
             local _footPlat = Instance.new("Part")
@@ -10917,6 +10918,7 @@ do
             _footPlat.Material = Enum.Material.SmoothPlastic
             _footPlat.Parent = workspace
 
+            -- Base ouverte: touche C direct
             if isPlotUnlocked(pet.plot) then
                 task.wait(0.15)
                 pcall(function() _footPlat:Destroy() end)
@@ -10930,6 +10932,7 @@ do
                 return
             end
 
+            -- Base fermée: clone depuis en dessous
             _cloneTP = true
             disarmSteal()
             task.wait(0.15)
