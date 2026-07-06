@@ -10913,10 +10913,9 @@ do
             return
         end
 
-        -- SECOND FLOOR: fly directly below (floor-1 logic) then clone from below (floor-3 logic)
+        -- SECOND FLOOR
         if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
-            _cloneTP = true
-            disarmSteal()
+            local belowPos = Vector3.new(petPos.X, -4, petPos.Z)
             local maxHP2 = hum.MaxHealth
             hum.Health = maxHP2
             local healConn2 = RunService.Heartbeat:Connect(function()
@@ -10924,8 +10923,6 @@ do
             end)
             carpetEngage()
             vZero(hrp)
-            -- Same target as floor 1: directly below the pet at ground level
-            local belowPos = Vector3.new(petPos.X, -4, petPos.Z)
             local route2 = computeRoute(hrp.Position, belowPos, nil)
             if not route2 or #route2 == 0 then route2 = { belowPos } end
             local _r2Len = 0
@@ -10941,7 +10938,30 @@ do
             end
             healConn2:Disconnect()
 
-            -- Place invisible platform then clone (same as floor-3 logic)
+            -- Base already open → steal directly with C key, no clone needed
+            if isPlotUnlocked(pet.plot) then
+                isTeleporting = false
+                pcall(function()
+                    local vim = Instance.new("VirtualInputManager")
+                    vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+                    task.wait(0.05)
+                    vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+                end)
+                return
+            end
+
+            -- Base closed → place platform and clone from below (floor-3 logic)
+            _cloneTP = true
+            disarmSteal()
+
+            -- Brief settle wait so the character is truly stopped before clone fires
+            task.wait(0.15)
+            if hrp and hrp.Parent then
+                hrp.CFrame = CFrame.new(belowPos)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end
+
             local _ahrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             local _clonePos2 = (_ahrp2 and _ahrp2.Parent and _ahrp2.Position) or belowPos
             local _clonePlat2 = Instance.new("Part")
