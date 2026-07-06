@@ -15,7 +15,7 @@ CoreGui = game:GetService("CoreGui")
 VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Unlimited FPS: remove Roblox's default 240 FPS cap. 0 = uncapped on most executors.
-pcall(function() if setfpscap then setfpscap(0) end end)
+pcall(function() if setfpscap then setfpscap(9999) end end)
 
 -- Insta-reset state captured by the FireServer hook below.
 -- GUID is the first arg of the balloon payload. Defaults to a randomly-generated
