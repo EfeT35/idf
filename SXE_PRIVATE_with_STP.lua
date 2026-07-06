@@ -15,7 +15,7 @@ CoreGui = game:GetService("CoreGui")
 VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Unlimited FPS: remove Roblox's default 240 FPS cap. 0 = uncapped on most executors.
-pcall(function() if setfpscap then setfpscap(9999) end end)
+pcall(function() if setfpscap then setfpscap(0) end end)
 
 -- Insta-reset state captured by the FireServer hook below.
 -- GUID is the first arg of the balloon payload. Defaults to a randomly-generated
@@ -5227,7 +5227,7 @@ function runAutoSnipe()
     if not hrp or not hum or (hum.Health <= 0) then
         return
     end
-    local lastFpsCap = pcall(getfpscap) and getfpscap() or 9999
+    local lastFpsCap = pcall(getfpscap) and getfpscap() or 60
     pcall(setfpscap, 200)
     -- (Old Grabble TP branch removed - now handled by SXE Clone-TP router above.)
     _G._isTpMoving = true
@@ -5588,7 +5588,7 @@ function tpToBrainrot()
     if not targetPart then
         return
     end
-    local lastFpsCap = pcall(getfpscap) and getfpscap() or 9999
+    local lastFpsCap = pcall(getfpscap) and getfpscap() or 60
     pcall(setfpscap, 200)
     local ok, err = pcall(function()
         local carpetName = Config.TpSettings.Tool
@@ -6524,7 +6524,7 @@ local function setFPSBoostUltra(enabled)
             settings().Physics.AllowSleep = true
             settings().Physics.PhysicsEnvironmentalThrottle = Enum.PhysicsEnvironmentalThrottle or Enum.EnviromentalPhysicsThrottle.Skip
         end)
-        pcall(setfpscap, 9999)   -- 9999 = unlimited FPS
+        pcall(setfpscap, 0)   -- 0 = unlimited FPS (was 999)
 
         OptimizeLightingUltra()
         ApplyTerrainUltra()
@@ -8105,23 +8105,11 @@ end
 
 function rebuildTpSpeedSettings()
     clearBody(tpSpeedSettingsBody)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "TP Velocity", 200, 500, math.clamp(tonumber(_G.TPVelocity) or Config.TpSettings.GrabbleTPSpeed or 400, 200, 500), function(v)
-        _G.TPVelocity = v
-        Config.TpSettings.GrabbleTPSpeed = v
-        saveConfig()
-        if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end
-        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
-    end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Landing Delay Before Clone", 0.15, 0.75, math.clamp(tonumber(_G.LandingDelay) or Config.TpSettings.CloneDelayVal or 0.4, 0.15, 0.75), function(v)
-        _G.LandingDelay = v
-        Config.TpSettings.CloneDelayVal = v
-        saveConfig()
-        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
-    end, "s")
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Delay Before TP", 0, 900, math.floor((_G._stp_tpDelay or 0) * 1000 + 0.5), function(v)
-        _G._stp_tpDelay = v / 1000
-        if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
-    end, "ms")
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Fly TP Speed", 50, 300, Config.TpSettings.FlyTPSpeed or 160, function(v) Config.TpSettings.FlyTPSpeed=v; saveConfig() end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "100 Studs Base Speed", 20, 250, Config.TpSettings.FlyTPCloseSpeed or 75, function(v) Config.TpSettings.FlyTPCloseSpeed=v; saveConfig() end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v) Config.TpSettings.GrabbleTPSpeed=v; saveConfig(); if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Walk To Brainrot Speed", 50, 300, Config.TpSettings.WalkTPSpeed or 190, function(v) Config.TpSettings.WalkTPSpeed=v; saveConfig() end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Clone Delay", 0.05, 2.0, Config.TpSettings.CloneDelayVal or 0.1, function(v) Config.TpSettings.CloneDelayVal=v; saveConfig() end, "s")
     makeQuickButton(tpSpeedSettingsBody, "Close", function() closeAnim(tpSpeedSettingsPanel) end, Theme.SoftAccentHover)
 end
 
@@ -8989,9 +8977,6 @@ function loadTab(tabName)
 
         makeMainButton(mainBody, "Tp Speed", function()
             if tpSpeedSettingsPanel.Visible then closeAnim(tpSpeedSettingsPanel) else openAnim(tpSpeedSettingsPanel) end
-        end, Theme.Panel)
-        makeMainButton(mainBody, "Edit TP Priority", function()
-            if _G._stp_openPriority then pcall(_G._stp_openPriority) end
         end, Theme.Panel)
         makeMainTextBox(mainBody,"Min Gen for Auto TP",Config.TpSettings.MinGenForTp,"e.g. 50k, 1m, 10b",function(v)
             Config.TpSettings.MinGenForTp = v
@@ -9942,24 +9927,11 @@ do
     end
 
     -- ===== Pet position =====
-    -- Returns the world position of the pet in this slot, or nil if no stealable pet is present.
-    -- Uses the steal ProximityPrompt as the ground truth: if the prompt doesn't exist or isn't
-    -- enabled the base is empty (already claimed, being fused, etc.).
     local function getPetPosition(plot, slot)
         local podiums = plot:FindFirstChild("AnimalPodiums")
         if not podiums then return nil end
         local podium = podiums:FindFirstChild(tostring(slot))
         if not podium then return nil end
-
-        -- Primary check: steal prompt must exist and be enabled
-        local _base  = podium:FindFirstChild("Base")
-        local _spawn = _base and _base:FindFirstChild("Spawn")
-        local _att   = _spawn and _spawn:FindFirstChild("PromptAttachment")
-        local _pr    = _att and _att:FindFirstChildWhichIsA("ProximityPrompt")
-        local hasPrompt = _pr and _pr.Enabled and (_pr.ActionText:lower():find("steal") or _pr.ActionText == "")
-        if not hasPrompt then return nil end
-
-        -- Find the pet model's world position
         for _, desc in ipairs(podium:GetDescendants()) do
             if desc:IsA("Model") and desc.Name ~= "Claim" and desc.Name ~= "Base" and desc.Name ~= "Decorations" then
                 local hasMesh = false
@@ -9972,9 +9944,9 @@ do
                 end
             end
         end
-        -- Prompt exists but model not streamed yet — use the spawn part position as fallback
-        if _spawn then return _spawn.Position end
-        return nil
+        local ok, cf = pcall(function() return podium:GetPivot() end)
+        if ok then return cf.Position end
+        return podium.Position
     end
 
     -- ===== Fusing check =====
@@ -10062,7 +10034,6 @@ do
         D = {{coord=Vector3.new(-335.476654,-3.048218,139.001083),facing="NORTH"},{coord=Vector3.new(-503.710083,-3.048218,138.989883),facing="NORTH"},{coord=Vector3.new(-315.654938,-3.048218,195.302444),facing="SOUTH"},{coord=Vector3.new(-483.859253,-3.048218,195.269043),facing="SOUTH"}},
     }
     local UPPER_Y_THRESHOLD = 7
-    local FLOOR2_MAX_Y = 24   -- pets between 8.9 and this Y are treated as 2nd floor
     local TALL_PETS = { ["La Secret Combinasion"]=true, ["La Jolly Grande"]=true }
     local TALL_OFFSET = 3
     local BASES_LOW = {
@@ -10479,27 +10450,13 @@ do
         elseif h >= -6.9 and h <= 8.9 then targetY = -4 end
         local _to = Vector3.new(petPos.X, targetY, petPos.Z)
         if Config.TpSettings and Config.TpSettings.BrainrotCarpet then
+            -- Carpet to Brainrot: after the clone/grabble TP into the base, glide on
+            -- the carpet straight to the pet (uses live Walk To Brainrot Speed).
             carpetGlideTo(petPos)
         else
-            local _sxeWalkSpeed = (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE
-            local _walkT0 = os.clock()
-            while hrp and hrp.Parent and (os.clock() - _walkT0) < 8 do
-                if LP:GetAttribute("Stealing") then break end
-                local _diff = Vector3.new(_to.X - hrp.Position.X, 0, _to.Z - hrp.Position.Z)
-                local _flatDist = _diff.Magnitude
-                local _vertDiff = _to.Y - hrp.Position.Y
-                if _flatDist < 3 and math.abs(_vertDiff) < 8 then break end
-                local _moveDir = (_flatDist > 0.1) and _diff.Unit or Vector3.zero
-                local _yVel = hrp.AssemblyLinearVelocity.Y
-                if _vertDiff > 2 then
-                    _yVel = math.clamp(_vertDiff * 7, 30, 60)
-                elseif _vertDiff < -2 then
-                    _yVel = math.clamp(_vertDiff * 4, -80, 0)
-                end
-                local _spd = (_flatDist < 3) and 0 or _sxeWalkSpeed
-                hrp.AssemblyLinearVelocity = Vector3.new(_moveDir.X * _spd, _yVel, _moveDir.Z * _spd)
-                RunService.Heartbeat:Wait()
-            end
+            local _route = computeRoute(hrp.Position, _to, nil)
+            if not _route or #_route == 0 then _route = { _to } end
+            velMoveThrough(hrp, _route, (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE, true, true)
         end
         if hrp and hrp.Parent then
             hrp.AssemblyLinearVelocity = Vector3.zero
@@ -10794,41 +10751,9 @@ do
         pcall(function() if oldMax ~= nil then prompt.MaxActivationDistance = oldMax end end)
     end)
 
-    -- ===== LinearVelocity fine-mover (hub-style) =====
-    local _tpLVAtt, _tpLV
-    local function lvDrive(hrp, v)
-        if not hrp or not hrp.Parent then return end
-        if not (_tpLV and _tpLV.Parent and _tpLVAtt and _tpLVAtt.Parent == hrp) then
-            if _tpLV then pcall(function() _tpLV:Destroy() end) end
-            if _tpLVAtt then pcall(function() _tpLVAtt:Destroy() end) end
-            _tpLVAtt = Instance.new("Attachment")
-            _tpLVAtt.Name = "VanishTPAtt"
-            _tpLVAtt.Parent = hrp
-            _tpLV = Instance.new("LinearVelocity")
-            _tpLV.Name = "VanishTPLV"
-            _tpLV.Attachment0 = _tpLVAtt
-            _tpLV.RelativeTo = Enum.ActuatorRelativeTo.World
-            pcall(function() _tpLV.ForceLimitsEnabled = false end)
-            _tpLV.MaxForce = math.huge
-            _tpLV.VectorVelocity = Vector3.zero
-            _tpLV.Parent = hrp
-        end
-        _tpLV.VectorVelocity = v
-    end
-    local function lvStop(hrp)
-        if _tpLV then pcall(function() _tpLV:Destroy() end); _tpLV = nil end
-        if _tpLVAtt then pcall(function() _tpLVAtt:Destroy() end); _tpLVAtt = nil end
-        if hrp and hrp.Parent then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end
-    end
-
-    -- ===== Main TP function (hub doVelocityTP logic) =====
+    -- ===== Main TP function (1:1 xentp.lua doVelocityTP) =====
     local function doVelocityTP()
         if isTeleporting and (os.clock() - _tpStartedAt) < 30 then return end
-        local _preDelay = tonumber(_G._stp_tpDelay) or 0
-        if _preDelay > 0 then task.wait(_preDelay) end
         isTeleporting = true
         _tpStartedAt = os.clock()
         _cloneTP = false
@@ -10851,47 +10776,61 @@ do
         end
         if #allPets == 0 then isTeleporting = false; return end
 
-        -- Pet selection: manual override → priority/mode fallback
-        local pet = allPets[1]
-        do
-            local overrideUID = manuallySelectedUID
-            local overridePet = nil
-            if overrideUID then
-                for _, p in ipairs(allPets) do
-                    if p.plot and p.slot and (p.plot .. "_" .. tostring(p.slot)) == overrideUID then
-                        overridePet = p; break
-                    end
-                end
-            end
-            if overridePet then
-                pet = overridePet
-            else
-                pet = _pickByMode(allPets) or allPets[1]
+        -- Respect SXEHub manual selection, then fall back to priority/mode
+        local pet
+        if manuallySelectedUID then
+            for _, p in ipairs(allPets) do
+                if p.plot and p.slot and (p.plot .. "_" .. tostring(p.slot)) == manuallySelectedUID then pet = p; break end
             end
         end
+        if not pet then pet = _pickByMode(allPets) or allPets[1] end
+
+        local _tpSpd = (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400
+        local _cloneDelay = (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.35
 
         local petPos = pet.position
         local petName = pet.name
-
-        -- Re-verify: steal prompt must still exist before we fly over
-        if pet.plot and pet.slot then
-            local _plots = workspace:FindFirstChild("Plots")
-            local _plotObj = _plots and _plots:FindFirstChild(pet.plot)
-            if _plotObj then
-                local _freshPos = getPetPosition(_plotObj, pet.slot)
-                if not _freshPos then
-                    isTeleporting = false
-                    return -- prompt gone → pet already claimed
-                end
-                petPos = _freshPos
-            end
-        end
 
         local adjY = petPos.Y
         if TALL_PETS[petName] then adjY = petPos.Y - TALL_OFFSET end
         local coordTable = adjY > UPPER_Y_THRESHOLD and UPPER or LOWER
 
-        -- FIRST FLOOR: pathfind directly into the open base and steal
+        -- CONVEYOR
+        if pet.conveyor then
+            local model = pet.model
+            local maxHP = hum.MaxHealth
+            hum.Health = maxHP
+            local healConn = RunService.Heartbeat:Connect(function()
+                if hum and hum.Parent then hum.Health = maxHP end
+            end)
+            carpetEngage()
+            vZero(hrp)
+            local function livePos()
+                if not model or not model.Parent then return nil end
+                local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+                return part and part.Position or nil
+            end
+            local _t0 = os.clock()
+            while os.clock() - _t0 < 8 do
+                if not hrp or not hrp.Parent then break end
+                local lp = livePos()
+                if not lp then break end
+                local diff = lp - hrp.Position
+                if diff.Magnitude <= 6 then break end
+                equipCarpet()
+                hrp.AssemblyLinearVelocity = diff.Unit * _tpSpd
+                RunService.Heartbeat:Wait()
+            end
+            if hrp and hrp.Parent then
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end
+            healConn:Disconnect()
+            isTeleporting = false
+            return
+        end
+
+        -- FIRST FLOOR
         if petPos.Y <= 8.9 and isPlotUnlocked(pet.plot) then
             local maxHP = hum.MaxHealth
             hum.Health = maxHP
@@ -10901,141 +10840,20 @@ do
             carpetEngage()
             vZero(hrp)
             local _to = Vector3.new(petPos.X, -4, petPos.Z)
-            local route = computeRoute(hrp.Position, _to, nil)
-            if not route or #route == 0 then route = { _to } end
-            local _obLen = 0
+            local _faceDir
             do
-                local prev = hrp.Position
-                for _, wp in ipairs(route) do
-                    _obLen = _obLen + (wp - prev).Magnitude; prev = wp
-                end
+                local idx = getClosestBaseIdx(petPos)
+                local _, frontFace = buildFrontCandidate(idx, false, hrp.Position.Z)
+                _faceDir = frontFace
             end
-            local _obSpeed = (_obLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-            velMoveThrough(hrp, route, _obSpeed, true, true)
+            local route = computeRoute(hrp.Position, _to, _faceDir)
+            if not route or #route == 0 then route = { _to } end
+            velMoveThrough(hrp, route, _tpSpd, true, true)
             if hrp and hrp.Parent then
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
             healConn:Disconnect()
-            isTeleporting = false
-            pcall(function()
-                local vim = Instance.new("VirtualInputManager")
-                vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-                task.wait(0.05)
-                vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
-            end)
-            return
-        end
-
-        -- SECOND FLOOR: approach via LOWER ground-level coords (outside portal) then clone
-        if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
-            -- Use LOWER table entry points so we never cross through the red portal
-            local lowerData, _ = findClosest(petPos, LOWER)
-            local belowPos = lowerData and lowerData.coord or Vector3.new(petPos.X, -4, petPos.Z)
-            local belowFace = lowerData and (lowerData.facing == "NORTH" and Vector3.new(0,0,-1) or Vector3.new(0,0,1)) or Vector3.new(0,0,1)
-
-            local maxHP2 = hum.MaxHealth
-            hum.Health = maxHP2
-            local healConn2 = RunService.Heartbeat:Connect(function()
-                if hum and hum.Parent then hum.Health = maxHP2 end
-            end)
-            carpetEngage()
-            vZero(hrp)
-            local route2 = computeRoute(hrp.Position, belowPos, belowFace)
-            if not route2 or #route2 == 0 then route2 = { belowPos } end
-            local _r2Len = 0
-            do
-                local prev = hrp.Position
-                for _, wp in ipairs(route2) do _r2Len = _r2Len + (wp - prev).Magnitude; prev = wp end
-            end
-            local _r2Speed = (_r2Len < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-            velMoveThrough(hrp, route2, _r2Speed, true, true)
-            if hrp and hrp.Parent then
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end
-            healConn2:Disconnect()
-
-            -- Platform right under feet so character doesn't fall at the bottom position
-            local _footHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            local _footPos = (_footHrp and _footHrp.Parent and _footHrp.Position) or belowPos
-            local _footPlat = Instance.new("Part")
-            _footPlat.Name = "XenHubFloorPlat"
-            _footPlat.Size = Vector3.new(12, 1, 12)
-            _footPlat.Position = Vector3.new(_footPos.X, _footPos.Y - 3.5, _footPos.Z)
-            _footPlat.Anchored = true
-            _footPlat.CanCollide = true
-            _footPlat.Transparency = 1
-            _footPlat.Material = Enum.Material.SmoothPlastic
-            _footPlat.Parent = workspace
-
-            -- Base already open → steal with C key, destroy foot platform after
-            if isPlotUnlocked(pet.plot) then
-                task.wait(0.15)
-                pcall(function() _footPlat:Destroy() end)
-                isTeleporting = false
-                pcall(function()
-                    local vim = Instance.new("VirtualInputManager")
-                    vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-                    task.wait(0.05)
-                    vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
-                end)
-                return
-            end
-
-            -- Base closed → clone from below (floor-3 logic); foot platform stays until clone fires
-            _cloneTP = true
-            disarmSteal()
-
-            -- Settle: pin position so physics is calm before clone fires
-            task.wait(0.15)
-            if hrp and hrp.Parent then
-                hrp.CFrame = CFrame.new(belowPos, belowPos + belowFace)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end
-
-            local _preCloneChar2 = LP.Character
-            local _charAdded2 = false
-            local _caConn2 = LP.CharacterAdded:Connect(function() _charAdded2 = true end)
-
-            task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
-
-            _cloneFired = true
-            local _cloneOk2 = doClone()
-            if _footPlat then pcall(function() _footPlat:Destroy() end); _footPlat = nil end
-
-            task.spawn(function()
-                task.wait(0.35)
-                pcall(function()
-                    local prompt = findStealPrompt(pet)
-                    if prompt and prompt.Parent then
-                        buildStealCallbacks(prompt)
-                        if InternalStealCache[prompt] then executeStealAsync(prompt) end
-                    end
-                end)
-            end)
-            disarmSteal()
-
-            do
-                local _t0 = os.clock()
-                repeat
-                    if _charAdded2 then break end
-                    if LP.Character ~= _preCloneChar2 then break end
-                    local _h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    if _h then
-                        local _dx = _h.Position.X - belowPos.X
-                        local _dz = _h.Position.Z - belowPos.Z
-                        if (_dx * _dx + _dz * _dz) > 4 then break end
-                    end
-                    RunService.Heartbeat:Wait()
-                until os.clock() - _t0 > 3
-            end
-            if _caConn2 then _caConn2:Disconnect() end
-
-            if _cloneOk2 then
-                goToBrainrot(petPos)
-            end
             isTeleporting = false
             return
         end
@@ -11054,7 +10872,7 @@ do
             if hum and hum.Parent then hum.Health = maxHP end
         end)
 
-        local _carpet = carpetEngage()
+        carpetEngage()
         vZero(hrp)
 
         local facingDir = closestData.facing == "NORTH" and Vector3.new(0, 0, -1) or Vector3.new(0, 0, 1)
@@ -11076,58 +10894,50 @@ do
             facingDir = bestFace
         end
 
-        local _route = computeRoute(hrp.Position, destPos, facingDir)
-
-        -- Insert ascend sub-steps so the player ramps up smoothly
-        local ASCEND_STEP = 10
-        local _stepped = {}
-        do
-            local prev = hrp.Position
-            for _, wp in ipairs(_route) do
-                local dy = wp.Y - prev.Y
-                if dy > ASCEND_STEP * 1.5 then
-                    local n = math.ceil(dy / ASCEND_STEP)
-                    for s = 1, n - 1 do
-                        local t = s / n
-                        _stepped[#_stepped + 1] = Vector3.new(
-                            prev.X + (wp.X - prev.X) * t,
-                            prev.Y + dy * t,
-                            prev.Z + (wp.Z - prev.Z) * t
-                        )
-                    end
-                end
-                _stepped[#_stepped + 1] = wp
-                prev = wp
-            end
-        end
-        local _routeLen = 0
-        do
-            local prev = hrp.Position
-            for _, wp in ipairs(_route) do _routeLen = _routeLen + (wp - prev).Magnitude; prev = wp end
-        end
-        local _mainSpeed = (_routeLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-        velMoveThrough(hrp, _stepped, _mainSpeed, true, true)
-
-        -- Fine-adjust with LinearVelocity until close enough
-        do
-            local _t0 = os.clock()
-            while os.clock() - _t0 < 4 do
-                if not hrp or not hrp.Parent then break end
-                if LP:GetAttribute("Stealing") then break end
-                equipCarpet()
-                local diff = destPos - hrp.Position
-                local mag = diff.Magnitude
-                if mag <= 3 then break end
-                lvDrive(hrp, diff.Unit * math.min(400, mag * 8))
-                hrp.AssemblyAngularVelocity = Vector3.zero
-                RunService.Heartbeat:Wait()
-            end
-            lvStop(hrp)
-        end
-
         if hrp and hrp.Parent then
             hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + facingDir)
+            hrp.AssemblyAngularVelocity = Vector3.zero
         end
+
+        local _route = computeRoute(hrp.Position, destPos, facingDir)
+        local _stepped = {}
+        do
+            local startY = hrp.Position.Y
+            local destY = destPos.Y
+            local prev = hrp.Position
+            local totalFlat = 0
+            for _, wp in ipairs(_route) do
+                totalFlat = totalFlat + (Vector3.new(wp.X, 0, wp.Z) - Vector3.new(prev.X, 0, prev.Z)).Magnitude
+                prev = wp
+            end
+            if totalFlat < 0.01 then totalFlat = 0.01 end
+            local SEG = 30
+            prev = hrp.Position
+            local travelled = 0
+            for _, wp in ipairs(_route) do
+                local flatVec = Vector3.new(wp.X, 0, wp.Z) - Vector3.new(prev.X, 0, prev.Z)
+                local legFlat = flatVec.Magnitude
+                if legFlat >= 0.01 then
+                    local subs = math.max(1, math.ceil(legFlat / SEG))
+                    for s = 1, subs do
+                        local f = s / subs
+                        local px = prev.X + (wp.X - prev.X) * f
+                        local pz = prev.Z + (wp.Z - prev.Z) * f
+                        local along = travelled + legFlat * f
+                        local rampY = startY + (destY - startY) * (along / totalFlat)
+                        _stepped[#_stepped + 1] = Vector3.new(px, rampY, pz)
+                    end
+                else
+                    _stepped[#_stepped + 1] = wp
+                end
+                travelled = travelled + legFlat
+                prev = wp
+            end
+            if #_stepped > 0 then _stepped[#_stepped] = _route[#_route] end
+        end
+        velMoveThrough(hrp, _stepped, _tpSpd, true, true)
+
+        hrp.CFrame = CFrame.new(destPos, destPos + facingDir)
         vZero(hrp)
 
         local syncFrames = 5
@@ -11147,91 +10957,60 @@ do
         end
 
         healConn:Disconnect()
-        -- NOTE: isTeleporting stays TRUE here so the steal Heartbeat sees
-        -- _inCloneTP = true and fires the grab at the same instant as doClone().
-
-        -- Stability check: hold position until settled
-        do
-            local stable = 0
-            for _ = 1, 50 do
-                local _hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if not _hrp or not _hrp.Parent then break end
-                local flat = (Vector3.new(_hrp.Position.X, 0, _hrp.Position.Z) - Vector3.new(destPos.X, 0, destPos.Z)).Magnitude
-                if flat <= 3.5 and math.abs(_hrp.Position.Y - destPos.Y) <= 4 then
-                    stable = stable + 1
-                    if stable >= 4 then break end
-                else
-                    stable = 0
-                    pcall(function() _hrp.CFrame = CFrame.new(destPos, destPos + facingDir) end)
-                    _hrp.AssemblyLinearVelocity = Vector3.zero
-                    _hrp.AssemblyAngularVelocity = Vector3.zero
-                end
-                RunService.Heartbeat:Wait()
-            end
-        end
+        armSteal(pet)
+        _cloneFired = true
 
         local _ahrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         local _clonePos = (_ahrp and _ahrp.Parent and _ahrp.Position) or destPos
 
         local _clonePlat = Instance.new("Part")
-        _clonePlat.Name = "XenHubClonePlatform"
+        _clonePlat.Name = "SXEClonePlatform"
         _clonePlat.Size = Vector3.new(12, 1, 12)
         _clonePlat.Position = Vector3.new(_clonePos.X, _clonePos.Y - 3, _clonePos.Z)
-        _clonePlat.Anchored = true
-        _clonePlat.CanCollide = true
-        _clonePlat.Transparency = 1
-        _clonePlat.Material = Enum.Material.SmoothPlastic
-        _clonePlat.Parent = workspace
+        _clonePlat.Anchored = true; _clonePlat.CanCollide = false; pcall(makeOneWay, _clonePlat); _clonePlat.Transparency = 1
+        _clonePlat.Material = Enum.Material.SmoothPlastic; _clonePlat.Parent = workspace
 
         if _ahrp and _ahrp.Parent then
             _ahrp.AssemblyLinearVelocity = Vector3.zero
             _ahrp.AssemblyAngularVelocity = Vector3.zero
+            pcall(function() _ahrp.Anchored = true end)
+            task.delay(1, function()
+                if _ahrp and _ahrp.Parent then pcall(function() _ahrp.Anchored = false end) end
+            end)
         end
 
-        local _preCloneChar = LP.Character
         local _charAdded = false
         local _caConn = LP.CharacterAdded:Connect(function() _charAdded = true end)
 
-        task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
-
-        _cloneFired = true
+        task.wait(_cloneDelay)
         local _cloneOk = doClone()
+
         if _clonePlat then pcall(function() _clonePlat:Destroy() end); _clonePlat = nil end
-
-        -- Fire the steal in a parallel thread ~0.35s after the clone fires.
-        -- The character arrives in the base during that window, and MaxActivationDistance
-        -- is set to math.huge so proximity doesn't matter.
-        task.spawn(function()
-            task.wait(0.35)
-            pcall(function()
-                local prompt = findStealPrompt(pet)
-                if prompt and prompt.Parent then
-                    buildStealCallbacks(prompt)
-                    if InternalStealCache[prompt] then executeStealAsync(prompt) end
-                end
-            end)
-        end)
-        disarmSteal()
-
-        -- Wait for the clone swap (detection only, steal already running in parallel).
-        do
-            local _t0 = os.clock()
-            repeat
-                if _charAdded then break end
-                if LP.Character ~= _preCloneChar then break end
-                local _h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                if _h then
-                    local _dx = _h.Position.X - _clonePos.X
-                    local _dz = _h.Position.Z - _clonePos.Z
-                    if (_dx * _dx + _dz * _dz) > 4 then break end
-                end
-                RunService.Heartbeat:Wait()
-            until os.clock() - _t0 > 3
-        end
-        if _caConn then _caConn:Disconnect() end
-
         if _cloneOk then
-            goToBrainrot(petPos)
+            task.wait(0.3)
+            local _cloneSucceeded = false
+            do
+                local _c = LP.Character
+                local _h = _c and _c:FindFirstChild("HumanoidRootPart")
+                local plotsFolder = workspace:FindFirstChild("Plots")
+                if _h and plotsFolder then
+                    local _rad = (petPos.Y <= 8.9) and 26 or 25
+                    local p = _h.Position
+                    for _, plot in ipairs(plotsFolder:GetChildren()) do
+                        pcall(function()
+                            local pp = plot:GetPivot().Position
+                            if math.abs(p.X - pp.X) < _rad and math.abs(p.Z - pp.Z) < _rad then
+                                _cloneSucceeded = true
+                            end
+                        end)
+                        if _cloneSucceeded then break end
+                    end
+                end
+            end
+            if _caConn then _caConn:Disconnect() end
+            if _cloneSucceeded then goToBrainrot(petPos) end
+        else
+            if _caConn then _caConn:Disconnect() end
         end
         isTeleporting = false
     end
@@ -11266,556 +11045,3 @@ do
         _started = true
     end)
 end
-
-do
-_G.VanishStartSideTP = doGrabbleVelocityTP
-_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400, 200, 500)
-_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.4, 0.15, 0.75)
-_G._stp_tpDelay = _G._stp_tpDelay or 0
-local _SAVE_FILE = "chopper_HUB.json"
-local _HttpService = game:GetService("HttpService")
-local _TeleportService = game:GetService("TeleportService")
-local function _stp_readRoot()
-	if not (readfile and isfile) then return {} end
-	local ok, root = pcall(function()
-		if isfile(_SAVE_FILE) then
-			return _HttpService:JSONDecode(readfile(_SAVE_FILE))
-		end
-	end)
-	return (ok and type(root) == "table") and root or {}
-end
-local function _stp_loadSaved()
-	local data = nil
-
-	pcall(function()
-		local td = _TeleportService:GetLocalPlayerTeleportData()
-		if td and td.SideTP then data = td.SideTP end
-	end)
-
-	if not data then
-		local root = _stp_readRoot()
-		if type(root.sideTP) == "table" then data = root.sideTP end
-	else
-		-- toujours merger depuis le fichier pour les positions UI (pas dans les données TP)
-		local root = _stp_readRoot()
-		if type(root.sideTP) == "table" then
-			if type(root.sideTP.panelX) == "number" then data.panelX = root.sideTP.panelX end
-			if type(root.sideTP.panelY) == "number" then data.panelY = root.sideTP.panelY end
-		end
-	end
-	return data or {}
-end
-local function _stp_saveCurrent()
-	if not writefile then return end
-	local payload = {
-		tpDelay = _G._stp_tpDelay or 0,
-		tpVelocity = _G.TPVelocity or 400,
-		landingDelay = _G.LandingDelay or 0.4,
-		tpKey = _G._stp_tpKeyName or "T",
-		priorityList = _G.SHARED_PRIORITY_ITEMS,
-		priorityListVersion = _G._priorityListVersion or 0,
-		panelX = _G._stp_panelX,
-		panelY = _G._stp_panelY,
-	}
-	local root = _stp_readRoot()
-	root.sideTP = payload
-	pcall(function() writefile(_SAVE_FILE, _HttpService:JSONEncode(root)) end)
-end
-_G._stp_saveCurrent = _stp_saveCurrent
-do
-	local s = _stp_loadSaved()
-	if type(s.tpDelay) == "number" then _G._stp_tpDelay = s.tpDelay end
-	if type(s.tpVelocity) == "number" then _G.TPVelocity = math.clamp(s.tpVelocity, 200, 500) end
-	if type(s.landingDelay) == "number" then _G.LandingDelay = math.clamp(s.landingDelay, 0.15, 0.75) end
-	if type(s.tpKey) == "string" then _G._stp_tpKeyName = s.tpKey end
-	if type(s.priorityList) == "table" and #s.priorityList > 0 then
-		_G.SHARED_PRIORITY_ITEMS = s.priorityList
-	end
-	if type(s.panelX) == "number" then _G._stp_panelX = s.panelX end
-	if type(s.panelY) == "number" then _G._stp_panelY = s.panelY end
-
-	local savedVersion = tonumber(s.priorityListVersion) or 0
-	if savedVersion < 2 then
-		_G.SHARED_PRIORITY_ITEMS = {
-			"signore carapace","headless horseman","strawberry elephant","john pork","arcadragon",
-			"elefanto frigo","meowl","skibidi toilet","griffin","love love bear",
-			"antonio","dragon gingerini","dragon aquanini","pancake and syrup","fishino clownino",
-			"la supreme combinasion","ginger gerat","rico dinero","kalika bros","tirilikalika tirilikalako",
-			"digi narwhal","hydra bunny","bunny and eggy","dragon cannelloni","hydra dragon cannelloni",
-			"globa steppa","dug dug dug","los hackers","lazy ducky","duggy bros",
-			"pineaplino","ketupat bros","la casa boo","cerberus","rosey and teddy",
-			"foxini lanternini","spooky and pumpky","john doe","fragola la la la","guest 666",
-			"cooki and milki","quackini snackini","reinito sleighito","popcuru and fizzuru","gym bros",
-			"capitano moby","burguro and fryuro","garama and madundung","fragrama and chocrama",
-		}
-		_G._priorityListVersion = 2
-		if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
-	else
-		_G._priorityListVersion = savedVersion
-	end
-end
-
-if type(_G.SHARED_PRIORITY_ITEMS) ~= "table" or #_G.SHARED_PRIORITY_ITEMS == 0 then
-	_G.SHARED_PRIORITY_ITEMS = {
-		"headless horseman","strawberry elephant","signore carapace","meowl","skibidi toilet",
-		"griffin","dragon gingerini","la supreme combinasion","dragon cannelloni",
-		"hydra dragon cannelloni","love love bear","elefanto frigo","ginger gerat","antonio",
-		"ketupat bros","tirilikalika tirilikalako","dug dug dug","fishino clownino",
-		"foxini lanternini","cerberus","la casa boo","hydra bunny",
-		"boppin bunny","capitano moby","fortunu and cashuru","celestial pegasus",
-		"rosey and teddy","burguro and fryuro","spooky and pumpky","cooki and milki",
-		"los amigos","popcuru and fizzuru","reinito sleighito","fragrama and chocrama",
-		"festive 67","garama and madundung","ketchuru and musturu","la secret combinasion",
-		"tralaledon","tictac sahur","ketupat kepat","tang tang keletang","orcaledon",
-		"la ginger sekolah","los spaghettis","lavadorito spinito","swaggy bros",
-		"la taco combinasion","los primos","chillin chili","tuff toucan","w or l",
-		"chipso and queso",
-		"money money bros","cash or card","la spooky grande","los bros","los candies",
-		"los sekolahs","nacho spyder","la easter grande","quackini snackini","los chillis",
-		"la anniversary grande","las sis","spaghetti tualetti","ventoliero pavonero","los tacoritas",
-		"rosetti tualetti","eviledon","la lucky grande","la extinct grande","john doe",
-		"la romantic grande","los hackers","los planitos","los puggies","la jolly grande",
-		"gym bros","swag soda","sammyni fattini","los hotspotsitos","celularcini viciosini",
-		"bunny and eggy","guest 666","digi narwhal","duggy bros","globa steppa",
-		"jelly moby","kalika bros","arcadragon","pancake and syrup","rico dinero",
-		"john pork"
-	}
-end
-
-do
-	local NEW_PRIORITY_ITEMS = {
-		"money money bros","cash or card","la spooky grande","los bros","los candies",
-		"los sekolahs","nacho spyder","la easter grande","quackini snackini","los chillis",
-		"la anniversary grande","las sis","spaghetti tualetti","ventoliero pavonero","los tacoritas",
-		"rosetti tualetti","eviledon","la lucky grande","la extinct grande","john doe",
-		"la romantic grande","los hackers","los planitos","los puggies","la jolly grande",
-		"gym bros","swag soda","sammyni fattini","los hotspotsitos","celularcini viciosini",
-		"bunny and eggy","guest 666","digi narwhal","duggy bros","globa steppa",
-		"jelly moby","kalika bros","arcadragon","pancake and syrup","rico dinero",
-		"john pork"
-	}
-	local existing = {}
-	for _, name in ipairs(_G.SHARED_PRIORITY_ITEMS) do
-		existing[tostring(name):lower()] = true
-	end
-	local changed = false
-	for _, name in ipairs(NEW_PRIORITY_ITEMS) do
-		if not existing[name] then
-			table.insert(_G.SHARED_PRIORITY_ITEMS, name)
-			existing[name] = true
-			changed = true
-		end
-	end
-	if changed and _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
-end
-end
-
-task.spawn(function()
-	local _UIS = game:GetService("UserInputService")
-	local Players = game:GetService("Players")
-	local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
-	if not LocalPlayer then return end
-	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-	local C_BG = Color3.fromRGB(255, 252, 255)
-	local C_SURFACE = Color3.fromRGB(252, 245, 249)
-	local C_SELECTED = Color3.fromRGB(252, 225, 240)
-	local C_TEXT = Color3.fromRGB(40, 15, 30)
-	local C_TEXT_DIM = Color3.fromRGB(140, 80, 115)
-	local C_GREEN = Color3.fromRGB(232, 111, 177)
-	local C_ACCENT = Color3.fromRGB(232, 111, 177)
-
-	local sg = Instance.new("ScreenGui")
-	sg.Name = "XenSideTPPanel"
-	sg.ResetOnSpawn = false
-	sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	local _cloneref = cloneref or function(x) return x end
-	pcall(function() sg.Parent = _cloneref(game:GetService("CoreGui")) end)
-	if not sg.Parent then sg.Parent = PlayerGui end
-
-	local priorityPopup = Instance.new("Frame", sg)
-	priorityPopup.Size = UDim2.new(0, 400, 0, 560)
-	priorityPopup.Position = UDim2.new(0.5, -200, 0.5, -280)
-	priorityPopup.BackgroundColor3 = C_BG
-	priorityPopup.BackgroundTransparency = 0.02
-	priorityPopup.BorderSizePixel = 0
-	priorityPopup.Visible = false
-	priorityPopup.ZIndex = 50
-	Instance.new("UICorner", priorityPopup).CornerRadius = UDim.new(0, 12)
-	local popStroke = Instance.new("UIStroke", priorityPopup)
-	popStroke.Color = Color3.fromRGB(255, 255, 255); popStroke.Thickness = 1; popStroke.Transparency = 0.96
-
-	local popTitle = Instance.new("TextLabel", priorityPopup)
-	popTitle.Size = UDim2.new(1, -40, 0, 40)
-	popTitle.Position = UDim2.new(0, 10, 0, 2)
-	popTitle.BackgroundTransparency = 1
-	popTitle.Text = "Priority List"
-	popTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-	popTitle.TextSize = 18
-	popTitle.Font = Enum.Font.BuilderSans
-	popTitle.TextXAlignment = Enum.TextXAlignment.Center
-	popTitle.ZIndex = 51
-
-	local popClose = Instance.new("TextButton", priorityPopup)
-	popClose.Size = UDim2.new(0, 28, 0, 28)
-	popClose.Position = UDim2.new(1, -34, 0, 8)
-	popClose.BackgroundTransparency = 1
-	popClose.Text = "x"
-	popClose.TextColor3 = C_TEXT_DIM
-	popClose.TextSize = 16
-	popClose.Font = Enum.Font.BuilderSans
-	popClose.AutoButtonColor = false
-	popClose.ZIndex = 52
-	popClose.MouseEnter:Connect(function() popClose.TextColor3 = C_TEXT end)
-	popClose.MouseLeave:Connect(function() popClose.TextColor3 = C_TEXT_DIM end)
-
-	local popDiv = Instance.new("Frame", priorityPopup)
-	popDiv.Size = UDim2.new(1, -20, 0, 1)
-	popDiv.Position = UDim2.new(0, 10, 0, 42)
-	popDiv.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	popDiv.BackgroundTransparency = 0.92
-	popDiv.BorderSizePixel = 0
-	popDiv.ZIndex = 51
-
-	local searchRow = Instance.new("Frame", priorityPopup)
-	searchRow.Size = UDim2.new(1, -20, 0, 32)
-	searchRow.Position = UDim2.new(0, 10, 0, 48)
-	searchRow.BackgroundTransparency = 1
-	searchRow.ZIndex = 51
-
-	local searchInput = Instance.new("TextBox", searchRow)
-	searchInput.Size = UDim2.new(1, 0, 1, 0)
-	searchInput.BackgroundColor3 = C_SURFACE
-	searchInput.Text = ""
-	searchInput.PlaceholderText = "Search..."
-	searchInput.PlaceholderColor3 = C_TEXT_DIM
-	searchInput.TextColor3 = C_TEXT
-	searchInput.TextSize = 12
-	searchInput.Font = Enum.Font.BuilderSans
-	searchInput.ClearTextOnFocus = false
-	searchInput.TextXAlignment = Enum.TextXAlignment.Left
-	searchInput.BorderSizePixel = 0
-	searchInput.ZIndex = 52
-	Instance.new("UICorner", searchInput).CornerRadius = UDim.new(0, 6)
-	Instance.new("UIPadding", searchInput).PaddingLeft = UDim.new(0, 8)
-	local searchStroke = Instance.new("UIStroke", searchInput)
-	searchStroke.Color = Color3.fromRGB(255, 255, 255); searchStroke.Thickness = 1; searchStroke.Transparency = 0.96
-
-	local popScroll = Instance.new("ScrollingFrame", priorityPopup)
-	popScroll.Size = UDim2.new(1, -20, 1, -130)
-	popScroll.Position = UDim2.new(0, 10, 0, 86)
-	popScroll.BackgroundTransparency = 1
-	popScroll.ScrollBarThickness = 4
-	popScroll.ScrollBarImageColor3 = C_ACCENT
-	popScroll.ScrollBarImageTransparency = 0.4
-	popScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	popScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	popScroll.BorderSizePixel = 0
-	popScroll.ZIndex = 51
-	local popLayout = Instance.new("UIListLayout", popScroll)
-	popLayout.Padding = UDim.new(0, 3)
-	popLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	local addDiv = Instance.new("Frame", priorityPopup)
-	addDiv.Size = UDim2.new(1, -20, 0, 1)
-	addDiv.Position = UDim2.new(0, 10, 1, -40)
-	addDiv.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	addDiv.BackgroundTransparency = 0.92
-	addDiv.BorderSizePixel = 0
-	addDiv.ZIndex = 51
-
-	local addRow = Instance.new("Frame", priorityPopup)
-	addRow.Size = UDim2.new(1, -20, 0, 32)
-	addRow.Position = UDim2.new(0, 10, 1, -36)
-	addRow.BackgroundTransparency = 1
-	addRow.ZIndex = 51
-
-	local addInput = Instance.new("TextBox", addRow)
-	addInput.Size = UDim2.new(1, -58, 1, 0)
-	addInput.BackgroundColor3 = C_SURFACE
-	addInput.Text = ""
-	addInput.PlaceholderText = "Add brainrot name..."
-	addInput.PlaceholderColor3 = C_TEXT_DIM
-	addInput.TextColor3 = C_TEXT
-	addInput.TextSize = 12
-	addInput.Font = Enum.Font.BuilderSans
-	addInput.ClearTextOnFocus = false
-	addInput.TextXAlignment = Enum.TextXAlignment.Left
-	addInput.BorderSizePixel = 0
-	addInput.ZIndex = 52
-	Instance.new("UICorner", addInput).CornerRadius = UDim.new(0, 6)
-	Instance.new("UIPadding", addInput).PaddingLeft = UDim.new(0, 8)
-	local addInputStroke = Instance.new("UIStroke", addInput)
-	addInputStroke.Color = Color3.fromRGB(255, 255, 255); addInputStroke.Thickness = 1; addInputStroke.Transparency = 0.96
-
-	local addBtn = Instance.new("TextButton", addRow)
-	addBtn.Size = UDim2.new(0, 52, 1, 0)
-	addBtn.Position = UDim2.new(1, -52, 0, 0)
-	addBtn.BackgroundColor3 = C_ACCENT
-	addBtn.Text = "Add"
-	addBtn.TextColor3 = C_TEXT
-	addBtn.TextSize = 12
-	addBtn.Font = Enum.Font.BuilderSans
-	addBtn.AutoButtonColor = false
-	addBtn.BorderSizePixel = 0
-	addBtn.ZIndex = 52
-	Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
-
-	local function getPriorityList()
-		if type(_G.SHARED_PRIORITY_ITEMS) ~= "table" then _G.SHARED_PRIORITY_ITEMS = {} end
-		return _G.SHARED_PRIORITY_ITEMS
-	end
-
-	-- ----- Drag-to-reorder for the priority list -----
-	local ROW_H, ROW_GAP = 30, 3
-	local ROW_STEP = ROW_H + ROW_GAP
-	local _dragState = nil -- { idx = <index in list>, row = <Frame>, grabOffsetY = <number> }
-	local GuiService = game:GetService("GuiService")
-	local function getMouseYInGuiSpace()
-		return _UIS:GetMouseLocation().Y - GuiService:GetGuiInset().Y
-	end
-
-	-- Thin highlight bar showing where the dragged row will land.
-	local dropIndicator = Instance.new("Frame", priorityPopup)
-	dropIndicator.Name = "PriorityDropIndicator"
-	dropIndicator.BackgroundColor3 = Color3.fromRGB(120, 180, 255)
-	dropIndicator.BorderSizePixel = 0
-	dropIndicator.ZIndex = 59
-	dropIndicator.Visible = false
-	Instance.new("UICorner", dropIndicator).CornerRadius = UDim.new(1, 0)
-
-	local rebuildPriorityList
-	rebuildPriorityList = function()
-		_dragState = nil
-		dropIndicator.Visible = false
-		local leftover = priorityPopup:FindFirstChild("DraggingPriorityRow")
-		if leftover then leftover:Destroy() end
-
-		for _, child in ipairs(popScroll:GetChildren()) do
-			if child:IsA("Frame") then child:Destroy() end
-		end
-		local query = (searchInput.Text or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
-		local firstMatchRow = nil
-		local list = getPriorityList()
-		for idx, name in ipairs(list) do
-			local displayName = name:gsub("(%a)([%w_']*)", function(a, b) return a:upper() .. b end)
-			local isMatch = query ~= "" and name:find(query, 1, true)
-			local row = Instance.new("Frame", popScroll)
-			row.Size = UDim2.new(1, 0, 0, 30)
-			row.BackgroundColor3 = isMatch and C_SELECTED or C_SURFACE
-			row.BackgroundTransparency = 0.12
-			if isMatch and not firstMatchRow then firstMatchRow = row end
-			row.LayoutOrder = idx
-			row.ZIndex = 52
-			Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
-			local _rowStroke = Instance.new("UIStroke", row)
-			_rowStroke.Color = Color3.fromRGB(255, 255, 255); _rowStroke.Thickness = 1; _rowStroke.Transparency = 0.96
-
-			local numLabel = Instance.new("TextLabel", row)
-			numLabel.Size = UDim2.new(0, 26, 1, 0)
-			numLabel.Position = UDim2.new(0, 6, 0, 0)
-			numLabel.BackgroundTransparency = 1
-			numLabel.Text = tostring(idx)
-			numLabel.TextColor3 = C_TEXT_DIM
-			numLabel.TextSize = 11
-			numLabel.Font = Enum.Font.BuilderSans
-			numLabel.ZIndex = 53
-
-			local nameLabel = Instance.new("TextLabel", row)
-			nameLabel.Size = UDim2.new(1, -58, 1, 0)
-			nameLabel.Position = UDim2.new(0, 32, 0, 0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.Text = displayName
-			nameLabel.TextColor3 = isMatch and C_GREEN or C_TEXT
-			nameLabel.TextSize = 12
-			nameLabel.Font = Enum.Font.BuilderSans
-			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-			nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-			nameLabel.ZIndex = 53
-
-			local dragBtn = Instance.new("TextButton", row)
-			dragBtn.Size = UDim2.new(0, 20, 0, 20)
-			dragBtn.Position = UDim2.new(1, -46, 0.5, -10)
-			dragBtn.BackgroundTransparency = 1
-			dragBtn.Text = "☰"
-			dragBtn.TextColor3 = C_TEXT_DIM
-			dragBtn.TextSize = 14
-			dragBtn.Font = Enum.Font.BuilderSans
-			dragBtn.AutoButtonColor = false
-			dragBtn.ZIndex = 54
-			dragBtn.Active = true
-			dragBtn.InputBegan:Connect(function(input)
-				if input.UserInputType ~= Enum.UserInputType.MouseButton1
-					and input.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-				if _dragState then return end
-				local relX = popScroll.AbsolutePosition.X - priorityPopup.AbsolutePosition.X
-				local relY = (row.AbsolutePosition.Y - priorityPopup.AbsolutePosition.Y)
-				_dragState = {
-					idx = idx,
-					row = row,
-					grabOffsetY = getMouseYInGuiSpace() - row.AbsolutePosition.Y,
-				}
-				row.Name = "DraggingPriorityRow"
-				row.ZIndex = 60
-				row.BackgroundColor3 = C_SELECTED
-				row.BackgroundTransparency = 0
-				row.Size = UDim2.new(0, popScroll.AbsoluteSize.X, 0, ROW_H)
-				row.Position = UDim2.new(0, relX, 0, relY)
-				row.Parent = priorityPopup
-			end)
-
-			local delBtn = Instance.new("TextButton", row)
-			delBtn.Size = UDim2.new(0, 20, 0, 20)
-			delBtn.Position = UDim2.new(1, -22, 0.5, -10)
-			delBtn.BackgroundTransparency = 1
-			delBtn.Text = "x"
-			delBtn.TextColor3 = Color3.fromRGB(224, 122, 130)
-			delBtn.TextSize = 12
-			delBtn.Font = Enum.Font.BuilderSans
-			delBtn.AutoButtonColor = false
-			delBtn.ZIndex = 54
-			delBtn.MouseButton1Click:Connect(function()
-				table.remove(list, idx)
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-				rebuildPriorityList()
-			end)
-		end
-		if firstMatchRow then
-			task.defer(function()
-				local yPos = firstMatchRow.AbsolutePosition.Y - popScroll.AbsolutePosition.Y + popScroll.CanvasPosition.Y
-				popScroll.CanvasPosition = Vector2.new(0, math.max(0, yPos - 10))
-			end)
-		end
-	end
-
-	local function computeTargetIdx(row, listLen)
-		local relY = (row.AbsolutePosition.Y - popScroll.AbsolutePosition.Y) + popScroll.CanvasPosition.Y
-		return math.clamp(math.floor(relY / ROW_STEP + 0.5) + 1, 1, listLen)
-	end
-
-	-- Follow the mouse while a row is being dragged, and show a drop indicator
-	-- bar at the slot it would land in if released right now.
-	RunService.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function()
-		if not _dragState then return end
-		local row = _dragState.row
-		if not row or not row.Parent then _dragState = nil; dropIndicator.Visible = false; return end
-		local mouseY = getMouseYInGuiSpace()
-		local minY = popScroll.AbsolutePosition.Y
-		local maxY = popScroll.AbsolutePosition.Y + popScroll.AbsoluteSize.Y - row.AbsoluteSize.Y
-		local newY = math.clamp(mouseY - _dragState.grabOffsetY, minY, math.max(minY, maxY))
-		local relX = popScroll.AbsolutePosition.X - priorityPopup.AbsolutePosition.X
-		local relY = newY - priorityPopup.AbsolutePosition.Y
-		row.Position = UDim2.new(0, relX, 0, relY)
-
-		local list = getPriorityList()
-		local targetIdx = computeTargetIdx(row, #list)
-		local indicatorScreenY = popScroll.AbsolutePosition.Y + (targetIdx - 1) * ROW_STEP - popScroll.CanvasPosition.Y
-		if indicatorScreenY >= popScroll.AbsolutePosition.Y - 2
-			and indicatorScreenY <= popScroll.AbsolutePosition.Y + popScroll.AbsoluteSize.Y + 2 then
-			dropIndicator.Size = UDim2.new(0, popScroll.AbsoluteSize.X, 0, 3)
-			dropIndicator.Position = UDim2.new(0, relX, 0, (indicatorScreenY - priorityPopup.AbsolutePosition.Y) - 1)
-			dropIndicator.Visible = true
-		else
-			dropIndicator.Visible = false
-		end
-	end))
-
-	-- Drop the dragged row: convert its Y position back into a list index and reorder.
-	_UIS.InputEnded:Connect(function(input)
-		if not _dragState then return end
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1
-			and input.UserInputType ~= Enum.UserInputType.Touch then
-			return
-		end
-		local row, idx = _dragState.row, _dragState.idx
-		_dragState = nil
-		dropIndicator.Visible = false
-		local list = getPriorityList()
-		local targetIdx = computeTargetIdx(row, #list)
-		row:Destroy()
-		if targetIdx ~= idx and list[idx] then
-			local name = table.remove(list, idx)
-			table.insert(list, targetIdx, name)
-			if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-		end
-		rebuildPriorityList()
-	end)
-
-	addBtn.MouseButton1Click:Connect(function()
-		local name = addInput.Text:match("^%s*(.-)%s*$"):lower()
-		if name == "" then return end
-		local list = getPriorityList()
-		for _, existing in ipairs(list) do
-			if existing == name then addInput.Text = ""; return end
-		end
-		table.insert(list, name)
-		addInput.Text = ""
-		if _G._stp_saveCurrent then _G._stp_saveCurrent() end
-		rebuildPriorityList()
-	end)
-
-	searchInput:GetPropertyChangedSignal("Text"):Connect(function()
-		rebuildPriorityList()
-	end)
-
-	local popupOpen = false
-
-	-- Opened from the "Edit TP Priority" button in SXE's TP tab.
-	_G._stp_openPriority = function()
-		popupOpen = true
-		rebuildPriorityList()
-		priorityPopup.Visible = true
-		local cam = workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-		priorityPopup.Position = UDim2.new(0, math.floor(vp.X / 2 - 200), 0, math.floor(vp.Y / 2 - 280))
-	end
-
-	popClose.MouseButton1Click:Connect(function()
-		popupOpen = false
-		priorityPopup.Visible = false
-	end)
-
-	priorityPopup.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if searchInput:IsFocused() then searchInput:ReleaseFocus() end
-			if addInput:IsFocused() then addInput:ReleaseFocus() end
-		end
-	end)
-
-	local popDg, popDs, popSp = false, nil, nil
-	popTitle.Active = true
-	popTitle.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			popDg = true
-			popDs = input.Position
-			popSp = UDim2.new(0, priorityPopup.AbsolutePosition.X, 0, priorityPopup.AbsolutePosition.Y)
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then popDg = false end
-			end)
-		end
-	end)
-	_UIS.InputChanged:Connect(function(input)
-		if popDg and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			local d = input.Position - popDs
-			local newX = popSp.X.Offset + d.X
-			local newY = popSp.Y.Offset + d.Y
-			local viewportSize = workspace.CurrentCamera.ViewportSize
-			newX = math.clamp(newX, 0, viewportSize.X - priorityPopup.AbsoluteSize.X)
-			newY = math.clamp(newY, 0, viewportSize.Y - priorityPopup.AbsoluteSize.Y)
-			priorityPopup.Position = UDim2.new(0, newX, 0, newY)
-		end
-	end)
-
-	_UIS.InputBegan:Connect(function(input, processed)
-		if processed then return end
-		if _UIS:GetFocusedTextBox() then return end
-		local name = _G._stp_tpKeyName
-		if type(name) ~= "string" then name = "T" end
-		if name == "" then return end
-		if Enum.KeyCode[name] and input.KeyCode == Enum.KeyCode[name] then
-			task.spawn(function() if _G.VanishStartSideTP then _G.VanishStartSideTP() end end)
-		end
-	end)
-end)
