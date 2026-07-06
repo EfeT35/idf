@@ -10049,6 +10049,7 @@ do
         D = {{coord=Vector3.new(-335.476654,-3.048218,139.001083),facing="NORTH"},{coord=Vector3.new(-503.710083,-3.048218,138.989883),facing="NORTH"},{coord=Vector3.new(-315.654938,-3.048218,195.302444),facing="SOUTH"},{coord=Vector3.new(-483.859253,-3.048218,195.269043),facing="SOUTH"}},
     }
     local UPPER_Y_THRESHOLD = 7
+    local FLOOR2_MAX_Y = 24   -- pets between 8.9 and this Y are treated as 2nd floor
     local TALL_PETS = { ["La Secret Combinasion"]=true, ["La Jolly Grande"]=true }
     local TALL_OFFSET = 3
     local BASES_LOW = {
@@ -10882,6 +10883,106 @@ do
                 task.wait(0.05)
                 vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
             end)
+            return
+        end
+
+        -- SECOND FLOOR: navigate to directly below the pet (floor-1 level) then clone from below
+        if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
+            _cloneTP = true
+            disarmSteal()
+            local maxHP2 = hum.MaxHealth
+            hum.Health = maxHP2
+            local healConn2 = RunService.Heartbeat:Connect(function()
+                if hum and hum.Parent then hum.Health = maxHP2 end
+            end)
+            carpetEngage()
+            vZero(hrp)
+            -- Target is directly below the 2nd-floor pet at ground level
+            local belowPos = Vector3.new(petPos.X, -4, petPos.Z)
+            local route2 = computeRoute(hrp.Position, belowPos, nil)
+            if not route2 or #route2 == 0 then route2 = { belowPos } end
+            local _r2Len = 0
+            do
+                local prev = hrp.Position
+                for _, wp in ipairs(route2) do _r2Len = _r2Len + (wp - prev).Magnitude; prev = wp end
+            end
+            local _r2Speed = (_r2Len < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
+            velMoveThrough(hrp, route2, _r2Speed, true, true)
+            -- Fine-adjust with LinearVelocity
+            do
+                local _t0 = os.clock()
+                while os.clock() - _t0 < 4 do
+                    if not hrp or not hrp.Parent then break end
+                    local diff = belowPos - hrp.Position
+                    if diff.Magnitude <= 3 then break end
+                    lvDrive(hrp, diff.Unit * math.min(400, diff.Magnitude * 8))
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                    RunService.Heartbeat:Wait()
+                end
+                lvStop(hrp)
+            end
+            vZero(hrp)
+            healConn2:Disconnect()
+
+            local _ahrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            local _clonePos2 = (_ahrp2 and _ahrp2.Parent and _ahrp2.Position) or belowPos
+
+            -- Invisible platform so the character doesn't fall
+            local _clonePlat2 = Instance.new("Part")
+            _clonePlat2.Name = "XenHubClonePlatform2"
+            _clonePlat2.Size = Vector3.new(12, 1, 12)
+            _clonePlat2.Position = Vector3.new(_clonePos2.X, _clonePos2.Y - 3, _clonePos2.Z)
+            _clonePlat2.Anchored = true
+            _clonePlat2.CanCollide = true
+            _clonePlat2.Transparency = 1
+            _clonePlat2.Material = Enum.Material.SmoothPlastic
+            _clonePlat2.Parent = workspace
+
+            if _ahrp2 and _ahrp2.Parent then
+                _ahrp2.AssemblyLinearVelocity = Vector3.zero
+                _ahrp2.AssemblyAngularVelocity = Vector3.zero
+            end
+
+            local _preCloneChar2 = LP.Character
+            local _charAdded2 = false
+            local _caConn2 = LP.CharacterAdded:Connect(function() _charAdded2 = true end)
+
+            task.wait(tonumber(_G.LandingDelay) or (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or SKY_CLONE_WAIT)
+
+            _cloneFired = true
+            local _cloneOk2 = doClone()
+            if _clonePlat2 then pcall(function() _clonePlat2:Destroy() end); _clonePlat2 = nil end
+
+            task.spawn(function()
+                task.wait(0.35)
+                pcall(function()
+                    local prompt = findStealPrompt(pet)
+                    if prompt and prompt.Parent then
+                        buildStealCallbacks(prompt)
+                        if InternalStealCache[prompt] then executeStealAsync(prompt) end
+                    end
+                end)
+            end)
+            disarmSteal()
+
+            do
+                local _t0 = os.clock()
+                repeat
+                    if _charAdded2 then break end
+                    if LP.Character ~= _preCloneChar2 then break end
+                    local _h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                    if _h then
+                        local _dx = _h.Position.X - _clonePos2.X
+                        local _dz = _h.Position.Z - _clonePos2.Z
+                        if (_dx * _dx + _dz * _dz) > 4 then break end
+                    end
+                    RunService.Heartbeat:Wait()
+                until os.clock() - _t0 > 3
+            end
+            if _caConn2 then _caConn2:Disconnect() end
+
+            if _cloneOk2 then goToBrainrot(petPos) end
+            isTeleporting = false
             return
         end
 
