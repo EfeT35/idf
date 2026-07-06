@@ -10913,8 +10913,42 @@ do
             return
         end
 
-        -- SECOND FLOOR: navigate to directly below the pet (floor-1 level) then clone from below
+        -- SECOND FLOOR: if base already open → direct steal from below (no clone); else clone from below
         if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
+            if isPlotUnlocked(pet.plot) then
+                -- Base is open: fly directly below and press C, same as floor 1
+                local maxHPo = hum.MaxHealth
+                hum.Health = maxHPo
+                local healConno = RunService.Heartbeat:Connect(function()
+                    if hum and hum.Parent then hum.Health = maxHPo end
+                end)
+                carpetEngage()
+                vZero(hrp)
+                local _to2 = Vector3.new(petPos.X, -4, petPos.Z)
+                local routeo = computeRoute(hrp.Position, _to2, nil)
+                if not routeo or #routeo == 0 then routeo = { _to2 } end
+                local _oLen = 0
+                do
+                    local prev = hrp.Position
+                    for _, wp in ipairs(routeo) do _oLen = _oLen + (wp - prev).Magnitude; prev = wp end
+                end
+                local _oSpeed = (_oLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
+                velMoveThrough(hrp, routeo, _oSpeed, true, true)
+                if hrp and hrp.Parent then
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end
+                healConno:Disconnect()
+                isTeleporting = false
+                pcall(function()
+                    local vim = Instance.new("VirtualInputManager")
+                    vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+                    task.wait(0.05)
+                    vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+                end)
+                return
+            end
+
             _cloneTP = true
             disarmSteal()
             local maxHP2 = hum.MaxHealth
