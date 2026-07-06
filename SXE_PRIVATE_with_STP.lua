@@ -10357,6 +10357,57 @@ do
         return useOk and telOk
     end
 
+    -- ===== LinearVelocity fine-mover =====
+    local _tpLVAtt, _tpLV
+    local function lvDrive(hrp, v)
+        if not hrp or not hrp.Parent then return end
+        if not (_tpLV and _tpLV.Parent and _tpLVAtt and _tpLVAtt.Parent == hrp) then
+            if _tpLV then pcall(function() _tpLV:Destroy() end) end
+            if _tpLVAtt then pcall(function() _tpLVAtt:Destroy() end) end
+            _tpLVAtt = Instance.new("Attachment"); _tpLVAtt.Name = "VanishTPAtt"; _tpLVAtt.Parent = hrp
+            _tpLV = Instance.new("LinearVelocity"); _tpLV.Name = "VanishTPLV"
+            _tpLV.Attachment0 = _tpLVAtt; _tpLV.RelativeTo = Enum.ActuatorRelativeTo.World
+            pcall(function() _tpLV.ForceLimitsEnabled = false end)
+            _tpLV.MaxForce = math.huge; _tpLV.VectorVelocity = Vector3.zero; _tpLV.Parent = hrp
+        end
+        _tpLV.VectorVelocity = v
+    end
+    local function lvStop(hrp)
+        if _tpLV then pcall(function() _tpLV:Destroy() end); _tpLV = nil end
+        if _tpLVAtt then pcall(function() _tpLVAtt:Destroy() end); _tpLVAtt = nil end
+        if hrp and hrp.Parent then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+
+    -- ===== Xen tween (CFrame step toward target) =====
+    local _TweenTS = game:GetService("TweenService")
+    local function xenTween(rootPart, hum, targetPos, lookDir)
+        if not rootPart or not rootPart.Parent then return end
+        local STEP = 20
+        local speed = (_G.TPTravelSpeed or 100)
+        local hasLook = lookDir ~= nil and lookDir.Magnitude > 0.001
+        local prevAnchored = rootPart.Anchored
+        lvStop(rootPart)
+        pcall(function() rootPart.Anchored = true end)
+        local deadline = os.clock() + 12
+        while rootPart and rootPart.Parent and os.clock() < deadline do
+            local pos = rootPart.Position
+            local toTarget = targetPos - pos
+            local d = toTarget.Magnitude
+            if d < 0.5 then break end
+            local stepDist = math.min(STEP, d)
+            local stepGoal = pos + toTarget.Unit * stepDist
+            local stepCF = hasLook and CFrame.lookAt(stepGoal, stepGoal + lookDir) or ((rootPart.CFrame - rootPart.CFrame.Position) + stepGoal)
+            local dur = math.clamp(stepDist / speed, 0.02, 1)
+            local tw = _TweenTS:Create(rootPart, TweenInfo.new(dur, Enum.EasingStyle.Linear), { CFrame = stepCF })
+            tw:Play(); tw.Completed:Wait()
+        end
+        pcall(function() rootPart.Anchored = prevAnchored end)
+        if rootPart and rootPart.Parent then lvStop(rootPart) end
+    end
+
     -- CARPET GLIDE: fly straight to the pet on the equipped carpet at FULL 3D speed
     -- (same pace as velMoveThrough -- WalkTPSpeed in the actual direction, vertical
     -- included). The carpet is already equipped by goToBrainrot, so no extra equip
@@ -10393,82 +10444,28 @@ do
 
     local function goToBrainrot(petPos)
         if not petPos then return end
-        local char, hrp, hum
+        local char, hrp
         local _t0 = os.clock()
         repeat
             char = LP.Character
             hrp = char and char:FindFirstChild("HumanoidRootPart")
-            hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hrp and hum then break end
+            if hrp then break end
             RunService.Heartbeat:Wait()
-        until os.clock() - _t0 > 3
-        if not hrp or not hum then return end
-        pcall(function() hrp.Anchored = false end)
-        local _equipped = false
-        do
-            local _e0 = os.clock()
-            repeat
-                char = LP.Character
-                for _, _cn in ipairs(CARPET_NAMES) do
-                    if char and char:FindFirstChild(_cn) then _equipped = true; break end
-                end
-                if _equipped then break end
-                equipCarpet()
-                RunService.Heartbeat:Wait()
-            until _equipped or os.clock() - _e0 > 1.5
-            if _equipped then task.wait(0.2) end
-        end
-        char = LP.Character
-        hrp = char and char:FindFirstChild("HumanoidRootPart")
-        hum = char and char:FindFirstChildOfClass("Humanoid")
+        until os.clock() - _t0 > 2
         if not hrp then return end
         pcall(function() hrp.Anchored = false end)
-        local _plotRad = (petPos.Y <= 8.9) and 26 or 25
-        do
-            local _t0b = os.clock()
-            repeat
-                local p = hrp.Position
-                local inRad = false
-                local plotsFolder = workspace:FindFirstChild("Plots")
-                if plotsFolder then
-                    for _, plot in ipairs(plotsFolder:GetChildren()) do
-                        pcall(function()
-                            local pp = plot:GetPivot().Position
-                            if math.abs(p.X - pp.X) < _plotRad and math.abs(p.Z - pp.Z) < _plotRad then inRad = true end
-                        end)
-                        if inRad then break end
-                    end
-                end
-                if inRad then break end
-                RunService.Heartbeat:Wait()
-            until os.clock() - _t0b > 1.5
-        end
+        equipCarpet()
         local h = petPos.Y
         local targetY = hrp.Position.Y
         if h > 23.15 then targetY = 21
         elseif h >= 11 and h <= 23.15 then targetY = 14.5
         elseif h >= -6.9 and h <= 8.9 then targetY = -4 end
         local _to = Vector3.new(petPos.X, targetY, petPos.Z)
-        if Config.TpSettings and Config.TpSettings.BrainrotCarpet then
-            -- Carpet to Brainrot: after the clone/grabble TP into the base, glide on
-            -- the carpet straight to the pet (uses live Walk To Brainrot Speed).
-            carpetGlideTo(petPos)
-        else
-            local _route = computeRoute(hrp.Position, _to, nil)
-            if not _route or #_route == 0 then _route = { _to } end
-            velMoveThrough(hrp, _route, (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE, true, true)
-        end
-        if hrp and hrp.Parent then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end
-        do
-            local _platPos = (hrp and hrp.Parent and hrp.Position) or _to
-            local _feetY = _platPos.Y - 3
+        if h > 23.15 then
             local _plat = Instance.new("Part")
-            _plat.Name = "SXETempPlatform"; _plat.Size = Vector3.new(8, 1, 8)
-            _plat.Position = Vector3.new(petPos.X, _feetY - 1.5, petPos.Z)
-            _plat.Anchored = true; _plat.CanCollide = false; pcall(makeOneWay, _plat); _plat.Transparency = 1
+            _plat.Name = "XenHubTempPlatform"; _plat.Size = Vector3.new(3, 1, 3)
+            _plat.Position = _to - Vector3.new(0, 5, 0)
+            _plat.Anchored = true; _plat.CanCollide = true; _plat.Transparency = 1
             _plat.Material = Enum.Material.SmoothPlastic; _plat.Parent = workspace
             task.spawn(function()
                 local _s = tick()
@@ -10478,6 +10475,13 @@ do
                 end
                 if _plat and _plat.Parent then _plat:Destroy() end
             end)
+        end
+        local _route = computeRoute(hrp.Position, _to, nil, 12)
+        if not _route or #_route == 0 then _route = { _to } end
+        velMoveThrough(hrp, _route, math.clamp(tonumber(_G.VanishGoSpeed) or 600, 80, 700))
+        if hrp and hrp.Parent then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
         end
     end
 
@@ -10776,17 +10780,15 @@ do
         end
         if #allPets == 0 then isTeleporting = false; return end
 
-        -- Respect SXEHub manual selection, then fall back to priority/mode
-        local pet
+        -- Pet selection: manual override → priority/mode
+        local pet = allPets[1]
         if manuallySelectedUID then
             for _, p in ipairs(allPets) do
                 if p.plot and p.slot and (p.plot .. "_" .. tostring(p.slot)) == manuallySelectedUID then pet = p; break end
             end
+        else
+            pet = _pickByMode(allPets) or allPets[1]
         end
-        if not pet then pet = _pickByMode(allPets) or allPets[1] end
-
-        local _tpSpd = (Config and Config.TpSettings and Config.TpSettings.GrabbleTPSpeed) or 400
-        local _cloneDelay = (Config and Config.TpSettings and Config.TpSettings.CloneDelayVal) or 0.35
 
         local petPos = pet.position
         local petName = pet.name
@@ -10795,42 +10797,7 @@ do
         if TALL_PETS[petName] then adjY = petPos.Y - TALL_OFFSET end
         local coordTable = adjY > UPPER_Y_THRESHOLD and UPPER or LOWER
 
-        -- CONVEYOR
-        if pet.conveyor then
-            local model = pet.model
-            local maxHP = hum.MaxHealth
-            hum.Health = maxHP
-            local healConn = RunService.Heartbeat:Connect(function()
-                if hum and hum.Parent then hum.Health = maxHP end
-            end)
-            carpetEngage()
-            vZero(hrp)
-            local function livePos()
-                if not model or not model.Parent then return nil end
-                local part = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-                return part and part.Position or nil
-            end
-            local _t0 = os.clock()
-            while os.clock() - _t0 < 8 do
-                if not hrp or not hrp.Parent then break end
-                local lp = livePos()
-                if not lp then break end
-                local diff = lp - hrp.Position
-                if diff.Magnitude <= 6 then break end
-                equipCarpet()
-                hrp.AssemblyLinearVelocity = diff.Unit * _tpSpd
-                RunService.Heartbeat:Wait()
-            end
-            if hrp and hrp.Parent then
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end
-            healConn:Disconnect()
-            isTeleporting = false
-            return
-        end
-
-        -- FIRST FLOOR
+        -- FIRST FLOOR: open base → fly in + C key
         if petPos.Y <= 8.9 and isPlotUnlocked(pet.plot) then
             local maxHP = hum.MaxHealth
             hum.Health = maxHP
@@ -10840,25 +10807,31 @@ do
             carpetEngage()
             vZero(hrp)
             local _to = Vector3.new(petPos.X, -4, petPos.Z)
-            local _faceDir
-            do
-                local idx = getClosestBaseIdx(petPos)
-                local _, frontFace = buildFrontCandidate(idx, false, hrp.Position.Z)
-                _faceDir = frontFace
-            end
-            local route = computeRoute(hrp.Position, _to, _faceDir)
+            local route = computeRoute(hrp.Position, _to, nil)
             if not route or #route == 0 then route = { _to } end
-            velMoveThrough(hrp, route, _tpSpd, true, true)
+            local _obLen = 0
+            do
+                local prev = hrp.Position
+                for _, wp in ipairs(route) do _obLen = _obLen + (wp - prev).Magnitude; prev = wp end
+            end
+            local _obSpeed = (_obLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
+            velMoveThrough(hrp, route, _obSpeed, true, true)
             if hrp and hrp.Parent then
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
             healConn:Disconnect()
             isTeleporting = false
+            pcall(function()
+                local vim = Instance.new("VirtualInputManager")
+                vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+                task.wait(0.05)
+                vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+            end)
             return
         end
 
-        -- SKY CLONE-TP
+        -- SKY CLONE-TP (floors 2 & 3)
         _cloneTP = true
         disarmSteal()
 
@@ -10894,50 +10867,56 @@ do
             facingDir = bestFace
         end
 
-        if hrp and hrp.Parent then
-            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + facingDir)
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end
-
         local _route = computeRoute(hrp.Position, destPos, facingDir)
+        local ASCEND_STEP = 10
         local _stepped = {}
         do
-            local startY = hrp.Position.Y
-            local destY = destPos.Y
             local prev = hrp.Position
-            local totalFlat = 0
             for _, wp in ipairs(_route) do
-                totalFlat = totalFlat + (Vector3.new(wp.X, 0, wp.Z) - Vector3.new(prev.X, 0, prev.Z)).Magnitude
-                prev = wp
-            end
-            if totalFlat < 0.01 then totalFlat = 0.01 end
-            local SEG = 30
-            prev = hrp.Position
-            local travelled = 0
-            for _, wp in ipairs(_route) do
-                local flatVec = Vector3.new(wp.X, 0, wp.Z) - Vector3.new(prev.X, 0, prev.Z)
-                local legFlat = flatVec.Magnitude
-                if legFlat >= 0.01 then
-                    local subs = math.max(1, math.ceil(legFlat / SEG))
-                    for s = 1, subs do
-                        local f = s / subs
-                        local px = prev.X + (wp.X - prev.X) * f
-                        local pz = prev.Z + (wp.Z - prev.Z) * f
-                        local along = travelled + legFlat * f
-                        local rampY = startY + (destY - startY) * (along / totalFlat)
-                        _stepped[#_stepped + 1] = Vector3.new(px, rampY, pz)
+                local dy = wp.Y - prev.Y
+                if dy > ASCEND_STEP * 1.5 then
+                    local n = math.ceil(dy / ASCEND_STEP)
+                    for s = 1, n - 1 do
+                        local t = s / n
+                        _stepped[#_stepped + 1] = Vector3.new(
+                            prev.X + (wp.X - prev.X) * t,
+                            prev.Y + dy * t,
+                            prev.Z + (wp.Z - prev.Z) * t
+                        )
                     end
-                else
-                    _stepped[#_stepped + 1] = wp
                 end
-                travelled = travelled + legFlat
+                _stepped[#_stepped + 1] = wp
                 prev = wp
             end
-            if #_stepped > 0 then _stepped[#_stepped] = _route[#_route] end
         end
-        velMoveThrough(hrp, _stepped, _tpSpd, true, true)
+        local _routeLen = 0
+        do
+            local prev = hrp.Position
+            for _, wp in ipairs(_route) do _routeLen = _routeLen + (wp - prev).Magnitude; prev = wp end
+        end
+        local _mainSpeed = (_routeLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
+        velMoveThrough(hrp, _stepped, _mainSpeed, true, true)
 
-        hrp.CFrame = CFrame.new(destPos, destPos + facingDir)
+        -- lvDrive fine-adjust to settle exactly at destPos
+        do
+            local _t0 = os.clock()
+            while os.clock() - _t0 < 4 do
+                if not hrp or not hrp.Parent then break end
+                if LP:GetAttribute("Stealing") then break end
+                equipCarpet()
+                local diff = destPos - hrp.Position
+                local mag = diff.Magnitude
+                if mag <= 3 then break end
+                lvDrive(hrp, diff.Unit * math.min(400, mag * 8))
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                RunService.Heartbeat:Wait()
+            end
+            lvStop(hrp)
+        end
+
+        if hrp and hrp.Parent then
+            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + facingDir)
+        end
         vZero(hrp)
 
         local syncFrames = 5
@@ -10957,60 +10936,82 @@ do
         end
 
         healConn:Disconnect()
-        armSteal(pet)
+
+        -- Stability check: stay at destPos for 4 frames before cloning
+        do
+            local stable = 0
+            for _ = 1, 50 do
+                local _hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not _hrp or not _hrp.Parent then break end
+                local flat = (Vector3.new(_hrp.Position.X, 0, _hrp.Position.Z) - Vector3.new(destPos.X, 0, destPos.Z)).Magnitude
+                if flat <= 3.5 and math.abs(_hrp.Position.Y - destPos.Y) <= 4 then
+                    stable = stable + 1
+                    if stable >= 4 then break end
+                else
+                    stable = 0
+                    pcall(function() _hrp.CFrame = CFrame.new(destPos, destPos + facingDir) end)
+                    _hrp.AssemblyLinearVelocity = Vector3.zero
+                    _hrp.AssemblyAngularVelocity = Vector3.zero
+                end
+                RunService.Heartbeat:Wait()
+            end
+        end
+
         _cloneFired = true
+        armSteal(pet)
 
         local _ahrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         local _clonePos = (_ahrp and _ahrp.Parent and _ahrp.Position) or destPos
 
         local _clonePlat = Instance.new("Part")
-        _clonePlat.Name = "SXEClonePlatform"
-        _clonePlat.Size = Vector3.new(12, 1, 12)
+        _clonePlat.Name = "XenHubClonePlatform"; _clonePlat.Size = Vector3.new(12, 1, 12)
         _clonePlat.Position = Vector3.new(_clonePos.X, _clonePos.Y - 3, _clonePos.Z)
-        _clonePlat.Anchored = true; _clonePlat.CanCollide = false; pcall(makeOneWay, _clonePlat); _clonePlat.Transparency = 1
+        _clonePlat.Anchored = true; _clonePlat.CanCollide = true; _clonePlat.Transparency = 1
         _clonePlat.Material = Enum.Material.SmoothPlastic; _clonePlat.Parent = workspace
 
         if _ahrp and _ahrp.Parent then
             _ahrp.AssemblyLinearVelocity = Vector3.zero
             _ahrp.AssemblyAngularVelocity = Vector3.zero
-            pcall(function() _ahrp.Anchored = true end)
-            task.delay(1, function()
-                if _ahrp and _ahrp.Parent then pcall(function() _ahrp.Anchored = false end) end
-            end)
         end
 
+        local _preCloneChar = LP.Character
+        local _preClonePos
+        do
+            local _h = _preCloneChar and _preCloneChar:FindFirstChild("HumanoidRootPart")
+            _preClonePos = _h and _h.Position or destPos
+        end
         local _charAdded = false
         local _caConn = LP.CharacterAdded:Connect(function() _charAdded = true end)
 
-        task.wait(_cloneDelay)
-        local _cloneOk = doClone()
+        task.wait(tonumber(_G.TPCloneDelay) or tonumber(_G.LandingDelay) or SKY_CLONE_WAIT)
 
+        local _cloneOk = doClone()
         if _clonePlat then pcall(function() _clonePlat:Destroy() end); _clonePlat = nil end
-        if _cloneOk then
-            task.wait(0.3)
-            local _cloneSucceeded = false
-            do
-                local _c = LP.Character
-                local _h = _c and _c:FindFirstChild("HumanoidRootPart")
-                local plotsFolder = workspace:FindFirstChild("Plots")
-                if _h and plotsFolder then
-                    local _rad = (petPos.Y <= 8.9) and 26 or 25
-                    local p = _h.Position
-                    for _, plot in ipairs(plotsFolder:GetChildren()) do
-                        pcall(function()
-                            local pp = plot:GetPivot().Position
-                            if math.abs(p.X - pp.X) < _rad and math.abs(p.Z - pp.Z) < _rad then
-                                _cloneSucceeded = true
-                            end
-                        end)
-                        if _cloneSucceeded then break end
-                    end
+
+        do
+            local _t0 = os.clock()
+            repeat
+                if _charAdded then break end
+                if LP.Character ~= _preCloneChar then break end
+                local _h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                if _h then
+                    local _dx = _h.Position.X - _preClonePos.X
+                    local _dz = _h.Position.Z - _preClonePos.Z
+                    if (_dx * _dx + _dz * _dz) > 4 then break end
                 end
-            end
-            if _caConn then _caConn:Disconnect() end
-            if _cloneSucceeded then goToBrainrot(petPos) end
-        else
-            if _caConn then _caConn:Disconnect() end
+                RunService.Heartbeat:Wait()
+            until os.clock() - _t0 > 3
+        end
+        if _caConn then _caConn:Disconnect() end
+
+        if _cloneOk then
+            goToBrainrot(petPos)
+            pcall(function()
+                local vim = Instance.new("VirtualInputManager")
+                vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+                task.wait(0.05)
+                vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+            end)
         end
         isTeleporting = false
     end
