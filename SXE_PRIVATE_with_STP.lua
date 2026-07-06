@@ -10913,42 +10913,8 @@ do
             return
         end
 
-        -- SECOND FLOOR: if base already open → direct steal from below (no clone); else clone from below
+        -- SECOND FLOOR: fly directly below (floor-1 logic) then clone from below (floor-3 logic)
         if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
-            if isPlotUnlocked(pet.plot) then
-                -- Base is open: fly directly below and press C, same as floor 1
-                local maxHPo = hum.MaxHealth
-                hum.Health = maxHPo
-                local healConno = RunService.Heartbeat:Connect(function()
-                    if hum and hum.Parent then hum.Health = maxHPo end
-                end)
-                carpetEngage()
-                vZero(hrp)
-                local _to2 = Vector3.new(petPos.X, -4, petPos.Z)
-                local routeo = computeRoute(hrp.Position, _to2, nil)
-                if not routeo or #routeo == 0 then routeo = { _to2 } end
-                local _oLen = 0
-                do
-                    local prev = hrp.Position
-                    for _, wp in ipairs(routeo) do _oLen = _oLen + (wp - prev).Magnitude; prev = wp end
-                end
-                local _oSpeed = (_oLen < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-                velMoveThrough(hrp, routeo, _oSpeed, true, true)
-                if hrp and hrp.Parent then
-                    hrp.AssemblyLinearVelocity = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                end
-                healConno:Disconnect()
-                isTeleporting = false
-                pcall(function()
-                    local vim = Instance.new("VirtualInputManager")
-                    vim:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-                    task.wait(0.05)
-                    vim:SendKeyEvent(false, Enum.KeyCode.C, false, game)
-                end)
-                return
-            end
-
             _cloneTP = true
             disarmSteal()
             local maxHP2 = hum.MaxHealth
@@ -10958,7 +10924,7 @@ do
             end)
             carpetEngage()
             vZero(hrp)
-            -- Target is directly below the 2nd-floor pet at ground level
+            -- Same target as floor 1: directly below the pet at ground level
             local belowPos = Vector3.new(petPos.X, -4, petPos.Z)
             local route2 = computeRoute(hrp.Position, belowPos, nil)
             if not route2 or #route2 == 0 then route2 = { belowPos } end
@@ -10969,75 +10935,22 @@ do
             end
             local _r2Speed = (_r2Len < 100) and 200 or math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
             velMoveThrough(hrp, route2, _r2Speed, true, true)
-            -- Fine-adjust with LinearVelocity
-            do
-                local _t0 = os.clock()
-                while os.clock() - _t0 < 4 do
-                    if not hrp or not hrp.Parent then break end
-                    local diff = belowPos - hrp.Position
-                    if diff.Magnitude <= 3 then break end
-                    lvDrive(hrp, diff.Unit * math.min(400, diff.Magnitude * 8))
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                    RunService.Heartbeat:Wait()
-                end
-                lvStop(hrp)
-            end
-            vZero(hrp)
-
-            -- Pin position for a few frames so physics settles
-            local syncFrames2 = 5
-            local syncConn2
-            syncConn2 = RunService.Heartbeat:Connect(function()
-                if not hrp or not hrp.Parent then syncConn2:Disconnect(); return end
-                syncFrames2 = syncFrames2 - 1
-                hrp.CFrame = CFrame.new(belowPos)
+            if hrp and hrp.Parent then
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
-                if syncFrames2 <= 0 then syncConn2:Disconnect() end
-            end)
-
-            -- Wait until on floor or settled
-            for _ = 1, 20 do
-                task.wait(0.05)
-                if hum.FloorMaterial ~= Enum.Material.Air then break end
             end
-
             healConn2:Disconnect()
 
-            -- Stability check: hold position until settled (same as sky clone)
-            do
-                local stable2 = 0
-                for _ = 1, 50 do
-                    local _hrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    if not _hrp2 or not _hrp2.Parent then break end
-                    local flat = (Vector3.new(_hrp2.Position.X, 0, _hrp2.Position.Z) - Vector3.new(belowPos.X, 0, belowPos.Z)).Magnitude
-                    if flat <= 3.5 and math.abs(_hrp2.Position.Y - belowPos.Y) <= 4 then
-                        stable2 = stable2 + 1
-                        if stable2 >= 4 then break end
-                    else
-                        stable2 = 0
-                        pcall(function() _hrp2.CFrame = CFrame.new(belowPos) end)
-                        _hrp2.AssemblyLinearVelocity = Vector3.zero
-                        _hrp2.AssemblyAngularVelocity = Vector3.zero
-                    end
-                    RunService.Heartbeat:Wait()
-                end
-            end
-
+            -- Place invisible platform then clone (same as floor-3 logic)
             local _ahrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             local _clonePos2 = (_ahrp2 and _ahrp2.Parent and _ahrp2.Position) or belowPos
-
-            -- Invisible platform so the character doesn't fall
             local _clonePlat2 = Instance.new("Part")
             _clonePlat2.Name = "XenHubClonePlatform2"
             _clonePlat2.Size = Vector3.new(12, 1, 12)
             _clonePlat2.Position = Vector3.new(_clonePos2.X, _clonePos2.Y - 3, _clonePos2.Z)
-            _clonePlat2.Anchored = true
-            _clonePlat2.CanCollide = true
-            _clonePlat2.Transparency = 1
-            _clonePlat2.Material = Enum.Material.SmoothPlastic
+            _clonePlat2.Anchored = true; _clonePlat2.CanCollide = true
+            _clonePlat2.Transparency = 1; _clonePlat2.Material = Enum.Material.SmoothPlastic
             _clonePlat2.Parent = workspace
-
             if _ahrp2 and _ahrp2.Parent then
                 _ahrp2.AssemblyLinearVelocity = Vector3.zero
                 _ahrp2.AssemblyAngularVelocity = Vector3.zero
