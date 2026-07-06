@@ -10949,7 +10949,46 @@ do
                 lvStop(hrp)
             end
             vZero(hrp)
+
+            -- Pin position for a few frames so physics settles
+            local syncFrames2 = 5
+            local syncConn2
+            syncConn2 = RunService.Heartbeat:Connect(function()
+                if not hrp or not hrp.Parent then syncConn2:Disconnect(); return end
+                syncFrames2 = syncFrames2 - 1
+                hrp.CFrame = CFrame.new(belowPos)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                if syncFrames2 <= 0 then syncConn2:Disconnect() end
+            end)
+
+            -- Wait until on floor or settled
+            for _ = 1, 20 do
+                task.wait(0.05)
+                if hum.FloorMaterial ~= Enum.Material.Air then break end
+            end
+
             healConn2:Disconnect()
+
+            -- Stability check: hold position until settled (same as sky clone)
+            do
+                local stable2 = 0
+                for _ = 1, 50 do
+                    local _hrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                    if not _hrp2 or not _hrp2.Parent then break end
+                    local flat = (Vector3.new(_hrp2.Position.X, 0, _hrp2.Position.Z) - Vector3.new(belowPos.X, 0, belowPos.Z)).Magnitude
+                    if flat <= 3.5 and math.abs(_hrp2.Position.Y - belowPos.Y) <= 4 then
+                        stable2 = stable2 + 1
+                        if stable2 >= 4 then break end
+                    else
+                        stable2 = 0
+                        pcall(function() _hrp2.CFrame = CFrame.new(belowPos) end)
+                        _hrp2.AssemblyLinearVelocity = Vector3.zero
+                        _hrp2.AssemblyAngularVelocity = Vector3.zero
+                    end
+                    RunService.Heartbeat:Wait()
+                end
+            end
 
             local _ahrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             local _clonePos2 = (_ahrp2 and _ahrp2.Parent and _ahrp2.Position) or belowPos
