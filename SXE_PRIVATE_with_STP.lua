@@ -10913,9 +10913,13 @@ do
             return
         end
 
-        -- SECOND FLOOR
+        -- SECOND FLOOR: approach via LOWER ground-level coords (outside portal) then clone
         if petPos.Y > 8.9 and petPos.Y <= FLOOR2_MAX_Y then
-            local belowPos = Vector3.new(petPos.X, -4, petPos.Z)
+            -- Use LOWER table entry points so we never cross through the red portal
+            local lowerData, _ = findClosest(petPos, LOWER)
+            local belowPos = lowerData and lowerData.coord or Vector3.new(petPos.X, -4, petPos.Z)
+            local belowFace = lowerData and (lowerData.facing == "NORTH" and Vector3.new(0,0,-1) or Vector3.new(0,0,1)) or Vector3.new(0,0,1)
+
             local maxHP2 = hum.MaxHealth
             hum.Health = maxHP2
             local healConn2 = RunService.Heartbeat:Connect(function()
@@ -10923,7 +10927,7 @@ do
             end)
             carpetEngage()
             vZero(hrp)
-            local route2 = computeRoute(hrp.Position, belowPos, nil)
+            local route2 = computeRoute(hrp.Position, belowPos, belowFace)
             if not route2 or #route2 == 0 then route2 = { belowPos } end
             local _r2Len = 0
             do
@@ -10954,10 +10958,10 @@ do
             _cloneTP = true
             disarmSteal()
 
-            -- Brief settle wait so the character is truly stopped before clone fires
+            -- Settle: pin position so physics is calm before clone fires
             task.wait(0.15)
             if hrp and hrp.Parent then
-                hrp.CFrame = CFrame.new(belowPos)
+                hrp.CFrame = CFrame.new(belowPos, belowPos + belowFace)
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
