@@ -10479,13 +10479,27 @@ do
         elseif h >= -6.9 and h <= 8.9 then targetY = -4 end
         local _to = Vector3.new(petPos.X, targetY, petPos.Z)
         if Config.TpSettings and Config.TpSettings.BrainrotCarpet then
-            -- Carpet to Brainrot: after the clone/grabble TP into the base, glide on
-            -- the carpet straight to the pet (uses live Walk To Brainrot Speed).
             carpetGlideTo(petPos)
         else
-            local _route = computeRoute(hrp.Position, _to, nil)
-            if not _route or #_route == 0 then _route = { _to } end
-            velMoveThrough(hrp, _route, (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE, true, true)
+            local _sxeWalkSpeed = (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE
+            local _walkT0 = os.clock()
+            while hrp and hrp.Parent and (os.clock() - _walkT0) < 8 do
+                if LP:GetAttribute("Stealing") then break end
+                local _diff = Vector3.new(_to.X - hrp.Position.X, 0, _to.Z - hrp.Position.Z)
+                local _flatDist = _diff.Magnitude
+                local _vertDiff = _to.Y - hrp.Position.Y
+                if _flatDist < 3 and math.abs(_vertDiff) < 8 then break end
+                local _moveDir = (_flatDist > 0.1) and _diff.Unit or Vector3.zero
+                local _yVel = hrp.AssemblyLinearVelocity.Y
+                if _vertDiff > 2 then
+                    _yVel = math.clamp(_vertDiff * 7, 30, 60)
+                elseif _vertDiff < -2 then
+                    _yVel = math.clamp(_vertDiff * 4, -80, 0)
+                end
+                local _spd = (_flatDist < 3) and 0 or _sxeWalkSpeed
+                hrp.AssemblyLinearVelocity = Vector3.new(_moveDir.X * _spd, _yVel, _moveDir.Z * _spd)
+                RunService.Heartbeat:Wait()
+            end
         end
         if hrp and hrp.Parent then
             hrp.AssemblyLinearVelocity = Vector3.zero
