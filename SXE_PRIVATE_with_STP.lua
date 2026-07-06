@@ -10942,23 +10942,23 @@ do
             end
             healConn2:Disconnect()
 
-            -- Base already open → place platform then steal with C key (no clone)
+            -- Platform right under feet so character doesn't fall at the bottom position
+            local _footHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            local _footPos = (_footHrp and _footHrp.Parent and _footHrp.Position) or belowPos
+            local _footPlat = Instance.new("Part")
+            _footPlat.Name = "XenHubFloorPlat"
+            _footPlat.Size = Vector3.new(12, 1, 12)
+            _footPlat.Position = Vector3.new(_footPos.X, _footPos.Y - 3.5, _footPos.Z)
+            _footPlat.Anchored = true
+            _footPlat.CanCollide = true
+            _footPlat.Transparency = 1
+            _footPlat.Material = Enum.Material.SmoothPlastic
+            _footPlat.Parent = workspace
+
+            -- Base already open → steal with C key, destroy foot platform after
             if isPlotUnlocked(pet.plot) then
-                local _ahrpO = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                local _clonePosO = (_ahrpO and _ahrpO.Parent and _ahrpO.Position) or belowPos
-                local _platO = Instance.new("Part")
-                _platO.Name = "XenHubClonePlatform2"
-                _platO.Size = Vector3.new(12, 1, 12)
-                _platO.Position = Vector3.new(_clonePosO.X, _clonePosO.Y - 3, _clonePosO.Z)
-                _platO.Anchored = true; _platO.CanCollide = true
-                _platO.Transparency = 1; _platO.Material = Enum.Material.SmoothPlastic
-                _platO.Parent = workspace
-                if _ahrpO and _ahrpO.Parent then
-                    _ahrpO.AssemblyLinearVelocity = Vector3.zero
-                    _ahrpO.AssemblyAngularVelocity = Vector3.zero
-                end
                 task.wait(0.15)
-                pcall(function() _platO:Destroy() end)
+                pcall(function() _footPlat:Destroy() end)
                 isTeleporting = false
                 pcall(function()
                     local vim = Instance.new("VirtualInputManager")
@@ -10969,7 +10969,7 @@ do
                 return
             end
 
-            -- Base closed → place platform and clone from below (floor-3 logic)
+            -- Base closed → clone from below (floor-3 logic); foot platform stays until clone fires
             _cloneTP = true
             disarmSteal()
 
@@ -10981,20 +10981,6 @@ do
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
 
-            local _ahrp2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            local _clonePos2 = (_ahrp2 and _ahrp2.Parent and _ahrp2.Position) or belowPos
-            local _clonePlat2 = Instance.new("Part")
-            _clonePlat2.Name = "XenHubClonePlatform2"
-            _clonePlat2.Size = Vector3.new(12, 1, 12)
-            _clonePlat2.Position = Vector3.new(_clonePos2.X, _clonePos2.Y - 3, _clonePos2.Z)
-            _clonePlat2.Anchored = true; _clonePlat2.CanCollide = true
-            _clonePlat2.Transparency = 1; _clonePlat2.Material = Enum.Material.SmoothPlastic
-            _clonePlat2.Parent = workspace
-            if _ahrp2 and _ahrp2.Parent then
-                _ahrp2.AssemblyLinearVelocity = Vector3.zero
-                _ahrp2.AssemblyAngularVelocity = Vector3.zero
-            end
-
             local _preCloneChar2 = LP.Character
             local _charAdded2 = false
             local _caConn2 = LP.CharacterAdded:Connect(function() _charAdded2 = true end)
@@ -11003,7 +10989,7 @@ do
 
             _cloneFired = true
             local _cloneOk2 = doClone()
-            if _clonePlat2 then pcall(function() _clonePlat2:Destroy() end); _clonePlat2 = nil end
+            if _footPlat then pcall(function() _footPlat:Destroy() end); _footPlat = nil end
 
             task.spawn(function()
                 task.wait(0.35)
@@ -11024,8 +11010,8 @@ do
                     if LP.Character ~= _preCloneChar2 then break end
                     local _h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
                     if _h then
-                        local _dx = _h.Position.X - _clonePos2.X
-                        local _dz = _h.Position.Z - _clonePos2.Z
+                        local _dx = _h.Position.X - belowPos.X
+                        local _dz = _h.Position.Z - belowPos.Z
                         if (_dx * _dx + _dz * _dz) > 4 then break end
                     end
                     RunService.Heartbeat:Wait()
