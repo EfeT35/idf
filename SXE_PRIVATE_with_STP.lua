@@ -2343,7 +2343,7 @@ _G.setWalkSpeedValue = setWalkSpeedValue
 -- CARPET SPEED
 CarpetState={enabled=false,conn=nil}
 local function setCarpetSpeed(en) CarpetState.enabled=en; setToggle("Carpet Speed",en)
-    if CarpetState.conn then CarpetState.conn:Disconnect(); CarpetState.conn=nil end; if not en then return end
+    if CarpetState.conn then CarpetState.conn:Disconnect(); CarpetState.conn=nil end; if not en then local _c=player.Character; local _h=_c and _c:FindFirstChild("Humanoid"); if _h then pcall(function() _h:UnequipTools() end) end; return end
     CarpetState.conn=RunService.Heartbeat:Connect(function() local c=player.Character; if not c then return end
         local hum=c:FindFirstChild("Humanoid"); local hrp=c:FindFirstChild("HumanoidRootPart"); if not hum or not hrp then return end
         local tn=Config.TpSettings.Tool or "Flying Carpet"; if not c:FindFirstChild(tn) then local tb=player.Backpack:FindFirstChild(tn); if tb then hum:EquipTool(tb) end end
