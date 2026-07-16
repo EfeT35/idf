@@ -269,52 +269,19 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    -- Fleur de cerisier : 4 lobes arrondis en croix + centre
+    -- Pétale individuel : ovale simple arrondi
     local function makePetal()
-        local sz = math.random(16, 26)
-        local holder = Instance.new("Frame")
-        holder.BackgroundTransparency = 1
-        holder.BorderSizePixel = 0
-        holder.Size = UDim2.fromOffset(sz, sz)
-        holder.ZIndex = 99999
-        holder.Parent = petalContainer
-
-        local col = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        local trans = math.random(5, 25) / 100
-        local lobeSize = math.floor(sz * 0.52)
-
-        -- 4 lobes en croix (haut, bas, gauche, droite)
-        local offsets = {
-            {x = math.floor(sz/2 - lobeSize/2), y = 0},
-            {x = math.floor(sz/2 - lobeSize/2), y = sz - lobeSize},
-            {x = 0,                              y = math.floor(sz/2 - lobeSize/2)},
-            {x = sz - lobeSize,                  y = math.floor(sz/2 - lobeSize/2)},
-        }
-        for _, o in ipairs(offsets) do
-            local lobe = Instance.new("Frame")
-            lobe.BackgroundColor3 = col
-            lobe.BackgroundTransparency = trans
-            lobe.BorderSizePixel = 0
-            lobe.Size = UDim2.fromOffset(lobeSize, lobeSize)
-            lobe.Position = UDim2.fromOffset(o.x, o.y)
-            local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5,0); ui.Parent = lobe
-            lobe.ZIndex = 99999
-            lobe.Parent = holder
-        end
-
-        -- Centre blanc/rose clair
-        local cs = math.floor(sz * 0.28)
-        local center = Instance.new("Frame")
-        center.BackgroundColor3 = Color3.fromRGB(255, 220, 240)
-        center.BackgroundTransparency = trans
-        center.BorderSizePixel = 0
-        center.Size = UDim2.fromOffset(cs, cs)
-        center.Position = UDim2.fromOffset(math.floor(sz/2 - cs/2), math.floor(sz/2 - cs/2))
-        local cui = Instance.new("UICorner"); cui.CornerRadius = UDim.new(0.5,0); cui.Parent = center
-        center.ZIndex = 99999
-        center.Parent = holder
-
-        return holder
+        local w = math.random(20, 30)
+        local h = math.random(13, 20)
+        local f = Instance.new("Frame")
+        f.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        f.BackgroundTransparency = math.random(5, 30) / 100
+        f.BorderSizePixel = 0
+        f.Size = UDim2.fromOffset(w, h)
+        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
+        f.ZIndex = 99999
+        f.Parent = petalContainer
+        return f
     end
 
     local function resetPetal(p)
