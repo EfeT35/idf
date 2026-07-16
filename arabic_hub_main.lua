@@ -8014,7 +8014,7 @@ end
 local ART_WIDTH = 84
 local function makeArtHolder(f, label)
     local holder=Instance.new("Frame"); holder.Name="ArtHolder"; holder.Size=UDim2.new(0,ART_WIDTH-8,1,-16); holder.Position=UDim2.new(0,8,0,8); holder.BackgroundColor3=Theme.Panel; holder.ClipsDescendants=true; holder.Parent=f; corner(holder,10)
-    local img=Instance.new("ImageLabel"); img.Size=UDim2.new(1,0,1,0); img.BackgroundTransparency=1; img.Image="rbxassetid://114109454346094"; img.ScaleType=Enum.ScaleType.Crop; img.Parent=holder
+    local img=Instance.new("ImageLabel"); img.Size=UDim2.new(1,0,1,0); img.AnchorPoint=Vector2.new(0.5,0); img.Position=UDim2.new(0.5,0,0,0); img.BackgroundTransparency=1; img.Image="rbxassetid://114109454346094"; img.ScaleType=Enum.ScaleType.Crop; img.Parent=holder
     local grad=Instance.new("Frame"); grad.Size=UDim2.new(1,0,0,40); grad.Position=UDim2.new(0,0,1,-40); grad.BackgroundColor3=Theme.Panel; grad.BorderSizePixel=0; grad.ZIndex=3; grad.Parent=holder
     local ug=Instance.new("UIGradient"); ug.Rotation=90; ug.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.15,0),NumberSequenceKeypoint.new(1,0)}); ug.Parent=grad
     local nameLbl=Instance.new("TextLabel"); nameLbl.Size=UDim2.new(1,0,0,16); nameLbl.Position=UDim2.new(0,0,1,-18); nameLbl.BackgroundTransparency=1; nameLbl.Text=(label or ""):upper(); nameLbl.TextColor3=Theme.Text; nameLbl.Font=Enum.Font.GothamBold; nameLbl.TextSize=10; nameLbl.ZIndex=4; nameLbl.Parent=holder
