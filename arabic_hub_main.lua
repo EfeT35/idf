@@ -260,15 +260,15 @@ do
     petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     petalSg.Parent = playerGui
 
-    -- Byakuya background image (full screen, behind petals)
+    -- Byakuya / anime girl background (same image used in the hub panels)
     local byakuyaBg = Instance.new("ImageLabel")
     byakuyaBg.Name = "ByakuyaBg"
     byakuyaBg.Size = UDim2.fromScale(1, 1)
     byakuyaBg.Position = UDim2.fromScale(0, 0)
     byakuyaBg.BackgroundTransparency = 1
-    byakuyaBg.Image = "rbxassetid://18561498697" -- placeholder, replace with real asset
-    byakuyaBg.ImageTransparency = 0.72
-    byakuyaBg.ScaleType = Enum.ScaleType.Fit
+    byakuyaBg.Image = "rbxassetid://14640607134"
+    byakuyaBg.ImageTransparency = 0.55
+    byakuyaBg.ScaleType = Enum.ScaleType.Crop
     byakuyaBg.ZIndex = 1
     byakuyaBg.Parent = petalSg
 
@@ -280,45 +280,50 @@ do
     petalContainer.ZIndex = 2
     petalContainer.Parent = petalSg
 
+    -- Real sakura petal image (decal of a cherry blossom petal shape)
+    local PETAL_IMAGES = {
+        "rbxassetid://6031075938",  -- pink flower petal
+        "rbxassetid://6031075938",
+    }
+    local PINK_TINTS = {
+        Color3.fromRGB(255,182,213), Color3.fromRGB(255,160,200), Color3.fromRGB(244,114,182),
+        Color3.fromRGB(249,168,212), Color3.fromRGB(252,211,227), Color3.fromRGB(255,192,220),
+    }
+
     local NUM_PETALS = 55
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    local PINK_COLORS = {
-        Color3.fromRGB(255,182,213), Color3.fromRGB(255,160,200), Color3.fromRGB(244,114,182),
-        Color3.fromRGB(236,72,153),  Color3.fromRGB(249,168,212), Color3.fromRGB(252,211,227),
-    }
-
     local function makePetal()
-        local f = Instance.new("Frame")
-        f.BackgroundColor3 = PINK_COLORS[math.random(1, #PINK_COLORS)]
-        f.BackgroundTransparency = math.random(30, 55) / 100
-        f.BorderSizePixel = 0
-        local sz = math.random(6, 14)
-        f.Size = UDim2.fromOffset(sz, math.floor(sz * 0.45))
-        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
-        f.ZIndex = 3
-        f.Parent = petalContainer
-        return f
+        local img = Instance.new("ImageLabel")
+        img.BackgroundTransparency = 1
+        img.BorderSizePixel = 0
+        img.Image = PETAL_IMAGES[math.random(1, #PETAL_IMAGES)]
+        img.ImageColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        img.ImageTransparency = math.random(15, 45) / 100
+        local sz = math.random(14, 28)
+        img.Size = UDim2.fromOffset(sz, sz)
+        img.ZIndex = 3
+        img.Parent = petalContainer
+        return img
     end
 
     local function resetPetal(p)
         vp = workspace.CurrentCamera.ViewportSize
-        p.frame.Position = UDim2.fromOffset(math.random(0, math.floor(vp.X)), math.random(-120, -10))
-        p.speed = math.random(60, 160)
-        p.sway = math.random(20, 60)
-        p.swaySpeed = math.random(40, 100) / 100
+        p.frame.Position = UDim2.fromOffset(math.random(0, math.floor(vp.X)), math.random(-140, -10))
+        p.speed = math.random(55, 140)
+        p.sway = math.random(25, 65)
+        p.swaySpeed = math.random(35, 90) / 100
         p.swayOffset = math.random(0, 628) / 100
         p.rot = math.random(0, 360)
-        p.rotSpeed = math.random(-80, 80)
+        p.rotSpeed = math.random(-120, 120)
         p.x = p.frame.Position.X.Offset
     end
 
     for i = 1, NUM_PETALS do
         local f = makePetal()
-        local p = {frame = f, speed = 0, sway = 0, swaySpeed = 0, swayOffset = 0, rot = 0, rotSpeed = 0, x = 0}
+        local p = {frame=f, speed=0, sway=0, swaySpeed=0, swayOffset=0, rot=0, rotSpeed=0, x=0}
         resetPetal(p)
-        -- stagger initial Y positions
         p.frame.Position = UDim2.fromOffset(p.x, math.random(-200, math.floor(vp.Y)))
         table.insert(petals, p)
     end
