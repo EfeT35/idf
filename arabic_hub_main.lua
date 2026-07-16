@@ -250,6 +250,99 @@ local old = playerGui:FindFirstChild("SXEHub_V3"); if old then old:Destroy() end
 local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "SXEHub_V3"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 9999999; gui_sg.Parent = playerGui
 local gui = registerScreenGui(gui_sg)
 
+-- BYAKUYA BACKGROUND + SAKURA PETALS OVERLAY
+do
+    local petalSg = Instance.new("ScreenGui")
+    petalSg.Name = "SakuraOverlay"
+    petalSg.ResetOnSpawn = false
+    petalSg.IgnoreGuiInset = true
+    petalSg.DisplayOrder = 99999999
+    petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    petalSg.Parent = playerGui
+
+    -- Byakuya background image (full screen, behind petals)
+    local byakuyaBg = Instance.new("ImageLabel")
+    byakuyaBg.Name = "ByakuyaBg"
+    byakuyaBg.Size = UDim2.fromScale(1, 1)
+    byakuyaBg.Position = UDim2.fromScale(0, 0)
+    byakuyaBg.BackgroundTransparency = 1
+    byakuyaBg.Image = "rbxassetid://18561498697" -- placeholder, replace with real asset
+    byakuyaBg.ImageTransparency = 0.72
+    byakuyaBg.ScaleType = Enum.ScaleType.Fit
+    byakuyaBg.ZIndex = 1
+    byakuyaBg.Parent = petalSg
+
+    -- Petal container
+    local petalContainer = Instance.new("Frame")
+    petalContainer.Name = "PetalContainer"
+    petalContainer.Size = UDim2.fromScale(1, 1)
+    petalContainer.BackgroundTransparency = 1
+    petalContainer.ZIndex = 2
+    petalContainer.Parent = petalSg
+
+    local NUM_PETALS = 55
+    local petals = {}
+    local vp = workspace.CurrentCamera.ViewportSize
+
+    local PINK_COLORS = {
+        Color3.fromRGB(255,182,213), Color3.fromRGB(255,160,200), Color3.fromRGB(244,114,182),
+        Color3.fromRGB(236,72,153),  Color3.fromRGB(249,168,212), Color3.fromRGB(252,211,227),
+    }
+
+    local function makePetal()
+        local f = Instance.new("Frame")
+        f.BackgroundColor3 = PINK_COLORS[math.random(1, #PINK_COLORS)]
+        f.BackgroundTransparency = math.random(30, 55) / 100
+        f.BorderSizePixel = 0
+        local sz = math.random(6, 14)
+        f.Size = UDim2.fromOffset(sz, math.floor(sz * 0.45))
+        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
+        f.ZIndex = 3
+        f.Parent = petalContainer
+        return f
+    end
+
+    local function resetPetal(p)
+        vp = workspace.CurrentCamera.ViewportSize
+        p.frame.Position = UDim2.fromOffset(math.random(0, math.floor(vp.X)), math.random(-120, -10))
+        p.speed = math.random(60, 160)
+        p.sway = math.random(20, 60)
+        p.swaySpeed = math.random(40, 100) / 100
+        p.swayOffset = math.random(0, 628) / 100
+        p.rot = math.random(0, 360)
+        p.rotSpeed = math.random(-80, 80)
+        p.x = p.frame.Position.X.Offset
+    end
+
+    for i = 1, NUM_PETALS do
+        local f = makePetal()
+        local p = {frame = f, speed = 0, sway = 0, swaySpeed = 0, swayOffset = 0, rot = 0, rotSpeed = 0, x = 0}
+        resetPetal(p)
+        -- stagger initial Y positions
+        p.frame.Position = UDim2.fromOffset(p.x, math.random(-200, math.floor(vp.Y)))
+        table.insert(petals, p)
+    end
+
+    local lastT = tick()
+    game:GetService("RunService").Heartbeat:Connect(function()
+        local now = tick()
+        local dt = math.min(now - lastT, 0.05)
+        lastT = now
+        vp = workspace.CurrentCamera.ViewportSize
+        for _, p in ipairs(petals) do
+            local sway = math.sin(now * p.swaySpeed + p.swayOffset) * p.sway
+            local nx = p.x + sway
+            local ny = p.frame.Position.Y.Offset + p.speed * dt
+            p.rot = p.rot + p.rotSpeed * dt
+            p.frame.Position = UDim2.fromOffset(nx, ny)
+            p.frame.Rotation = p.rot
+            if ny > vp.Y + 30 then
+                resetPetal(p)
+            end
+        end
+    end)
+end
+
 -- SHARED TOGGLE STATE
 local ToggleState = {}
 local function regToggle(name, default)
@@ -302,7 +395,7 @@ Themes = {
         Background=Color3.fromRGB(8,10,8), MainBackground=Color3.fromRGB(5,7,5),
         Panel=Color3.fromRGB(14,20,14), Row=Color3.fromRGB(18,26,18), RowHover=Color3.fromRGB(26,38,26),
         Accent=Color3.fromRGB(74,222,128), AccentLight=Color3.fromRGB(34,197,94),
-        Green=Color3.fromRGB(74,222,128), Red=Color3.fromRGB(220,70,70), Red2=Color3.fromRGB(190,55,55),
+        Green=Color3.fromRGB(74,222,128), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
         Text=Color3.fromRGB(134,239,172), Dim=Color3.fromRGB(60,110,70), Stroke=Color3.fromRGB(30,60,35),
         SoftButton=Color3.fromRGB(16,22,16), SoftButtonHover=Color3.fromRGB(22,30,22),
         SoftAccent=Color3.fromRGB(20,40,24), SoftAccentHover=Color3.fromRGB(26,50,30),
@@ -314,7 +407,7 @@ Themes = {
         Background=Color3.fromRGB(17,17,19), MainBackground=Color3.fromRGB(13,13,15),
         Panel=Color3.fromRGB(20,20,23), Row=Color3.fromRGB(26,26,29), RowHover=Color3.fromRGB(34,34,38),
         Accent=Color3.fromRGB(34,197,94), AccentLight=Color3.fromRGB(225,225,230),
-        Green=Color3.fromRGB(34,197,94), Red=Color3.fromRGB(239,68,68), Red2=Color3.fromRGB(220,38,38),
+        Green=Color3.fromRGB(34,197,94), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
         Text=Color3.fromRGB(245,245,247), Dim=Color3.fromRGB(113,113,122), Stroke=Color3.fromRGB(38,38,43),
         SoftButton=Color3.fromRGB(26,26,29), SoftButtonHover=Color3.fromRGB(34,34,38),
         SoftAccent=Color3.fromRGB(24,32,26), SoftAccentHover=Color3.fromRGB(30,40,32),
@@ -327,7 +420,7 @@ Themes = {
         Background=Color3.fromRGB(10,14,20), MainBackground=Color3.fromRGB(7,10,15),
         Panel=Color3.fromRGB(13,18,26), Row=Color3.fromRGB(18,24,34), RowHover=Color3.fromRGB(26,34,46),
         Accent=Color3.fromRGB(59,130,246), AccentLight=Color3.fromRGB(96,165,250),
-        Green=Color3.fromRGB(59,130,246), Red=Color3.fromRGB(239,68,68), Red2=Color3.fromRGB(220,38,38),
+        Green=Color3.fromRGB(59,130,246), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
         Text=Color3.fromRGB(240,245,255), Dim=Color3.fromRGB(100,116,139), Stroke=Color3.fromRGB(30,41,59),
         SoftButton=Color3.fromRGB(18,24,34), SoftButtonHover=Color3.fromRGB(26,34,46),
         SoftAccent=Color3.fromRGB(20,30,46), SoftAccentHover=Color3.fromRGB(26,38,56),
@@ -341,8 +434,8 @@ Themes = {
     Vampire = {
         Background=Color3.fromRGB(18,10,14), MainBackground=Color3.fromRGB(12,6,9),
         Panel=Color3.fromRGB(10,6,8), Row=Color3.fromRGB(24,14,18), RowHover=Color3.fromRGB(34,20,26),
-        Accent=Color3.fromRGB(220,45,45), AccentLight=Color3.fromRGB(235,80,80),
-        Green=Color3.fromRGB(140,30,30), Red=Color3.fromRGB(220,45,45), Red2=Color3.fromRGB(180,30,30),
+        Accent=Color3.fromRGB(244,114,182), AccentLight=Color3.fromRGB(249,168,212),
+        Green=Color3.fromRGB(140,30,30), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
         Text=Color3.fromRGB(245,235,238), Dim=Color3.fromRGB(150,120,128), Stroke=Color3.fromRGB(80,30,38),
         SoftButton=Color3.fromRGB(30,16,22), SoftButtonHover=Color3.fromRGB(40,22,30),
         SoftAccent=Color3.fromRGB(40,22,30), SoftAccentHover=Color3.fromRGB(50,28,36),
