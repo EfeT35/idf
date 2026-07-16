@@ -250,27 +250,9 @@ local old = playerGui:FindFirstChild("SXEHub_V3"); if old then old:Destroy() end
 local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "SXEHub_V3"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 9999999; gui_sg.Parent = playerGui
 local gui = registerScreenGui(gui_sg)
 
--- BYAKUYA BACKGROUND + SAKURA PETALS OVERLAY
+-- SAKURA PETALS OVERLAY
 do
-    -- Background image BEHIND the hub (low DisplayOrder)
-    local bgSg = Instance.new("ScreenGui")
-    bgSg.Name = "ByakuyaBgGui"
-    bgSg.ResetOnSpawn = false
-    bgSg.IgnoreGuiInset = true
-    bgSg.DisplayOrder = 500
-    bgSg.Parent = playerGui
-
-    local byakuyaBg = Instance.new("ImageLabel")
-    byakuyaBg.Name = "ByakuyaBg"
-    byakuyaBg.Size = UDim2.fromScale(1, 1)
-    byakuyaBg.Position = UDim2.fromScale(0, 0)
-    byakuyaBg.BackgroundTransparency = 1
-    byakuyaBg.Image = "rbxassetid://102097915741976"
-    byakuyaBg.ImageTransparency = 0.45
-    byakuyaBg.ScaleType = Enum.ScaleType.Crop
-    byakuyaBg.Parent = bgSg
-
-    -- Petals overlay ABOVE the hub (high DisplayOrder)
+    -- Petals above everything
     local petalSg = Instance.new("ScreenGui")
     petalSg.Name = "SakuraPetals"
     petalSg.ResetOnSpawn = false
@@ -279,19 +261,13 @@ do
     petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     petalSg.Parent = playerGui
 
-    -- Petal container
     local petalContainer = Instance.new("Frame")
     petalContainer.Name = "PetalContainer"
     petalContainer.Size = UDim2.fromScale(1, 1)
     petalContainer.BackgroundTransparency = 1
-    petalContainer.ZIndex = 2
+    petalContainer.ZIndex = 1
     petalContainer.Parent = petalSg
 
-    -- Real sakura petal image (decal of a cherry blossom petal shape)
-    local PETAL_IMAGES = {
-        "rbxassetid://6031075938",  -- pink flower petal
-        "rbxassetid://6031075938",
-    }
     local PINK_TINTS = {
         Color3.fromRGB(255,182,213), Color3.fromRGB(255,160,200), Color3.fromRGB(244,114,182),
         Color3.fromRGB(249,168,212), Color3.fromRGB(252,211,227), Color3.fromRGB(255,192,220),
@@ -301,18 +277,49 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
+    -- Petal made of 5 rounded ellipse lobes to look like a cherry blossom
     local function makePetal()
-        local img = Instance.new("ImageLabel")
-        img.BackgroundTransparency = 1
-        img.BorderSizePixel = 0
-        img.Image = PETAL_IMAGES[math.random(1, #PETAL_IMAGES)]
-        img.ImageColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        img.ImageTransparency = math.random(15, 45) / 100
-        local sz = math.random(14, 28)
-        img.Size = UDim2.fromOffset(sz, sz)
-        img.ZIndex = 3
-        img.Parent = petalContainer
-        return img
+        local holder = Instance.new("Frame")
+        holder.BackgroundTransparency = 1
+        holder.BorderSizePixel = 0
+        local sz = math.random(18, 32)
+        holder.Size = UDim2.fromOffset(sz, sz)
+        holder.ZIndex = 2
+        holder.Parent = petalContainer
+
+        local col = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        local trans = math.random(10, 40) / 100
+        -- 5 petals arranged in circle
+        for i = 0, 4 do
+            local angle = math.rad(i * 72)
+            local lobe = Instance.new("Frame")
+            lobe.BackgroundColor3 = col
+            lobe.BackgroundTransparency = trans
+            lobe.BorderSizePixel = 0
+            local w = math.floor(sz * 0.38)
+            local h = math.floor(sz * 0.55)
+            lobe.Size = UDim2.fromOffset(w, h)
+            -- offset each lobe outward from center
+            local ox = math.floor(sz/2 + math.cos(angle) * sz * 0.22 - w/2)
+            local oy = math.floor(sz/2 + math.sin(angle) * sz * 0.22 - h/2)
+            lobe.Position = UDim2.fromOffset(ox, oy)
+            lobe.Rotation = math.deg(angle)
+            local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = lobe
+            lobe.ZIndex = 2
+            lobe.Parent = holder
+        end
+        -- white center dot
+        local center = Instance.new("Frame")
+        center.BackgroundColor3 = Color3.fromRGB(255, 240, 248)
+        center.BackgroundTransparency = trans
+        center.BorderSizePixel = 0
+        local cs = math.floor(sz * 0.18)
+        center.Size = UDim2.fromOffset(cs, cs)
+        center.Position = UDim2.fromOffset(math.floor(sz/2 - cs/2), math.floor(sz/2 - cs/2))
+        local cui = Instance.new("UICorner"); cui.CornerRadius = UDim.new(0.5, 0); cui.Parent = center
+        center.ZIndex = 3
+        center.Parent = holder
+        return holder
     end
 
     local function resetPetal(p)
