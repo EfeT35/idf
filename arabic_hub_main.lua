@@ -250,23 +250,15 @@ local old = playerGui:FindFirstChild("SXEHub_V3"); if old then old:Destroy() end
 local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "SXEHub_V3"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 9999999; gui_sg.Parent = playerGui
 local gui = registerScreenGui(gui_sg)
 
--- SAKURA PETALS OVERLAY
+-- SAKURA PETALS (inside hub ScreenGui, donc seulement sur l'UI)
 do
-    -- Petals above everything
-    local petalSg = Instance.new("ScreenGui")
-    petalSg.Name = "SakuraPetals"
-    petalSg.ResetOnSpawn = false
-    petalSg.IgnoreGuiInset = true
-    petalSg.DisplayOrder = 99999999
-    petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    petalSg.Parent = playerGui
-
+    -- Parent dans gui_sg pour que les pétales restent dans le hub, pas sur le jeu
     local petalContainer = Instance.new("Frame")
     petalContainer.Name = "PetalContainer"
     petalContainer.Size = UDim2.fromScale(1, 1)
     petalContainer.BackgroundTransparency = 1
-    petalContainer.ZIndex = 1
-    petalContainer.Parent = petalSg
+    petalContainer.ZIndex = 99999
+    petalContainer.Parent = gui_sg
 
     local PINK_TINTS = {
         Color3.fromRGB(255,182,213), Color3.fromRGB(255,160,200), Color3.fromRGB(244,114,182),
@@ -277,49 +269,19 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    -- Petal made of 5 rounded ellipse lobes to look like a cherry blossom
+    -- Un seul pétale : ovale allongé incliné (forme de pétale de cerisier)
     local function makePetal()
-        local holder = Instance.new("Frame")
-        holder.BackgroundTransparency = 1
-        holder.BorderSizePixel = 0
-        local sz = math.random(18, 32)
-        holder.Size = UDim2.fromOffset(sz, sz)
-        holder.ZIndex = 2
-        holder.Parent = petalContainer
-
-        local col = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        local trans = math.random(10, 40) / 100
-        -- 5 petals arranged in circle
-        for i = 0, 4 do
-            local angle = math.rad(i * 72)
-            local lobe = Instance.new("Frame")
-            lobe.BackgroundColor3 = col
-            lobe.BackgroundTransparency = trans
-            lobe.BorderSizePixel = 0
-            local w = math.floor(sz * 0.38)
-            local h = math.floor(sz * 0.55)
-            lobe.Size = UDim2.fromOffset(w, h)
-            -- offset each lobe outward from center
-            local ox = math.floor(sz/2 + math.cos(angle) * sz * 0.22 - w/2)
-            local oy = math.floor(sz/2 + math.sin(angle) * sz * 0.22 - h/2)
-            lobe.Position = UDim2.fromOffset(ox, oy)
-            lobe.Rotation = math.deg(angle)
-            local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = lobe
-            lobe.ZIndex = 2
-            lobe.Parent = holder
-        end
-        -- white center dot
-        local center = Instance.new("Frame")
-        center.BackgroundColor3 = Color3.fromRGB(255, 240, 248)
-        center.BackgroundTransparency = trans
-        center.BorderSizePixel = 0
-        local cs = math.floor(sz * 0.18)
-        center.Size = UDim2.fromOffset(cs, cs)
-        center.Position = UDim2.fromOffset(math.floor(sz/2 - cs/2), math.floor(sz/2 - cs/2))
-        local cui = Instance.new("UICorner"); cui.CornerRadius = UDim.new(0.5, 0); cui.Parent = center
-        center.ZIndex = 3
-        center.Parent = holder
-        return holder
+        local f = Instance.new("Frame")
+        f.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        f.BackgroundTransparency = math.random(10, 40) / 100
+        f.BorderSizePixel = 0
+        local w = math.random(10, 18)
+        local h = math.random(5, 9)
+        f.Size = UDim2.fromOffset(w, h)
+        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
+        f.ZIndex = 99999
+        f.Parent = petalContainer
+        return f
     end
 
     local function resetPetal(p)
