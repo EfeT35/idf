@@ -265,7 +265,7 @@ do
     byakuyaBg.Size = UDim2.fromScale(1, 1)
     byakuyaBg.Position = UDim2.fromScale(0, 0)
     byakuyaBg.BackgroundTransparency = 1
-    byakuyaBg.Image = "rbxassetid://14640607134"
+    byakuyaBg.Image = "rbxassetid://106242657282667"
     byakuyaBg.ImageTransparency = 0.45
     byakuyaBg.ScaleType = Enum.ScaleType.Crop
     byakuyaBg.Parent = bgSg
