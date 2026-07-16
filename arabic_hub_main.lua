@@ -269,38 +269,50 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    -- Pétale de cerisier : ovale fin et allongé (ratio 4:1)
+    -- Fleur de cerisier : 4 lobes arrondis en croix + centre
     local function makePetal()
+        local sz = math.random(16, 26)
         local holder = Instance.new("Frame")
         holder.BackgroundTransparency = 1
         holder.BorderSizePixel = 0
-        local w = math.random(22, 36)
-        local h = math.floor(w / 4)
-        holder.Size = UDim2.fromOffset(w, h)
+        holder.Size = UDim2.fromOffset(sz, sz)
         holder.ZIndex = 99999
         holder.Parent = petalContainer
 
-        -- Corps principal du pétale
-        local body = Instance.new("Frame")
-        body.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        body.BackgroundTransparency = math.random(5, 30) / 100
-        body.BorderSizePixel = 0
-        body.Size = UDim2.fromScale(1, 1)
-        body.Position = UDim2.fromScale(0, 0)
-        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = body
-        body.ZIndex = 99999
-        body.Parent = holder
+        local col = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        local trans = math.random(5, 25) / 100
+        local lobeSize = math.floor(sz * 0.52)
 
-        -- Reflet clair au centre pour l'effet nacré
-        local shine = Instance.new("Frame")
-        shine.BackgroundColor3 = Color3.fromRGB(255, 240, 250)
-        shine.BackgroundTransparency = 0.55
-        shine.BorderSizePixel = 0
-        shine.Size = UDim2.fromOffset(math.floor(w * 0.45), math.floor(h * 0.5))
-        shine.Position = UDim2.fromOffset(math.floor(w * 0.28), math.floor(h * 0.15))
-        local sui = Instance.new("UICorner"); sui.CornerRadius = UDim.new(0.5, 0); sui.Parent = shine
-        shine.ZIndex = 99999
-        shine.Parent = holder
+        -- 4 lobes en croix (haut, bas, gauche, droite)
+        local offsets = {
+            {x = math.floor(sz/2 - lobeSize/2), y = 0},
+            {x = math.floor(sz/2 - lobeSize/2), y = sz - lobeSize},
+            {x = 0,                              y = math.floor(sz/2 - lobeSize/2)},
+            {x = sz - lobeSize,                  y = math.floor(sz/2 - lobeSize/2)},
+        }
+        for _, o in ipairs(offsets) do
+            local lobe = Instance.new("Frame")
+            lobe.BackgroundColor3 = col
+            lobe.BackgroundTransparency = trans
+            lobe.BorderSizePixel = 0
+            lobe.Size = UDim2.fromOffset(lobeSize, lobeSize)
+            lobe.Position = UDim2.fromOffset(o.x, o.y)
+            local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5,0); ui.Parent = lobe
+            lobe.ZIndex = 99999
+            lobe.Parent = holder
+        end
+
+        -- Centre blanc/rose clair
+        local cs = math.floor(sz * 0.28)
+        local center = Instance.new("Frame")
+        center.BackgroundColor3 = Color3.fromRGB(255, 220, 240)
+        center.BackgroundTransparency = trans
+        center.BorderSizePixel = 0
+        center.Size = UDim2.fromOffset(cs, cs)
+        center.Position = UDim2.fromOffset(math.floor(sz/2 - cs/2), math.floor(sz/2 - cs/2))
+        local cui = Instance.new("UICorner"); cui.CornerRadius = UDim.new(0.5,0); cui.Parent = center
+        center.ZIndex = 99999
+        center.Parent = holder
 
         return holder
     end
