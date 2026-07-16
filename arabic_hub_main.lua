@@ -543,7 +543,7 @@ function applyTheme(themeName)
                             for _, btn in ipairs(child:GetChildren()) do
                                 if btn:IsA("TextButton") then
                                     if btn.Name == "BlacklistBtn" then
-                                        btn.BackgroundColor3 = isBlacklisted and Color3.fromRGB(255, 60, 60) or toTheme.BlacklistLeave
+                                        btn.BackgroundColor3 = isBlacklisted and Color3.fromRGB(244, 114, 182) or toTheme.BlacklistLeave
                                     else
                                         btn.BackgroundColor3 = toTheme.SoftButton
                                     end
@@ -2142,7 +2142,7 @@ local function createServerGhost(position)
     serverGhosts = {}
     local ghost = Instance.new("Part")
     ghost.Name = "LagbackGhost"; ghost.Shape = Enum.PartType.Ball
-    ghost.Size = Vector3.new(3, 3, 3); ghost.Color = Color3.fromRGB(255, 0, 0)
+    ghost.Size = Vector3.new(3, 3, 3); ghost.Color = Color3.fromRGB(244, 114, 182)
     ghost.Material = Enum.Material.Glass; ghost.Transparency = 0.3
     ghost.CanCollide = false; ghost.Anchored = true; ghost.CastShadow = false
     ghost.Position = position + Vector3.new(0, 5, 0); ghost.Parent = Workspace.CurrentCamera
@@ -5939,7 +5939,7 @@ task.spawn(function() while true do task.wait(0.5)
         for _,plr in ipairs(Players:GetPlayers()) do if plr~=LocalPlayer then pcall(createOrRefreshPlayerESP,plr) end end
         for uid,entry in pairs(playerBillboards) do if entry.bb and entry.bb.Parent then
             pcall(function() local tl=entry.bb:FindFirstChild("ToolLabel"); if tl then local ht=getHeldTool(entry.player); tl.Text=ht or ""
-                if entry.nameLbl then entry.nameLbl.TextColor3=ht and DANGER_TOOLS[ht] and Color3.fromRGB(255,60,60) or Color3.fromRGB(255,255,255) end
+                if entry.nameLbl then entry.nameLbl.TextColor3=ht and DANGER_TOOLS[ht] and Color3.fromRGB(244,114,182) or Color3.fromRGB(255,255,255) end
             end end)
         end end
     else clearPlayerESP() end
@@ -6358,7 +6358,7 @@ do
         lbl.BackgroundTransparency = 1
         lbl.Font = Enum.Font.GothamBlack
         lbl.TextSize = 18
-        lbl.TextColor3 = Color3.fromRGB(255, 60, 60)
+        lbl.TextColor3 = Color3.fromRGB(244, 114, 182)
         lbl.TextStrokeTransparency = 0
         lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         lbl.Text = "BASE OWNER"
@@ -6378,8 +6378,8 @@ do
             if e.hl then pcall(function() e.hl:Destroy() end) end
             local hl = Instance.new("Highlight")
             hl.Name = "BaseOwnerESP"
-            hl.FillColor = Color3.fromRGB(255, 0, 0); hl.FillTransparency = 0.6
-            hl.OutlineColor = Color3.fromRGB(255, 0, 0); hl.OutlineTransparency = 0
+            hl.FillColor = Color3.fromRGB(244, 114, 182); hl.FillTransparency = 0.6
+            hl.OutlineColor = Color3.fromRGB(244, 114, 182); hl.OutlineTransparency = 0
             hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             hl.Parent = CoreGui
             e.hl = hl
@@ -8801,7 +8801,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
         local function updateBlacklistVisuals()
             local isBlacklisted = isPlayerBlacklisted(plr)
             if isBlacklisted then
-                blacklistBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+                blacklistBtn.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
                 blacklistBtn.TextColor3 = Color3.new(1, 1, 1)
                 
                 row.BackgroundTransparency = 0.85
@@ -8818,7 +8818,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
                 end
             else
                 blacklistBtn.BackgroundColor3 = Theme.BlacklistLeave
-                blacklistBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+                blacklistBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
                 
                 row.BackgroundTransparency = 0.40
                 avatar.ImageTransparency = 0
@@ -8911,7 +8911,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
             if stealPet then
                 local fromTxt = stealOwner and (" from " .. (stealOwner.DisplayName or stealOwner.Name)) or ""
                 st.Text = "● Stealing " .. tostring(stealPet) .. fromTxt
-                st.TextColor3 = Color3.fromRGB(255, 90, 90)
+                st.TextColor3 = Color3.fromRGB(244, 114, 182)
             elseif curBaseOwnerId and curBaseOwnerId == plr.UserId then
                 st.Text = "● Base Owner"
                 st.TextColor3 = Color3.fromRGB(90, 230, 120)
@@ -8921,7 +8921,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
 
             -- Danger-tool name highlight
             pcall(function() local ht=getHeldTool(plr)
-                if ht and DANGER_TOOLS[ht] then nameLabel.TextColor3=Color3.fromRGB(255,60,60) else nameLabel.TextColor3=Theme.Text end
+                if ht and DANGER_TOOLS[ht] then nameLabel.TextColor3=Color3.fromRGB(244,114,182) else nameLabel.TextColor3=Theme.Text end
             end)
         end end)
     end
@@ -9706,7 +9706,7 @@ for tabName,btn in pairs(tabButtons) do btn.MouseButton1Click:Connect(function()
 bottomBar=Instance.new("Frame"); bottomBar.Size=UDim2.new(0,575,0,50); bottomBar.Position=UDim2.new(0.5,-287,1,-125); bottomBar.BackgroundColor3=Theme.Background; bottomBar.BackgroundTransparency=0.02; bottomBar.BorderSizePixel=0; bottomBar.Parent=gui; corner(bottomBar,12); addOutline(bottomBar); addCyberCorners(bottomBar)
 local iw=Instance.new("Frame"); iw.Size=UDim2.new(0,34,0,34); iw.Position=UDim2.new(0,12,0.5,-17); iw.BackgroundColor3=Color3.fromRGB(18,4,4); iw.BorderSizePixel=0; iw.ClipsDescendants=true; iw.Parent=bottomBar; corner(iw,8)
 local iwGrad=Instance.new("UIGradient"); iwGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(90,14,14)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,2,2))}); iwGrad.Rotation=50; iwGrad.Parent=iw
-local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(220,45,45); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
+local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(244,114,182); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
 
 local ic=Instance.new("TextLabel"); ic.Name="LogoIDF"; ic.Size=UDim2.new(1,0,1,0); ic.BackgroundTransparency=1; ic.Text="IDF"; ic.TextColor3=Color3.fromRGB(255,255,255); ic.Font=Enum.Font.GothamBlack; ic.TextSize=13; ic.TextXAlignment=Enum.TextXAlignment.Center; ic.TextYAlignment=Enum.TextYAlignment.Center; ic.ZIndex=3; ic.Parent=iw
 local icStroke=Instance.new("UIStroke"); icStroke.Color=Color3.fromRGB(8,2,2); icStroke.Thickness=1; icStroke.Transparency=0.35; icStroke.Parent=ic
@@ -9717,7 +9717,7 @@ local boltB=Instance.new("Frame"); boltB.Name="LogoBoltB"; boltB.Size=UDim2.new(
 local boltBGlow=Instance.new("UIStroke"); boltBGlow.Color=Color3.fromRGB(255,255,255); boltBGlow.Thickness=1; boltBGlow.Transparency=0.5; boltBGlow.Parent=boltB
 
 _G.updateLogoImage = function(isDark)
-    iwStroke.Color = isDark and Color3.fromRGB(220,45,45) or Color3.fromRGB(190,35,35)
+    iwStroke.Color = isDark and Color3.fromRGB(244,114,182) or Color3.fromRGB(236,72,153)
     ic.TextColor3 = Color3.fromRGB(255,255,255)
 end
 _G.updateLogoImage(Config and Config.DarkMode or false)
@@ -12216,7 +12216,7 @@ task.spawn(function()
 			delBtn.Position = UDim2.new(1, -22, 0.5, -10)
 			delBtn.BackgroundTransparency = 1
 			delBtn.Text = "x"
-			delBtn.TextColor3 = Color3.fromRGB(224, 122, 130)
+			delBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
 			delBtn.TextSize = 12
 			delBtn.Font = Enum.Font.BuilderSans
 			delBtn.AutoButtonColor = false
@@ -12683,7 +12683,7 @@ local function updateBattery()
     local ratio = level / 100
     batteryFill.Size = UDim2.new(0, math.max(1, (BATTERY_W - 4) * ratio), 0, BATTERY_H - 4)
     if level <= 20 then
-        batteryFill.BackgroundColor3 = Color3.fromRGB(230, 90, 90)
+        batteryFill.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     elseif level <= 40 then
         batteryFill.BackgroundColor3 = Color3.fromRGB(235, 190, 60)
     else
@@ -12739,7 +12739,7 @@ end
 local PAUSE_ICON, PLAY_ICON = "| |", "\226\150\182"
 
 local closeBtn = titlebarButton("\226\156\149", -28)
-closeBtn.TextColor3 = Color3.fromRGB(240, 90, 90)
+closeBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
 local pauseBtn = titlebarButton(PAUSE_ICON, -58)
 pauseBtn.Visible = false
 
@@ -13019,7 +13019,7 @@ local function createAppIcon(icon, title, order, accent)
     local badge = Instance.new("TextLabel")
     badge.Size = UDim2.new(0, 22, 0, 22)
     badge.Position = UDim2.new(1, -14, 0, -6)
-    badge.BackgroundColor3 = Color3.fromRGB(235, 70, 70)
+    badge.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     badge.Text = "0"
     badge.TextColor3 = Color3.fromRGB(255, 255, 255)
     badge.Font = Enum.Font.GothamBold
@@ -14156,7 +14156,7 @@ local function BuildPong(gameArea, deps)
     aiPaddle.Size = UDim2.new(0, PADDLE_W, 0, PADDLE_H)
     aiPaddle.AnchorPoint = Vector2.new(0.5, 0.5)
     aiPaddle.Position = UDim2.new(0, WINDOW_WIDTH / 2, 0, AI_Y)
-    aiPaddle.BackgroundColor3 = Color3.fromRGB(230, 90, 90)
+    aiPaddle.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     aiPaddle.BorderSizePixel = 0
     aiPaddle.ZIndex = 5
     aiPaddle.Parent = gameArea
@@ -14678,7 +14678,7 @@ local function BuildNotes(gameArea, deps)
     local clearBtn = Instance.new("TextButton")
     clearBtn.Size = UDim2.new(0, 60, 0, 28)
     clearBtn.Position = UDim2.new(1, -132, 0, 6)
-    clearBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
+    clearBtn.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     clearBtn.Font = Enum.Font.GothamBold
     clearBtn.TextSize = 13
     clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -15411,7 +15411,7 @@ local function BuildMusic(gameArea, deps)
             delBtn.Position = UDim2.new(1, -26, 0, 0)
             delBtn.BackgroundTransparency = 1
             delBtn.Text = "x"
-            delBtn.TextColor3 = Color3.fromRGB(200, 90, 90)
+            delBtn.TextColor3 = Color3.fromRGB(236, 72, 153)
             delBtn.Font = Enum.Font.GothamBold
             delBtn.TextSize = 13
             delBtn.Parent = row
@@ -15935,7 +15935,7 @@ local function BuildSettings(gameArea, deps)
 
     local testColorBtn = Instance.new("TextButton")
     testColorBtn.Size = UDim2.new(1, 0, 0, 40)
-    testColorBtn.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+    testColorBtn.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     testColorBtn.Font = Enum.Font.GothamBold
     testColorBtn.TextSize = 13
     testColorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -15947,8 +15947,8 @@ local function BuildSettings(gameArea, deps)
     ltrack(testColorBtn.MouseButton1Click:Connect(function()
         playSound("click")
         wallpaperImage.Image = ""
-        wallpaperGradient.Color = ColorSequence.new(Color3.fromRGB(255, 30, 30))
-        homeBackdrop.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+        wallpaperGradient.Color = ColorSequence.new(Color3.fromRGB(244, 114, 182))
+        homeBackdrop.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
         homeBackdrop.BackgroundTransparency = 0
         wallpaperStatus.TextColor3 = Color3.fromRGB(255, 200, 100)
         wallpaperStatus.Text = "Fond mis en rouge vif -- va voir l'ecran d'accueil MAINTENANT"
@@ -15995,7 +15995,7 @@ local function BuildSettings(gameArea, deps)
         playSound("click")
         local raw = wallpaperInput.Text:match("^%s*(.-)%s*$")
         if raw == "" then
-            wallpaperStatus.TextColor3 = Color3.fromRGB(230, 90, 90)
+            wallpaperStatus.TextColor3 = Color3.fromRGB(244, 114, 182)
             wallpaperStatus.Text = "Champ vide"
             return
         end
@@ -16022,7 +16022,7 @@ local function BuildSettings(gameArea, deps)
             end
 
             if finalImage == "" then
-                wallpaperStatus.TextColor3 = Color3.fromRGB(230, 90, 90)
+                wallpaperStatus.TextColor3 = Color3.fromRGB(244, 114, 182)
                 wallpaperStatus.Text = "Format non reconnu (mets juste le nombre, ex: 8508980536)"
                 return
             end
@@ -16044,7 +16044,7 @@ local function BuildSettings(gameArea, deps)
     sectionTitle("Scores", 11)
     local resetBtn = Instance.new("TextButton")
     resetBtn.Size = UDim2.new(1, 0, 0, 44)
-    resetBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(244, 114, 182)
     resetBtn.Font = Enum.Font.GothamBold
     resetBtn.TextSize = 14
     resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -16562,7 +16562,7 @@ local function BuildTennis(gameArea, deps)
         return container
     end
 
-    local aiChar = buildRacket(Color3.fromRGB(230, 90, 90))
+    local aiChar = buildRacket(Color3.fromRGB(244, 114, 182))
     aiChar.Parent = gameArea
 
     local playerChar = buildRacket(Color3.fromRGB(90, 200, 230))
