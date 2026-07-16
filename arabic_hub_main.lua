@@ -269,19 +269,43 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    -- Pétale individuel : ovale simple arrondi
+    -- Pétale comme dans la photo Byakuya : ovale allongé avec coeur brillant
     local function makePetal()
-        local w = math.random(20, 30)
-        local h = math.random(13, 20)
-        local f = Instance.new("Frame")
-        f.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        f.BackgroundTransparency = math.random(5, 30) / 100
-        f.BorderSizePixel = 0
-        f.Size = UDim2.fromOffset(w, h)
-        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
-        f.ZIndex = 99999
-        f.Parent = petalContainer
-        return f
+        local w = math.random(26, 42)
+        local h = math.floor(w / 2.8)
+
+        local holder = Instance.new("Frame")
+        holder.BackgroundTransparency = 1
+        holder.BorderSizePixel = 0
+        holder.Size = UDim2.fromOffset(w, h)
+        holder.ZIndex = 99999
+        holder.Parent = petalContainer
+
+        -- Couche extérieure : rose semi-transparent
+        local outer = Instance.new("Frame")
+        outer.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        outer.BackgroundTransparency = 0.35
+        outer.BorderSizePixel = 0
+        outer.Size = UDim2.fromScale(1, 1)
+        outer.Position = UDim2.fromScale(0, 0)
+        local uio = Instance.new("UICorner"); uio.CornerRadius = UDim.new(0.5, 0); uio.Parent = outer
+        outer.ZIndex = 99999
+        outer.Parent = holder
+
+        -- Coeur brillant blanc : plus petit, centré, effet glow
+        local gw = math.floor(w * 0.55)
+        local gh = math.floor(h * 0.55)
+        local inner = Instance.new("Frame")
+        inner.BackgroundColor3 = Color3.fromRGB(255, 235, 248)
+        inner.BackgroundTransparency = 0.1
+        inner.BorderSizePixel = 0
+        inner.Size = UDim2.fromOffset(gw, gh)
+        inner.Position = UDim2.fromOffset(math.floor((w-gw)/2), math.floor((h-gh)/2))
+        local uii = Instance.new("UICorner"); uii.CornerRadius = UDim.new(0.5, 0); uii.Parent = inner
+        inner.ZIndex = 99999
+        inner.Parent = holder
+
+        return holder
     end
 
     local function resetPetal(p)
