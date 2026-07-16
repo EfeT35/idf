@@ -252,25 +252,32 @@ local gui = registerScreenGui(gui_sg)
 
 -- BYAKUYA BACKGROUND + SAKURA PETALS OVERLAY
 do
-    local petalSg = Instance.new("ScreenGui")
-    petalSg.Name = "SakuraOverlay"
-    petalSg.ResetOnSpawn = false
-    petalSg.IgnoreGuiInset = true
-    petalSg.DisplayOrder = 99999999
-    petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    petalSg.Parent = playerGui
+    -- Background image BEHIND the hub (low DisplayOrder)
+    local bgSg = Instance.new("ScreenGui")
+    bgSg.Name = "ByakuyaBgGui"
+    bgSg.ResetOnSpawn = false
+    bgSg.IgnoreGuiInset = true
+    bgSg.DisplayOrder = 500
+    bgSg.Parent = playerGui
 
-    -- Byakuya / anime girl background (same image used in the hub panels)
     local byakuyaBg = Instance.new("ImageLabel")
     byakuyaBg.Name = "ByakuyaBg"
     byakuyaBg.Size = UDim2.fromScale(1, 1)
     byakuyaBg.Position = UDim2.fromScale(0, 0)
     byakuyaBg.BackgroundTransparency = 1
     byakuyaBg.Image = "rbxassetid://14640607134"
-    byakuyaBg.ImageTransparency = 0.55
+    byakuyaBg.ImageTransparency = 0.45
     byakuyaBg.ScaleType = Enum.ScaleType.Crop
-    byakuyaBg.ZIndex = 1
-    byakuyaBg.Parent = petalSg
+    byakuyaBg.Parent = bgSg
+
+    -- Petals overlay ABOVE the hub (high DisplayOrder)
+    local petalSg = Instance.new("ScreenGui")
+    petalSg.Name = "SakuraPetals"
+    petalSg.ResetOnSpawn = false
+    petalSg.IgnoreGuiInset = true
+    petalSg.DisplayOrder = 99999999
+    petalSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    petalSg.Parent = playerGui
 
     -- Petal container
     local petalContainer = Instance.new("Frame")
