@@ -269,19 +269,40 @@ do
     local petals = {}
     local vp = workspace.CurrentCamera.ViewportSize
 
-    -- Un seul pétale : ovale allongé incliné (forme de pétale de cerisier)
+    -- Pétale de cerisier : ovale fin et allongé (ratio 4:1)
     local function makePetal()
-        local f = Instance.new("Frame")
-        f.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
-        f.BackgroundTransparency = math.random(10, 40) / 100
-        f.BorderSizePixel = 0
-        local w = math.random(10, 18)
-        local h = math.random(5, 9)
-        f.Size = UDim2.fromOffset(w, h)
-        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = f
-        f.ZIndex = 99999
-        f.Parent = petalContainer
-        return f
+        local holder = Instance.new("Frame")
+        holder.BackgroundTransparency = 1
+        holder.BorderSizePixel = 0
+        local w = math.random(22, 36)
+        local h = math.floor(w / 4)
+        holder.Size = UDim2.fromOffset(w, h)
+        holder.ZIndex = 99999
+        holder.Parent = petalContainer
+
+        -- Corps principal du pétale
+        local body = Instance.new("Frame")
+        body.BackgroundColor3 = PINK_TINTS[math.random(1, #PINK_TINTS)]
+        body.BackgroundTransparency = math.random(5, 30) / 100
+        body.BorderSizePixel = 0
+        body.Size = UDim2.fromScale(1, 1)
+        body.Position = UDim2.fromScale(0, 0)
+        local ui = Instance.new("UICorner"); ui.CornerRadius = UDim.new(0.5, 0); ui.Parent = body
+        body.ZIndex = 99999
+        body.Parent = holder
+
+        -- Reflet clair au centre pour l'effet nacré
+        local shine = Instance.new("Frame")
+        shine.BackgroundColor3 = Color3.fromRGB(255, 240, 250)
+        shine.BackgroundTransparency = 0.55
+        shine.BorderSizePixel = 0
+        shine.Size = UDim2.fromOffset(math.floor(w * 0.45), math.floor(h * 0.5))
+        shine.Position = UDim2.fromOffset(math.floor(w * 0.28), math.floor(h * 0.15))
+        local sui = Instance.new("UICorner"); sui.CornerRadius = UDim.new(0.5, 0); sui.Parent = shine
+        shine.ZIndex = 99999
+        shine.Parent = holder
+
+        return holder
     end
 
     local function resetPetal(p)
