@@ -250,8 +250,8 @@ local old = playerGui:FindFirstChild("SXEHub_V3"); if old then old:Destroy() end
 local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "SXEHub_V3"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 9999999; gui_sg.Parent = playerGui
 local gui = registerScreenGui(gui_sg)
 
--- SAKURA PETALS (inside hub ScreenGui, donc seulement sur l'UI)
-do
+-- SAKURA PETALS DISABLED
+do if false then
     -- Parent dans gui_sg pour que les pétales restent dans le hub, pas sur le jeu
     local petalContainer = Instance.new("Frame")
     petalContainer.Name = "PetalContainer"
@@ -346,7 +346,7 @@ do
             end
         end
     end)
-end
+end end -- SAKURA PETALS DISABLED END
 
 -- SHARED TOGGLE STATE
 local ToggleState = {}
