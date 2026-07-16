@@ -440,7 +440,7 @@ Themes = {
         Background=Color3.fromRGB(18,10,14), MainBackground=Color3.fromRGB(12,6,9),
         Panel=Color3.fromRGB(10,6,8), Row=Color3.fromRGB(24,14,18), RowHover=Color3.fromRGB(34,20,26),
         Accent=Color3.fromRGB(244,114,182), AccentLight=Color3.fromRGB(249,168,212),
-        Green=Color3.fromRGB(140,30,30), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
+        Green=Color3.fromRGB(244,114,182), Red=Color3.fromRGB(244,114,182), Red2=Color3.fromRGB(236,72,153),
         Text=Color3.fromRGB(245,235,238), Dim=Color3.fromRGB(150,120,128), Stroke=Color3.fromRGB(80,30,38),
         SoftButton=Color3.fromRGB(30,16,22), SoftButtonHover=Color3.fromRGB(40,22,30),
         SoftAccent=Color3.fromRGB(40,22,30), SoftAccentHover=Color3.fromRGB(50,28,36),
@@ -3625,7 +3625,7 @@ RunService.RenderStepped:Connect(function()
         local p = math.clamp((tick() - (status.start or 0)) / (status.duration or 1.3), 0, 1)
         hudProgressFill.Size = UDim2.new(p, 0, 1, 0)
         hudPercent.Text = math.floor(p * 100) .. "%"
-        hudProgressFill.BackgroundColor3 = (p >= 1) and (Theme.Green or Color3.fromRGB(80, 220, 120)) or (Theme.AccentLight or STEALBAR.FILL1)
+        hudProgressFill.BackgroundColor3 = (p >= 1) and (Theme.Accent or Color3.fromRGB(244, 114, 182)) or (Theme.AccentLight or STEALBAR.FILL1)
         hudName.Text = "Stealing..."
     elseif status.target then
         hudProgressFill.Size = UDim2.new(0, 0, 1, 0)
