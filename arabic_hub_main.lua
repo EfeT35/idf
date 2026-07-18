@@ -9038,15 +9038,21 @@ end
 
 function makePriorityRow(index)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,31); row.BackgroundColor3=Theme.Panel; row.BackgroundTransparency=0.18; row.Parent=mainBody; corner(row,6); row.LayoutOrder=index
+    local prStroke=Instance.new("UIStroke"); prStroke.Color=Theme.Accent; prStroke.Thickness=1; prStroke.Transparency=0.88; prStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; prStroke.Parent=row
+    row.MouseEnter:Connect(function() tw(row,{BackgroundTransparency=0.08},0.1); tw(prStroke,{Transparency=0.5},0.1) end)
+    row.MouseLeave:Connect(function() tw(row,{BackgroundTransparency=0.18},0.1); tw(prStroke,{Transparency=0.88},0.1) end)
 
     -- Number label
-    local num=Instance.new("TextLabel"); num.Size=UDim2.new(0,24,1,0); num.Position=UDim2.new(0,4,0,0); num.BackgroundTransparency=1; num.Text=tostring(index).."."; num.TextColor3=Theme.Dim; num.Font=Enum.Font.GothamBold; num.TextSize=10; num.TextXAlignment=Enum.TextXAlignment.Left; num.Parent=row
+    local num=Instance.new("TextLabel"); num.Size=UDim2.new(0,24,1,0); num.Position=UDim2.new(0,4,0,0); num.BackgroundTransparency=1; num.Text=tostring(index).."."; num.TextColor3=Theme.AccentLight; num.Font=Enum.Font.GothamBold; num.TextSize=10; num.TextXAlignment=Enum.TextXAlignment.Left; num.Parent=row
 
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-120,1,0); l.Position=UDim2.new(0,28,0,0); l.BackgroundTransparency=1; l.Text=priorityList[index]; l.TextColor3=Theme.Text; l.Font=Enum.Font.GothamMedium; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.TextTruncate=Enum.TextTruncate.AtEnd; l.Parent=row
 
     local up=Instance.new("TextButton"); up.Name="WhiteTextBtn"; up.Size=UDim2.new(0,26,0,22); up.Position=UDim2.new(1,-86,0.5,-11); up.BackgroundColor3=Theme.Accent; up.Text="▲"; up.TextColor3=Color3.new(1,1,1); up.Font=Enum.Font.GothamBold; up.TextSize=10; up.Parent=row; corner(up,5)
+    up.MouseEnter:Connect(function() tw(up,{BackgroundColor3=Theme.AccentLight},0.1) end); up.MouseLeave:Connect(function() tw(up,{BackgroundColor3=Theme.Accent},0.1) end)
     local dn=Instance.new("TextButton"); dn.Name="WhiteTextBtn"; dn.Size=UDim2.new(0,26,0,22); dn.Position=UDim2.new(1,-56,0.5,-11); dn.BackgroundColor3=Theme.Accent; dn.Text="▼"; dn.TextColor3=Color3.new(1,1,1); dn.Font=Enum.Font.GothamBold; dn.TextSize=10; dn.Parent=row; corner(dn,5)
+    dn.MouseEnter:Connect(function() tw(dn,{BackgroundColor3=Theme.AccentLight},0.1) end); dn.MouseLeave:Connect(function() tw(dn,{BackgroundColor3=Theme.Accent},0.1) end)
     local del=Instance.new("TextButton"); del.Name="WhiteTextBtn"; del.Size=UDim2.new(0,26,0,22); del.Position=UDim2.new(1,-26,0.5,-11); del.BackgroundColor3=Theme.Red; del.Text="X"; del.TextColor3=Color3.new(1,1,1); del.Font=Enum.Font.GothamBold; del.TextSize=10; del.Parent=row; corner(del,5)
+    del.MouseEnter:Connect(function() tw(del,{BackgroundColor3=Color3.fromRGB(255,80,80)},0.1) end); del.MouseLeave:Connect(function() tw(del,{BackgroundColor3=Theme.Red},0.1) end)
     up.MouseButton1Click:Connect(function() if index>1 then priorityList[index],priorityList[index-1]=priorityList[index-1],priorityList[index]; Config.PriorityList=priorityList; saveConfig(); loadTab("Priority") end end)
     dn.MouseButton1Click:Connect(function() if index<#priorityList then priorityList[index],priorityList[index+1]=priorityList[index+1],priorityList[index]; Config.PriorityList=priorityList; saveConfig(); loadTab("Priority") end end)
     del.MouseButton1Click:Connect(function() local removedName=priorityList[index]; table.remove(priorityList,index); if not Config.RemovedFromPriority then Config.RemovedFromPriority={} end; local alreadyRemoved=false; for _,rn in ipairs(Config.RemovedFromPriority) do if rn==removedName then alreadyRemoved=true; break end end; if not alreadyRemoved then table.insert(Config.RemovedFromPriority,removedName) end; Config.PriorityList=priorityList; saveConfig(); loadTab("Priority") end)
@@ -9108,6 +9114,9 @@ function makePriorityAddRow()
     local box=Instance.new("TextBox"); box.Size=UDim2.new(1,-60,1,-6); box.Position=UDim2.new(0,6,0,3); box.BackgroundColor3=Theme.InputBg; box.BorderSizePixel=0; box.Text=""; box.PlaceholderText="Enter pet name..."; box.TextColor3=Theme.Text; box.PlaceholderColor3=Theme.Dim; box.Font=Enum.Font.GothamMedium; box.TextSize=10; box.ClearTextOnFocus=false; box.Parent=holder; box.ZIndex=21; corner(box,4)
 
     local addBtn=Instance.new("TextButton"); addBtn.Name="WhiteTextBtn"; addBtn.Size=UDim2.new(0,44,0,25); addBtn.Position=UDim2.new(1,-50,0.5,-12.5); addBtn.BackgroundColor3=Theme.Accent; addBtn.Text="ADD"; addBtn.TextColor3=Color3.new(1,1,1); addBtn.Font=Enum.Font.GothamBlack; addBtn.TextSize=10; addBtn.AutoButtonColor=false; addBtn.Parent=holder; addBtn.ZIndex=21; corner(addBtn,5)
+    local addBtnStroke=Instance.new("UIStroke"); addBtnStroke.Color=Theme.AccentLight; addBtnStroke.Thickness=1; addBtnStroke.Transparency=0.5; addBtnStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; addBtnStroke.Parent=addBtn
+    addBtn.MouseEnter:Connect(function() tw(addBtn,{BackgroundColor3=Theme.AccentLight},0.1); tw(addBtnStroke,{Transparency=0.1},0.1) end)
+    addBtn.MouseLeave:Connect(function() tw(addBtn,{BackgroundColor3=Theme.Accent},0.1); tw(addBtnStroke,{Transparency=0.5},0.1) end)
 
     -- Dropdown for autocomplete
     local dropdown = Instance.new("Frame"); dropdown.Name="PriorityDropdown"; dropdown.Size=UDim2.new(1,-60,0,0); dropdown.Position=UDim2.new(0,6,1,2)
@@ -9171,6 +9180,9 @@ function makePriorityRestoreRow()
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,31); row.BackgroundColor3=Theme.SoftAccent; row.BackgroundTransparency=0.1; row.Parent=mainBody; corner(row,6); row.LayoutOrder = -1
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-96,1,0); l.Position=UDim2.new(0,8,0,0); l.BackgroundTransparency=1; l.Text=tostring(#Config.RemovedFromPriority).." ignored pet(s) available"; l.TextColor3=Theme.Dim; l.Font=Enum.Font.GothamMedium; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.Parent=row
     local restBtn=Instance.new("TextButton"); restBtn.Name="WhiteTextBtn"; restBtn.Size=UDim2.new(0,74,0,25); restBtn.Position=UDim2.new(1,-80,0.5,-12.5); restBtn.BackgroundColor3=Theme.Green; restBtn.Text="RESTORE"; restBtn.TextColor3=Color3.new(1,1,1); restBtn.Font=Enum.Font.GothamBlack; restBtn.TextSize=10; restBtn.AutoButtonColor=false; restBtn.Parent=row; corner(restBtn,5)
+    local restStroke=Instance.new("UIStroke"); restStroke.Color=Color3.fromRGB(120,255,120); restStroke.Thickness=1; restStroke.Transparency=0.5; restStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; restStroke.Parent=restBtn
+    restBtn.MouseEnter:Connect(function() tw(restBtn,{BackgroundColor3=Color3.fromRGB(80,220,80)},0.1); tw(restStroke,{Transparency=0.1},0.1) end)
+    restBtn.MouseLeave:Connect(function() tw(restBtn,{BackgroundColor3=Theme.Green},0.1); tw(restStroke,{Transparency=0.5},0.1) end)
     restBtn.MouseButton1Click:Connect(function()
         for _, name in ipairs(Config.RemovedFromPriority) do
             local exists = false
