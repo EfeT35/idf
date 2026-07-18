@@ -8269,10 +8269,17 @@ end
 
 function makeKeybindRow(parent,nameText)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,31); row.BackgroundColor3=Theme.Panel; row.BackgroundTransparency=0.18; row.Parent=parent; corner(row,6)
+    local kbStroke=Instance.new("UIStroke"); kbStroke.Color=Theme.Accent; kbStroke.Thickness=1; kbStroke.Transparency=0.88; kbStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; kbStroke.Parent=row
+    row.MouseEnter:Connect(function() tw(row,{BackgroundTransparency=0.08},0.1); tw(kbStroke,{Transparency=0.5},0.1) end)
+    row.MouseLeave:Connect(function() tw(row,{BackgroundTransparency=0.18},0.1); tw(kbStroke,{Transparency=0.88},0.1) end)
     local bar=Instance.new("Frame"); bar.Size=UDim2.new(0,3,0,16); bar.Position=UDim2.new(0,0,0.5,-8); bar.BackgroundColor3=Theme.Accent; bar.BorderSizePixel=0; bar.Parent=row; corner(bar,2)
+    local barGradK=Instance.new("UIGradient"); barGradK.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); barGradK.Rotation=90; barGradK.Parent=bar
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-96,1,0); l.Position=UDim2.new(0,14,0,0); l.BackgroundTransparency=1; l.Text="\226\150\170 "..nameText:upper(); l.TextColor3=Theme.Text; l.Font=Enum.Font.GothamSemibold; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.Parent=row
     local x=Instance.new("TextButton"); x.Name="WhiteTextBtn"; x.Size=UDim2.new(0,22,0,20); x.Position=UDim2.new(1,-74,0.5,-10); x.BackgroundColor3=Theme.Red; x.Text="X"; x.TextColor3=Color3.new(1,1,1); x.Font=Enum.Font.GothamBold; x.TextSize=10; x.Parent=row; corner(x,5)
     local key=Instance.new("TextButton"); key.Name="WhiteTextBtn"; key.Size=UDim2.new(0,50,0,20); key.Position=UDim2.new(1,-50,0.5,-10); key.BackgroundColor3=Theme.Accent; key.Text=Keybinds[nameText] or "NONE"; key.TextColor3=Color3.new(1,1,1); key.Font=Enum.Font.GothamBold; key.TextSize=9; key.Parent=row; corner(key,5)
+    local keyStroke=Instance.new("UIStroke"); keyStroke.Color=Theme.AccentLight; keyStroke.Thickness=1; keyStroke.Transparency=0.55; keyStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; keyStroke.Parent=key
+    key.MouseEnter:Connect(function() tw(key,{BackgroundColor3=Theme.AccentLight},0.1); tw(keyStroke,{Transparency=0.1},0.1) end)
+    key.MouseLeave:Connect(function() tw(key,{BackgroundColor3=Theme.Accent},0.1); tw(keyStroke,{Transparency=0.55},0.1) end)
     x.MouseButton1Click:Connect(function() Keybinds[nameText]="NONE"; Config.keybinds[nameText]="NONE"; saveConfig(); key.Text="NONE"; if updateMovementPanelLabels then updateMovementPanelLabels() end end)
     key.MouseButton1Click:Connect(function() key.Text="..."
         local con; con=UIS.InputBegan:Connect(function(input,gp) if gp then return end; if input.UserInputType==Enum.UserInputType.Keyboard then Keybinds[nameText]=input.KeyCode.Name; Config.keybinds[nameText]=input.KeyCode.Name; saveConfig(); key.Text=input.KeyCode.Name; if nameText=="Open Menu" then UI.OpenMenuKey=input.KeyCode end; con:Disconnect(); if updateMovementPanelLabels then updateMovementPanelLabels() end end end)
@@ -8978,10 +8985,16 @@ end) -- END ADMIN PANEL UI SCOPE (LazyInit)
 -- TAB BAR + TABS
 -- ============================================================
 tabBar=Instance.new("Frame"); tabBar.Size=UDim2.new(1,-(ART_WIDTH+18),0,28); tabBar.Position=UDim2.new(0,ART_WIDTH+6,0,43); tabBar.BackgroundTransparency=1; tabBar.Parent=main
-local tabDiv=Instance.new("Frame"); tabDiv.Size=UDim2.new(1,0,0,1); tabDiv.Position=UDim2.new(0,0,1,-1); tabDiv.BackgroundColor3=Theme.Stroke; tabDiv.BorderSizePixel=0; tabDiv.Parent=tabBar
+local tabDiv=Instance.new("Frame"); tabDiv.Size=UDim2.new(1,0,0,1); tabDiv.Position=UDim2.new(0,0,1,-1); tabDiv.BackgroundColor3=Theme.Accent; tabDiv.BackgroundTransparency=0.55; tabDiv.BorderSizePixel=0; tabDiv.Parent=tabBar
+local tabDivGrad=Instance.new("UIGradient"); tabDivGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); tabDivGrad.Parent=tabDiv
 tabUnderline=Instance.new("Frame"); tabUnderline.Size=UDim2.new(0,49,0,2); tabUnderline.Position=UDim2.new(0,0,1,-2); tabUnderline.BackgroundColor3=Theme.Accent; tabUnderline.BorderSizePixel=0; tabUnderline.ZIndex=2; tabUnderline.Parent=tabBar
+local tabUlGrad=Instance.new("UIGradient"); tabUlGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); tabUlGrad.Parent=tabUnderline
 local tabs={"Keybinds","Auto TP","ESP","UI","Misc","Priority","Performance"}
-for i,name in ipairs(tabs) do local b=Instance.new("TextButton"); b.Size=UDim2.new(0,49,0,27); b.Position=UDim2.new(0,(i-1)*51,0,0); b.BackgroundTransparency=1; b.Text=name; b.TextColor3=Theme.Dim; b.Font=Enum.Font.GothamMedium; b.TextSize=8; b.AutoButtonColor=false; b.Parent=tabBar; tabButtons[name]=b end
+for i,name in ipairs(tabs) do
+    local b=Instance.new("TextButton"); b.Size=UDim2.new(0,49,0,27); b.Position=UDim2.new(0,(i-1)*51,0,0); b.BackgroundTransparency=1; b.Text=name; b.TextColor3=Theme.Dim; b.Font=Enum.Font.GothamMedium; b.TextSize=8; b.AutoButtonColor=false; b.Parent=tabBar; tabButtons[name]=b
+    b.MouseEnter:Connect(function() if b.TextColor3~=Theme.Accent then tw(b,{TextColor3=Theme.Text},0.1) end end)
+    b.MouseLeave:Connect(function() if b.TextColor3~=Theme.Accent then tw(b,{TextColor3=Theme.Dim},0.1) end end)
+end
 
 -- Cache all animal names for autocomplete. Source per request:
 -- ReplicatedStorage.Animations.Animals (animation instances are named after
