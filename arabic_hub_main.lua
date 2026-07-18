@@ -8989,9 +8989,9 @@ end) -- END ADMIN PANEL UI SCOPE (LazyInit)
 -- ============================================================
 tabBar=Instance.new("Frame"); tabBar.Size=UDim2.new(1,-(ART_WIDTH+18),0,28); tabBar.Position=UDim2.new(0,ART_WIDTH+6,0,43); tabBar.BackgroundTransparency=1; tabBar.Parent=main
 local tabDiv=Instance.new("Frame"); tabDiv.Size=UDim2.new(1,0,0,1); tabDiv.Position=UDim2.new(0,0,1,-1); tabDiv.BackgroundColor3=Theme.Accent; tabDiv.BackgroundTransparency=0.55; tabDiv.BorderSizePixel=0; tabDiv.Parent=tabBar
-local tabDivGrad=Instance.new("UIGradient"); tabDivGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); tabDivGrad.Parent=tabDiv
+do local _g=Instance.new("UIGradient"); _g.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); _g.Parent=tabDiv end
 tabUnderline=Instance.new("Frame"); tabUnderline.Size=UDim2.new(0,49,0,2); tabUnderline.Position=UDim2.new(0,0,1,-2); tabUnderline.BackgroundColor3=Theme.Accent; tabUnderline.BorderSizePixel=0; tabUnderline.ZIndex=2; tabUnderline.Parent=tabBar
-local tabUlGrad=Instance.new("UIGradient"); tabUlGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); tabUlGrad.Parent=tabUnderline
+do local _g=Instance.new("UIGradient"); _g.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); _g.Parent=tabUnderline end
 local tabs={"Keybinds","Auto TP","ESP","UI","Misc","Priority","Performance"}
 for i,name in ipairs(tabs) do
     local b=Instance.new("TextButton"); b.Size=UDim2.new(0,49,0,27); b.Position=UDim2.new(0,(i-1)*51,0,0); b.BackgroundTransparency=1; b.Text=name; b.TextColor3=Theme.Dim; b.Font=Enum.Font.GothamMedium; b.TextSize=8; b.AutoButtonColor=false; b.Parent=tabBar; tabButtons[name]=b
@@ -9775,8 +9775,7 @@ for tabName,btn in pairs(tabButtons) do btn.MouseButton1Click:Connect(function()
 
 -- BOTTOM BAR
 bottomBar=Instance.new("Frame"); bottomBar.Size=UDim2.new(0,575,0,50); bottomBar.Position=UDim2.new(0.5,-287,1,-125); bottomBar.BackgroundColor3=Theme.Background; bottomBar.BackgroundTransparency=0.02; bottomBar.BorderSizePixel=0; bottomBar.Parent=gui; corner(bottomBar,12); addOutline(bottomBar); addCyberCorners(bottomBar)
-local bbTopStrip=Instance.new("Frame"); bbTopStrip.Size=UDim2.new(1,0,0,2); bbTopStrip.Position=UDim2.new(0,0,0,0); bbTopStrip.BackgroundColor3=Theme.Accent; bbTopStrip.BorderSizePixel=0; bbTopStrip.ZIndex=4; bbTopStrip.Parent=bottomBar
-local bbGrad=Instance.new("UIGradient"); bbGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); bbGrad.Parent=bbTopStrip
+do local _s=Instance.new("Frame"); _s.Size=UDim2.new(1,0,0,2); _s.Position=UDim2.new(0,0,0,0); _s.BackgroundColor3=Theme.Accent; _s.BorderSizePixel=0; _s.ZIndex=4; _s.Parent=bottomBar; local _g=Instance.new("UIGradient"); _g.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); _g.Parent=_s end
 local iw=Instance.new("Frame"); iw.Size=UDim2.new(0,34,0,34); iw.Position=UDim2.new(0,12,0.5,-17); iw.BackgroundColor3=Color3.fromRGB(18,4,4); iw.BorderSizePixel=0; iw.ClipsDescendants=true; iw.Parent=bottomBar; corner(iw,8)
 local iwGrad=Instance.new("UIGradient"); iwGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(90,14,14)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,2,2))}); iwGrad.Rotation=50; iwGrad.Parent=iw
 local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(244,114,182); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
