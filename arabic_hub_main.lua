@@ -80,7 +80,6 @@ local old; old = hookfunction(Instance.new("RemoteEvent").FireServer, function(s
 
     if #self.Name == 67 and arg1 and typeof(arg1) == "string" then
         if string.find(arg1, "StopTrying") then
-            print("ez bypass")
             return
         end
     end
@@ -9924,7 +9923,6 @@ end)
 _G.__isa=Config.InvisStealAngle or 225; _G.__ssv=Config.SinkSliderValue or 7
 _G.__arlb=true; _G.__aids=Config.AutoInvisDuringSteal or false
 
-print("IDF HUB PRIVAT loaded ")
 
 
 task.spawn(function()
