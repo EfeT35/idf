@@ -68,22 +68,25 @@ GUID = GUID or _G.__rstGUID or _newGUID()
 resetRemote = nil
 instaResetCooldown = false
 
-local old; old = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
-    local args = {...}
-    local arg1 = args[1]
-
-    -- Capture the first RE/* remote the game itself fires -- that's the reset
-    -- target for instareset() below.
-    if not resetRemote and self.Name:sub(1, 3) == "RE/" then
-        resetRemote = self
-    end
-
-    if #self.Name == 67 and arg1 and typeof(arg1) == "string" then
-        if string.find(arg1, "StopTrying") then
-            return
+-- Passively scan for the reset remote (RE/* pattern) without hooking FireServer
+task.spawn(function()
+    local function scanForResetRemote(parent)
+        for _, v in ipairs(parent:GetDescendants()) do
+            if v:IsA("RemoteEvent") and v.Name:sub(1,3) == "RE/" and not resetRemote then
+                resetRemote = v
+                return
+            end
         end
     end
-    return old(self, ...)
+    pcall(scanForResetRemote, game:GetService("ReplicatedStorage"))
+    if not resetRemote then
+        local conn; conn = game:GetService("ReplicatedStorage").DescendantAdded:Connect(function(v)
+            if v:IsA("RemoteEvent") and v.Name:sub(1,3) == "RE/" and not resetRemote then
+                resetRemote = v
+                conn:Disconnect()
+            end
+        end)
+    end
 end)
 
 -- LPH_NO_VIRTUALIZE: real preprocessor directive under Luraph; harmless passthrough
