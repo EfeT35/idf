@@ -115,19 +115,19 @@ end))
 -- Persistent panel visibility store that survives script re-executes within the same Roblox session
 _G.__rblxPV = _G.__rblxPV or {}
 
-_G.lazyUIs = {}
-_G.addLazyUI = function(element, targetVis, isScreenGui, panelName)
+_G.__lui = {}
+_G.__alu = function(element, targetVis, isScreenGui, panelName)
     if element then
         if isScreenGui then
             element.Enabled = false
         else
             element.Visible = false
         end
-        table.insert(_G.lazyUIs, {element = element, targetVis = targetVis, isScreenGui = isScreenGui, cancelled = false, panelName = panelName})
+        table.insert(_G.__lui, {element = element, targetVis = targetVis, isScreenGui = isScreenGui, cancelled = false, panelName = panelName})
     end
 end
-_G.cancelLazyUI = function(element)
-    for _, item in ipairs(_G.lazyUIs) do
+_G.__clu = function(element)
+    for _, item in ipairs(_G.__lui) do
         if item.element == element then
             item.cancelled = true
             break
@@ -135,7 +135,7 @@ _G.cancelLazyUI = function(element)
     end
 end
 task.delay(4.0, function()
-    for _, item in ipairs(_G.lazyUIs) do
+    for _, item in ipairs(_G.__lui) do
         if item.element and not item.cancelled then
             local vis
             if item.panelName then
@@ -159,8 +159,8 @@ task.delay(4.0, function()
             end
         end
     end
-    if _G.initRemoteSellLazy then
-        pcall(_G.initRemoteSellLazy)
+    if _G.__irsl then
+        pcall(_G.__irsl)
     end
 end)
 
@@ -647,8 +647,8 @@ function applyTheme(themeName)
     pcall(function()
         local sg = playerGui:FindFirstChild("CoreFrame_0")
         if sg then updateInstanceColors(sg) end
-        if _G.updateLogoImage then
-            _G.updateLogoImage(themeName == "Dark")
+        if _G.__uli then
+            _G.__uli(themeName == "Dark")
         end
     end)
     pcall(function()
@@ -694,7 +694,7 @@ function applyTheme(themeName)
     pcall(function() if rebuildTpSpeedSettings then rebuildTpSpeedSettings() end end)
     pcall(function() if loadTab then loadTab(UI.CurrentTab) end end)
 end
-_G.applyTheme = applyTheme
+_G.__at = applyTheme
 pcall(applyTheme, "Vampire")
 
 local UI = {Locked=false, OpenMenuKey=Enum.KeyCode.LeftControl, CurrentTab="Auto TP"}
@@ -1052,7 +1052,7 @@ do
         return table.concat(t)
     end
 
-    _G.importConfig = function(str)
+    _G.__iconf = function(str)
         if not str or str == "" then
             ShowNotification("IMPORT ERROR", "Config string is empty")
             return false
@@ -1129,7 +1129,7 @@ do
         return true
     end
 
-    _G.exportConfig = function()
+    _G.__econf = function()
         local ok, str = pcall(function()
             return HttpService:JSONEncode(Config)
         end)
@@ -1242,7 +1242,7 @@ pcall(function()
     end
 
     local SyncInt = {_cache = {}, _data = nil}
-    _G.SyncInt = SyncInt
+    _G.__si = SyncInt
 
     task.spawn(function()
         for i = 1, 10 do
@@ -1276,7 +1276,7 @@ pcall(function()
         return nil
     end
 
-    function _G.stealthGet(n)
+    function _G.__sg(n)
         if not n or type(n) ~= "string" then return nil end
         if SyncInt._cache[n] == false then return nil end
         local res = nil
@@ -1307,7 +1307,7 @@ pcall(function()
         return nil
     end
 
-    function _G.sProp(ch, p)
+    function _G.__sp(ch, p)
         if not ch or type(ch) ~= "table" then return nil end
         if ch[p] then return ch[p] end
         for _, sub in ipairs({"CacheTable", "Data", "_data", "state", "values"}) do
@@ -1366,7 +1366,7 @@ pcall(function()
         -- local oldGet = syn.Get
         -- if oldGet then
         --     syn.Get = function(self, plotName)
-        --         local ch = _G.stealthGet(plotName)
+        --         local ch = _G.__sg(plotName)
         --         if ch then return ch end
         --         return oldGet(self, plotName)
         --     end
@@ -1439,19 +1439,19 @@ if Config.SpamBaseOwnerSingleCommand == nil then
 end
 setToggle("SpamBaseOwnerSingleCommand", Config.SpamBaseOwnerSingleCommand or false)
 
-_G.apBlacklist = Config.apBlacklist or {}
+_G.__abl = Config.apBlacklist or {}
 
 local function isPlayerBlacklisted(plr)
     if not plr then return false end
     local uid = plr.UserId
-    return _G.apBlacklist[uid] == true or _G.apBlacklist[tostring(uid)] == true
+    return _G.__abl[uid] == true or _G.__abl[tostring(uid)] == true
 end
 
 -- Cached Synchronizer module. Re-requiring + WaitForChild on every call (inside
 -- per-player loops) was a major admin-panel lag source; cache it once.
 do
     local cached
-    function _G.__getSync()
+    function _G.__gs()
         if cached then return cached end
         local ok, mod = pcall(function()
             local pkgs = ReplicatedStorage:FindFirstChild("Packages")
@@ -1462,14 +1462,14 @@ do
     end
 end
 
--- NOTE: current-base-owner detection lives below as _G.__getCurrentBaseOwnerId,
+-- NOTE: current-base-owner detection lives below as _G.__gcboi,
 -- right after getPlayerBaseInfo (it depends on getPlotAtPosition/getPlotOwner,
 -- which are declared further down). Every player here owns their own base, so a
 -- "who owns ANY base" check would (correctly but uselessly) flag everyone.
 
 local function getPlotOwner(plot)
     if not plot then return nil end
-    local Synchronizer = _G.__getSync()
+    local Synchronizer = _G.__gs()
     if Synchronizer then
         local ch = Synchronizer:Get(plot.Name)
         if ch then
@@ -1546,7 +1546,7 @@ end
 -- shows "Base Owner": the owner of the base you're actually in.
 do
     local cachedId, lastT = nil, 0
-    function _G.__getCurrentBaseOwnerId()
+    function _G.__gcboi()
         local now = os.clock()
         if (now - lastT) < 0.4 then return cachedId end
         lastT = now
@@ -1593,7 +1593,7 @@ local function getStealingInfo(plr)
                         if (isPlayingAnim and dist < 12) or (dist < 4.5) then
                             local animalName = "Brainrot"
                             pcall(function()
-                                local Synchronizer = _G.__getSync()
+                                local Synchronizer = _G.__gs()
                                 if Synchronizer then
                                     local ch = Synchronizer:Get(plot.Name)
                                     if ch then
@@ -1644,7 +1644,7 @@ local function fireClick(button)
         end
     end); return ok
 end
-_G.fireClick=fireClick
+_G.__fc=fireClick
 
 local function runAdminCommand(targetPlayer, commandName)
     if not targetPlayer or not commandName or commandName=="" then return false end
@@ -1684,7 +1684,7 @@ local function runAdminCommand(targetPlayer, commandName)
     end)
     return true
 end
-_G.runAdminCommand=runAdminCommand
+_G.__rac=runAdminCommand
 
 
 local function runAutoBaseActions()
@@ -1721,7 +1721,7 @@ local function runAutoBaseActions()
         end
     end)
 end
-_G.runAutoBaseActions = runAutoBaseActions
+_G.__raba = runAutoBaseActions
 
 local function isMobyUser(p) return p and p.Character and p.Character:FindFirstChild("_moby_highlight")~=nil end
 local function isKawaifuUser(p) return p and p.Character and p.Character:FindFirstChild("KaWaifu_NeonHighlight")~=nil end
@@ -1836,14 +1836,14 @@ local function log(message, isWarn)
 end
 
 -- EXPORTED TELEPORT BYPASS API
-_G.NotifyLocalTeleport = function(duration)
+_G.__nlt = function(duration)
     local delayTime = duration or 0.5
     isTeleporting = true
     task.delay(delayTime, function()
         isTeleporting = false
     end)
 end
-shared.NotifyLocalTeleport = _G.NotifyLocalTeleport
+shared.__nlt = _G.__nlt
 
 -- OPTIMIZED INCREMENTAL REMOTE EVENT SCANNER (For Generic Fallbacks)
 local function scanForRemotes()
@@ -2006,7 +2006,7 @@ end)
 -- KEYBIND TRIGGER (Disabled local listener to avoid collision with 'Drop Brainrot' keybind G)
 -- Reset is managed by the main Keybinds setting in the GUI (defaults to key X)
 
-_G.InstantReset = instantReset -- Global access for other scripts
+_G.__ir = instantReset -- Global access for other scripts
 
 -- HISTORY CACHE MANAGEMENT
 local function updateHistory(pos)
@@ -2052,7 +2052,7 @@ executeReset = function(isBalloon)
     end
     instantReset()
 end
-_G.executeReset = executeReset
+_G.__er = executeReset
 end
 
 -- CLONE
@@ -2064,11 +2064,11 @@ local function instantClone()
     if cl.Parent~=c then h:EquipTool(cl); task.wait() end
     local tf=playerGui:FindFirstChild("ToolsFrames"); local qc=tf and tf:FindFirstChild("QuantumCloner")
     local tb=qc and qc:FindFirstChild("TeleportToClone"); if not tb then return end
-    _G.isCloning=true; cl:Activate(); task.wait(0.05); tb.Visible=true
+    _G.__ic=true; cl:Activate(); task.wait(0.05); tb.Visible=true
     pcall(function() firesignal(tb.MouseButton1Click) end)
     pcall(function() firesignal(tb.MouseButton1Up) end)
     pcall(function() firesignal(tb.Activated) end)
-    task.delay(0.55, function() _G.isCloning=false end)
+    task.delay(0.55, function() _G.__ic=false end)
 end
 
 -- DROP BRAINROT
@@ -2083,7 +2083,7 @@ local function startWalkFling()
         for _,p in ipairs(Players:GetPlayers()) do if p~=player and p.Character then for _,pt in ipairs(p.Character:GetChildren()) do if pt:IsA("BasePart") then pt.CanCollide=false end end end end
     end))
     local co=coroutine.create(function()
-        if _G.invisibleStealEnabled then rr.CFrame=rr.CFrame*CFrame.new(0,3,0) end
+        if _G.__ise then rr.CFrame=rr.CFrame*CFrame.new(0,3,0) end
         while _wfActive do RunService.Heartbeat:Wait(); if not rr or not rr.Parent then break end
             local v=rr.Velocity; rr.Velocity=v*10000+Vector3.new(0,10000,0)
             RunService.RenderStepped:Wait(); if rr then rr.Velocity=v end
@@ -2110,11 +2110,11 @@ local errorOrbActive = false
 local errorOrb = nil
 local errorOrbConnection = nil
 
-_G.invisibleStealEnabled = false
-_G.InvisStealAngle = Config.InvisStealAngle or 225
-_G.SinkSliderValue = Config.SinkSliderValue or 7
-_G.AutoRecoverLagback = Config.AutoRecoverLagback ~= nil and Config.AutoRecoverLagback or true
-_G.AutoInvisDuringSteal = Config.AutoInvisDuringSteal or false
+_G.__ise = false
+_G.__isa = Config.InvisStealAngle or 225
+_G.__ssv = Config.SinkSliderValue or 7
+_G.__arlb = Config.AutoRecoverLagback ~= nil and Config.AutoRecoverLagback or true
+_G.__aids = Config.AutoInvisDuringSteal or false
 
 local function clearErrorOrb()
     if errorOrb and errorOrb.Parent then errorOrb:Destroy() end
@@ -2256,7 +2256,7 @@ local function invisTurnOff()
     if not animPlaying then return end
     local character = player.Character
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    animPlaying = false; _G.invisibleStealEnabled = false
+    animPlaying = false; _G.__ise = false
     setToggle("Invisible Steal", false)
     for _, t in pairs(tracks) do pcall(function() t:Stop(0) end) end
     tracks = {}
@@ -2283,7 +2283,7 @@ local function invisTurnOff()
             end)
         end)
     end
-    if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, false) end
+    if _G.__umpiv then pcall(_G.__umpiv, false) end
     -- Instantly disable walkspeed when invis steal turns off
     if WalkSpeedState and WalkSpeedState.enabled and Config.WalkSpeedEnabled then
         setWalkSpeedEnabled(false)
@@ -2297,23 +2297,23 @@ local function invisTurnOn()
     if not character then return end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return end
-    animPlaying = true; _G.invisibleStealEnabled = true
+    animPlaying = true; _G.__ise = true
     setToggle("Invisible Steal", true)
-    if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, true) end
+    if _G.__umpiv then pcall(_G.__umpiv, true) end
     tracks = {}; removeFolders()
     local success = doClone()
     if success then
         task.wait(0.05); animationTrickery()
         task.defer(function()
-            if _G.resetBrainrotBeam then pcall(_G.resetBrainrotBeam) end
-            if _G.resetPlotBeam then pcall(_G.resetPlotBeam) end
+            if _G.__rbb then pcall(_G.__rbb) end
+            if _G.__rpb then pcall(_G.__rpb) end
             task.wait(0.1)
-            if _G.updateBrainrotBeam then pcall(_G.updateBrainrotBeam) end
-            if _G.createPlotBeam then pcall(_G.createPlotBeam) end
+            if _G.__ubb then pcall(_G.__ubb) end
+            if _G.__cpb then pcall(_G.__cpb) end
         end)
         -- Enable walkspeed 1 second after invis steal activates
         task.delay(1, function()
-            if _G.invisibleStealEnabled and not WalkSpeedState.enabled then
+            if _G.__ise and not WalkSpeedState.enabled then
                 setWalkSpeedEnabled(true)
             end
         end)
@@ -2326,16 +2326,16 @@ local function invisTurnOn()
                     elseif lastSetPosition and ghostEnabled then
                         local currentPos = oldRoot.Position
                         local jumpDist = (currentPos - lastSetPosition).Magnitude
-                        if jumpDist > 6 and not _G.RecoveryInProgress and player:GetAttribute("Stealing") then
+                        if jumpDist > 6 and not _G.__rip and player:GetAttribute("Stealing") then
                             lastSetPosition = nil; createServerGhost(currentPos)
-                            if _G.AutoRecoverLagback and _G._forceInvisToggle then
-                                _G.RecoveryInProgress = true
+                            if _G.__arlb and _G.__fit then
+                                _G.__rip = true
                                 task.spawn(function()
-                                    pcall(_G._forceInvisToggle); task.wait(0.6)
+                                    pcall(_G.__fit); task.wait(0.6)
                                     if player:GetAttribute("Stealing") then
-                                        pcall(_G._forceInvisToggle)
+                                        pcall(_G.__fit)
                                     end
-                                    _G.RecoveryInProgress = false
+                                    _G.__rip = false
                                 end)
                             end
                         end
@@ -2345,9 +2345,9 @@ local function invisTurnOn()
                         for _, c in pairs(oldRoot:GetChildren()) do
                             if c:IsA("Attachment") or c:IsA("Beam") then c:Destroy() end
                         end
-                        local sa = (_G.SinkSliderValue or 7) * 0.5
+                        local sa = (_G.__ssv or 7) * 0.5
                         local cf = root.CFrame - Vector3.new(0, sa, 0)
-                        oldRoot.CFrame = cf * CFrame.Angles(math.rad(_G.InvisStealAngle or 225), 0, 0)
+                        oldRoot.CFrame = cf * CFrame.Angles(math.rad(_G.__isa or 225), 0, 0)
                         oldRoot.AssemblyLinearVelocity = root.AssemblyLinearVelocity; oldRoot.CanCollide = false
                         lastSetPosition = oldRoot.Position
                     end
@@ -2357,13 +2357,13 @@ local function invisTurnOn()
     end
 end
 
-_G.toggleInvisibleSteal = function()
+_G.__tis = function()
     if (tick() - _invisToggleCooldown) < 0.3 then return end
     if animPlaying then invisTurnOff() else invisTurnOn() end
 end
 
 -- Force toggle that bypasses debounce (for auto-recover and auto-invis)
-_G._forceInvisToggle = function()
+_G.__fit = function()
     if animPlaying then invisTurnOff() else invisTurnOn() end
 end
 
@@ -2374,9 +2374,9 @@ player.CharacterAdded:Connect(function(newChar)
     pcall(function() for _, c in pairs(Workspace.CurrentCamera:GetChildren()) do if c:IsA("BasePart") and c.Name == "HumanoidRootPart" then c:Destroy() end end end)
     if oldRoot then pcall(function() oldRoot:Destroy() end); oldRoot = nil end
     if clone then pcall(function() clone:Destroy() end); clone = nil end
-    animPlaying = false; _G.invisibleStealEnabled = false
+    animPlaying = false; _G.__ise = false
     setToggle("Invisible Steal", false)
-    if _G.updateMovementPanelInvisVisual then pcall(_G.updateMovementPanelInvisVisual, false) end
+    if _G.__umpiv then pcall(_G.__umpiv, false) end
     task.wait(0.2)
     local camera = Workspace.CurrentCamera
     if camera and newChar then
@@ -2397,26 +2397,26 @@ player.CharacterAdded:Connect(function() task.wait(0.1); setupDeathListener() en
 
 -- ANTI-DIE
 task.spawn(function()
-    _G.AntiDieDisabled = false
+    _G.__add = false
     local function setupAntiDie()
-        if _G.AntiDieDisabled then return end
+        if _G.__add then return end
         local character = player.Character
         if not character then return end
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not humanoid then return end
-        if _G.AntiDieConnection then pcall(function() _G.AntiDieConnection:Disconnect() end) end
-        _G.AntiDieConnection = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-            if _G.AntiDieDisabled then return end
+        if _G.__adc then pcall(function() _G.__adc:Disconnect() end) end
+        _G.__adc = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if _G.__add then return end
             if humanoid.Health <= 0 then
                 humanoid.Health = humanoid.MaxHealth
             end
         end)
     end
-    _G.setupAntiDie = setupAntiDie
+    _G.__sad = setupAntiDie
     setupAntiDie()
     player.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if not _G.AntiDieDisabled then
+        if not _G.__add then
             setupAntiDie()
         end
     end)
@@ -2434,19 +2434,19 @@ task.spawn(function()
         else
             local isStealing = player:GetAttribute("Stealing")
             if isStealing and not wasStealingForInvis then
-                if not _G.invisibleStealEnabled and _G._forceInvisToggle then
+                if not _G.__ise and _G.__fit then
                     task.defer(function()
-                        if player:GetAttribute("Stealing") and not _G.invisibleStealEnabled then
-                            pcall(_G._forceInvisToggle)
+                        if player:GetAttribute("Stealing") and not _G.__ise then
+                            pcall(_G.__fit)
                             autoEnabledInvis = true
                         end
                     end)
                 end
             end
-            if not isStealing and autoEnabledInvis and _G.invisibleStealEnabled and _G._forceInvisToggle then
+            if not isStealing and autoEnabledInvis and _G.__ise and _G.__fit then
                 task.wait(0.3)
                 if not player:GetAttribute("Stealing") then
-                    pcall(_G._forceInvisToggle)
+                    pcall(_G.__fit)
                     autoEnabledInvis = false
                 end
             end
@@ -2468,7 +2468,7 @@ local function createFloatPlatform()
     end)
 end
 local function setFloat(on) FloatState.active=on; Config.Float=on; saveConfig(); setToggle("Float",on); if on then createFloatPlatform() else removeFloatPlatform() end end
-_G.toggleFloat=function() setFloat(not FloatState.active) end
+_G.__tf=function() setFloat(not FloatState.active) end
 
 -- WALKSPEED (CFrame Bypass)
 WalkSpeedState = {enabled = false, conn = nil, speed = Config.WalkSpeedValue or 16}
@@ -2498,8 +2498,8 @@ local function setWalkSpeedValue(v)
     saveConfig()
     return v
 end
-_G.setWalkSpeedEnabled = setWalkSpeedEnabled
-_G.setWalkSpeedValue = setWalkSpeedValue
+_G.__swse = setWalkSpeedEnabled
+_G.__swsv = setWalkSpeedValue
 
 -- CARPET SPEED
 CarpetState={enabled=false,conn=nil}
@@ -2625,7 +2625,7 @@ do
         if not antiRagdollHumanoid or not antiRagdollRootPart then return end
 
         table.insert(antiRagdollConnections, antiRagdollHumanoid.StateChanged:Connect(function()
-            if (_G.AntiRagdollEnabled or _G.antiKnockbackEnabled) and isRagdolled() then
+            if (_G.__are or _G.__ake) and isRagdolled() then
                 if not isFlyingCarpetActive() then
                     antiRagdollHumanoid:ChangeState(Enum.HumanoidStateType.Running)
                 end
@@ -2643,7 +2643,7 @@ do
                     impulsePath = impulsePath:FindFirstChild("RE/CombatService/ApplyImpulse")
                     if impulsePath then
                         table.insert(antiRagdollConnections, impulsePath.OnClientEvent:Connect(function()
-                            if (_G.AntiRagdollEnabled or _G.antiKnockbackEnabled) and isRagdolled() then
+                            if (_G.__are or _G.__ake) and isRagdolled() then
                                 antiRagdollRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                             end
                         end))
@@ -2653,13 +2653,13 @@ do
         end)
 
         table.insert(antiRagdollConnections, antiRagdollCharacter.DescendantAdded:Connect(function()
-            if (_G.AntiRagdollEnabled or _G.antiKnockbackEnabled) and isRagdolled() then
+            if (_G.__are or _G.__ake) and isRagdolled() then
                 cleanupRagdoll()
             end
         end))
 
         table.insert(antiRagdollConnections, RunService.Heartbeat:Connect(function()
-            if (_G.AntiRagdollEnabled or _G.antiKnockbackEnabled) and isRagdolled() then
+            if (_G.__are or _G.__ake) and isRagdolled() then
                 cleanupRagdoll()
                 local velocity = antiRagdollRootPart.AssemblyLinearVelocity
                 if (velocity - lastVelocity).Magnitude > velocityChangeThreshold
@@ -2675,8 +2675,8 @@ do
     end
 
     function startAntiRagdoll()
-        _G.AntiRagdollEnabled = true
-        _G.antiKnockbackEnabled = true
+        _G.__are = true
+        _G.__ake = true
         Config.AntiRagdoll = true; setToggle("Anti Ragdoll", true); saveConfig()
         if player.Character then
             setupAntiRagdollCharacter(player.Character)
@@ -2685,17 +2685,17 @@ do
     end
 
     function stopAntiRagdoll()
-        _G.AntiRagdollEnabled = false
-        _G.antiKnockbackEnabled = false
+        _G.__are = false
+        _G.__ake = false
         Config.AntiRagdoll = false; setToggle("Anti Ragdoll", false); saveConfig()
         clearAntiRagdollConnections()
     end
 
-    _G.toggleAntiRagdoll = function(enabled)
+    _G.__tar = function(enabled)
         if enabled then startAntiRagdoll() else stopAntiRagdoll() end
     end
-    _G.enableAntiKnockback = function() startAntiRagdoll() end
-    _G.disableAntiKnockback = function() stopAntiRagdoll() end
+    _G.__eak = function() startAntiRagdoll() end
+    _G.__dak = function() stopAntiRagdoll() end
 
     player.CharacterAdded:Connect(function(char)
         clearAntiRagdollConnections()
@@ -2705,14 +2705,14 @@ do
         if not humanoid or not rootPart then return end
         task.wait(0.2)
         setupAntiRagdollCharacter(char)
-        if _G.AntiRagdollEnabled or _G.antiKnockbackEnabled then
+        if _G.__are or _G.__ake then
             setupAntiRagdollConnections()
         end
     end)
 
     if player.Character then
         setupAntiRagdollCharacter(player.Character)
-        if _G.AntiRagdollEnabled or _G.antiKnockbackEnabled then
+        if _G.__are or _G.__ake then
             setupAntiRagdollConnections()
         end
     end
@@ -2753,7 +2753,7 @@ local function setUnwalk(on)
         applyUnwalk(player.Character, false)
     end
 end
-_G.setUnwalk = setUnwalk
+_G.__suw = setUnwalk
 
 player.CharacterAdded:Connect(function(char)
     task.spawn(function()
@@ -2784,7 +2784,7 @@ local function isMyPlot_Instant(plotName)
         if Synchronizer then
             local ch = Synchronizer:Get(plotName)
             if ch then
-                local own = _G.sProp(ch, "Owner")
+                local own = _G.__sp(ch, "Owner")
                 if own then
                     syncSuccess = true
                     if (typeof(own) == "Instance" and own == player) or
@@ -2824,7 +2824,7 @@ local function isMyPlot_Instant(plotName)
 
     return false
 end
-_G.isMyPlot_Instant = isMyPlot_Instant
+_G.__impi = isMyPlot_Instant
 
 -- UNLOCK BASE 
 local function getUnlockHRP()
@@ -3062,14 +3062,14 @@ local lastFire = {}
 local SAFE_POLL_RATE = 0.05
 local SAFE_POLL_OVERRIDE_UNTIL = 0
 
-function _G.getSafePollRate()
+function _G.__gspr()
     if os.clock() < SAFE_POLL_OVERRIDE_UNTIL then
         return 0.27
     end
     return SAFE_POLL_RATE
 end
 
-function _G.triggerSafePollBoost()
+function _G.__tspb()
     SAFE_POLL_OVERRIDE_UNTIL = os.clock() + 3
 end
 
@@ -3147,10 +3147,10 @@ local function isPromptAvailable(prompt, hrpPos)
             end
         end
     end
-    if _G.NEAREST_INSTANT_MODE == true then
+    if _G.__nim == true then
         -- Box checks removed to allow nearest to work globally based on radius
     end
-    if not (_G.NEAREST_INSTANT_MODE == true) then
+    if not (_G.__nim == true) then
         if not promptMatchesSelectedPet(prompt) then return false end
     end
     local configuredRadius = Config.AutoGrabRadius or 60
@@ -3211,8 +3211,8 @@ workspace.DescendantAdded:Connect(function(obj)
 end)
 
 task.spawn(function()
-    while task.wait(_G.getSafePollRate()) do
-        _G.NEAREST_INSTANT_MODE = (stealNearestEnabled == true)
+    while task.wait(_G.__gspr()) do
+        _G.__nim = (stealNearestEnabled == true)
         if autoStealEnabled and instantStealEnabled then
             local hrp = getHRP()
             if not hrp then CONFIG.AUTO_STEAL = false; continue end
@@ -3695,7 +3695,7 @@ local function ShowPriorityAlertImpl(brainrotName, genText, mutation, ownerUsern
     end
     
     local alertGui = Instance.new("ScreenGui")
-    if _G.addLazyUI then _G.addLazyUI(alertGui, true, true) end
+    if _G.__alu then _G.__alu(alertGui, true, true) end
     alertGui.Name = "XiPriorityAlertTest"
     alertGui.ResetOnSpawn = false
     alertGui.DisplayOrder = 999
@@ -3954,9 +3954,9 @@ end)
 player:GetAttributeChangedSignal("Stealing"):Connect(function()
     local isStealing=(player:GetAttribute("Stealing")==true)
     if FloatState.active and not isStealing then setFloat(false) end
-    if _G.AutoInvisDuringSteal then
-        if isStealing and not _G.invisibleStealEnabled and _G._forceInvisToggle then task.defer(function() if player:GetAttribute("Stealing") and not _G.invisibleStealEnabled then pcall(_G._forceInvisToggle) end end)
-        elseif not isStealing and _G.invisibleStealEnabled and _G._forceInvisToggle then task.wait(0.3); if not player:GetAttribute("Stealing") then pcall(_G._forceInvisToggle) end end
+    if _G.__aids then
+        if isStealing and not _G.__ise and _G.__fit then task.defer(function() if player:GetAttribute("Stealing") and not _G.__ise then pcall(_G.__fit) end end)
+        elseif not isStealing and _G.__ise and _G.__fit then task.wait(0.3); if not player:GetAttribute("Stealing") then pcall(_G.__fit) end end
     end
     if isStealing and Config.AutoUnlockOnSteal then
         local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -4122,7 +4122,7 @@ function flatDistance(a, b)
     return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
 end
 
-_G._isTargetPlotUnlocked = function(plotName)
+_G.__itpu = function(plotName)
     local ok, res = pcall(function()
         local plots = Workspace:FindFirstChild("Plots")
         if not plots then return false end
@@ -4512,7 +4512,7 @@ local UIS        = game:GetService("UserInputService")
 local RS         = game:GetService("ReplicatedStorage")
 local LP         = Players.LocalPlayer
 
-_G.AntiDieDisabled = false
+_G.__add = false
 do
     local _conn, _diedConn, _hbConn
     local _harden = function(hum)
@@ -4536,16 +4536,16 @@ do
         if _diedConn then pcall(function() _diedConn:Disconnect() end) end
         if _hbConn then pcall(function() _hbConn:Disconnect() end) end
         _conn = hum:GetPropertyChangedSignal("Health"):Connect(function()
-            if _G.AntiDieDisabled then return end
+            if _G.__add then return end
             if hum.Health <= 0 then _revive(hum) end
         end)
         _diedConn = hum.Died:Connect(function()
-            if _G.AntiDieDisabled then return end
+            if _G.__add then return end
             _revive(hum)
         end)
         local _lastHarden = 0
         _hbConn = RunService.Heartbeat:Connect(function()
-            if _G.AntiDieDisabled or not hum or not hum.Parent then return end
+            if _G.__add or not hum or not hum.Parent then return end
             local now = os.clock()
             if now - _lastHarden >= 0.5 then _lastHarden = now; _harden(hum) end
             if hum.Health <= 0 then _revive(hum) end
@@ -4695,7 +4695,7 @@ local function carpetEngage()
     pcall(function() hum:UnequipTools() end)
     task.wait(0.10) -- Wait before putting carpet on
     local cn = equipCarpet()
-    _G.TPEngage = "carpet=" .. tostring(cn)
+    _G.__tpe = "carpet=" .. tostring(cn)
     return cn
 end
 
@@ -4823,7 +4823,7 @@ local function getPlotChannel(plotName)
 end
 
 local function channelGet(channel, key)
-    return _G.sProp(channel, key)
+    return _G.__sp(channel, key)
 end
 
 local function isMyPlot(channel)
@@ -5362,14 +5362,14 @@ end)
 
 function runAutoSnipe()
     pcall(Strip)
-    if _G._isTpMoving then
+    if _G.__itm then
         return
     end
     if Config.TpSettings and Config.TpSettings.GrabbleTP then
-        _G._isTpMoving = true
+        _G.__itm = true
         local fn = _G.__sideTP or doGrabbleVelocityTP
         local okGrab, errGrab = pcall(fn)
-        _G._isTpMoving = false
+        _G.__itm = false
         if not okGrab then
             warn("Grabble TP error:", errGrab)
         end
@@ -5391,7 +5391,7 @@ function runAutoSnipe()
     local lastFpsCap = pcall(getfpscap) and getfpscap() or 9999
     pcall(setfpscap, 200)
     -- (Old Grabble TP branch removed - now handled by SXE Clone-TP router above.)
-    _G._isTpMoving = true
+    _G.__itm = true
     local ok, err = pcall(function()
         local targetPart = findAdorneeGlobal(targetPetData)
         if not targetPart then
@@ -5503,7 +5503,7 @@ function runAutoSnipe()
                 hrp.CFrame = CFrame.lookAt(Vector3.new(tpPos.X, targetY, tpPos.Z), Vector3.new(tpPos.X, targetY, tpPos.Z) + LEFT)
                 hrp.AssemblyLinearVelocity = Vector3.zero
             end
-            if isSecondFloor or not _G._isTargetPlotUnlocked(targetPetData.plot) then
+            if isSecondFloor or not _G.__itpu(targetPetData.plot) then
                 prepMiniTpTool(hum, hrp)
                 waitSecondsHeartbeat(0.05)
                 if isSecondFloor then
@@ -5539,7 +5539,7 @@ function runAutoSnipe()
                         cloneSuccess = true
                         break
                     end
-                    while _G.isCloning do
+                    while _G.__ic do
                         task.wait()
                     end
                     task.wait(0.1)
@@ -5728,7 +5728,7 @@ function runAutoSnipe()
             end
         end
     end)
-    _G._isTpMoving = false
+    _G.__itm = false
     pcall(setfpscap, lastFpsCap)
     if not ok then
         warn("runAutoSnipe error:", err)
@@ -5826,8 +5826,8 @@ function tpToBrainrot()
         warn("tpToBrainrot error:", err)
     end
 end
-_G.runAutoSnipe = runAutoSnipe
-_G.tpToBrainrot = tpToBrainrot
+_G.__ras = runAutoSnipe
+_G.__tpbr = tpToBrainrot
 
 -- ============================================================
 -- CLICK TO AP
@@ -5875,7 +5875,7 @@ UIS.InputBegan:Connect(function(inp,g)
                 return
             end
             local cmdList = Config.ClickToAPOrder or AP_ALL_COMMANDS
-            local startIndex = _G.ClickToAPIndex or 1
+            local startIndex = _G.__ctai or 1
             if startIndex > #cmdList then startIndex = 1 end
             
             local picked = nil
@@ -5885,7 +5885,7 @@ UIS.InputBegan:Connect(function(inp,g)
                 local cmd = cmdList[idx]
                 if Config.ClickToAPCommands and Config.ClickToAPCommands[cmd] and not apIsOnCooldown(cmd) then
                     picked = cmd
-                    _G.ClickToAPIndex = idx + 1
+                    _G.__ctai = idx + 1
                     break
                 end
                 attempts = attempts + 1
@@ -6044,8 +6044,8 @@ do
         end)
     end
 
-    _G.createPlotBeam = createPlotBeam
-    _G.resetPlotBeam = resetPlotBeam
+    _G.__cpb = createPlotBeam
+    _G.__rpb = resetPlotBeam
 end
 
 -- Line To Best Brainrot (kinqs beam style)
@@ -6206,11 +6206,11 @@ do
         if bestBeam then pcall(function() bestBeam:Destroy() end); bestBeam = nil end
     end)
 
-    _G.updateBrainrotBeam = function()
+    _G.__ubb = function()
         -- beam auto-updates via heartbeat, nothing to do
     end
-    _G.resetBrainrotBeam = destroyBeam
-    _G.resetBestPetBeam = destroyBeam
+    _G.__rbb = destroyBeam
+    _G.__rbpb = destroyBeam
 end
 
 -- Brainrot ESP
@@ -6285,7 +6285,7 @@ local function clearTimerESP()
         end
     end
 end
-_G.clearTimerESP = clearTimerESP
+_G.__cte = clearTimerESP
 
 local function refreshTimerESP()
     if not timerESPEnabled then
@@ -6402,14 +6402,14 @@ do
         if owner == LocalPlayer then owner = nil end   -- don't tag your own base
         setTarget(owner)
     end
-    _G.setBaseOwnerESP = function(on)
+    _G.__sboe = function(on)
         enabled = on
         Config.BaseOwnerESP = on
         saveConfig()
         setToggle("Base Owner ESP", on)
         if on then pcall(refresh) else clearAll() end
     end
-    _G.clearBaseOwnerESP = clearAll
+    _G.__cboe = clearAll
     task.spawn(function()
         while true do
             task.wait(0.5)
@@ -7042,7 +7042,7 @@ function setXRay(enabled)
     end
 end
 
-_G.setXRay = setXRay
+_G.__sxr = setXRay
 end -- END X-RAY SCOPE
 
 
@@ -7083,7 +7083,7 @@ SharedState.ANTI_BEE_DISCO.protectControls = function()
         end
         table.insert(ab.connections, RunService.Heartbeat:Connect(function()
             if not ab.running or not Config.AntiBeeDisco then return end
-            if _G._isTpMoving then return end
+            if _G.__itm then return end
             if Controls.moveFunction ~= protectedMoveFunction then Controls.moveFunction = protectedMoveFunction end
         end))
         Controls.moveFunction = protectedMoveFunction
@@ -7139,7 +7139,7 @@ SharedState.ANTI_BEE_DISCO.Disable = function()
     ab.disconnectAll()
     ShowNotification("ANTI-BEE & DISCO", "Disabled")
 end
-_G.ANTI_BEE_DISCO = SharedState.ANTI_BEE_DISCO
+_G.__abd = SharedState.ANTI_BEE_DISCO
 if Config.AntiBeeDisco then
     task.delay(1, function()
         if SharedState.ANTI_BEE_DISCO.Enable then SharedState.ANTI_BEE_DISCO.Enable() end
@@ -7209,8 +7209,8 @@ toggleAutoBuy = function(on)
     pcall(setToggle, "Auto Buy", autoBuyActive)
     if autoBuyActive then createAutoBuyRing() else destroyAutoBuyRing() end
     pcall(ShowNotification, "AUTO BUY", autoBuyActive and "ENABLED" or "DISABLED")
-    if _G.AutoBuyOnToggle then
-        pcall(_G.AutoBuyOnToggle, autoBuyActive)
+    if _G.__abot then
+        pcall(_G.__abot, autoBuyActive)
     end
 end
 
@@ -7293,7 +7293,7 @@ local function refreshConveyor()
     end
 end
 refreshConveyor()
-_G.refreshConveyor = refreshConveyor
+_G.__rc = refreshConveyor
 
 local purchaseRemote = nil
 local function resolvePurchaseRemote()
@@ -7484,9 +7484,9 @@ task.spawn(function()
     end
 end)
 
-_G.AutoBuyOnToggle = function(active)
+_G.__abot = function(active)
     if active then
-        if _G.refreshConveyor then pcall(_G.refreshConveyor) end
+        if _G.__rc then pcall(_G.__rc) end
         startCarpetLock()
     else
         stopCarpetLock()
@@ -7772,7 +7772,7 @@ local function buildRemoteSell()
     end)
 end
 
-_G.toggleRemoteSell=function(enabled) Config.RemoteSellEnabled=enabled; saveConfig()
+_G.__trs=function(enabled) Config.RemoteSellEnabled=enabled; saveConfig()
     if enabled then buildRemoteSell(); if remoteSellGui then remoteSellGui.Enabled=true end
     else if remoteSellGui then remoteSellGui.Enabled=false end end
 end
@@ -7790,7 +7790,7 @@ stealProgressBarGui = nil
 
 -- Pre-declare helper functions made global to free local registers in outer scope
 
-_G.ShowStealProgressBar = function(targetName, duration)
+_G.__sspb = function(targetName, duration)
     local ExploitGui = (gethui and gethui()) or game:GetService("CoreGui")
     
     if stealProgressBarGui then
@@ -7881,7 +7881,7 @@ _G.ShowStealProgressBar = function(targetName, duration)
     end)
 end
 
-_G.HideStealProgressBar = function()
+_G.__hspb = function()
     local targetGui = stealProgressBarGui
     if targetGui then
         stealProgressBarGui = nil
@@ -8313,10 +8313,10 @@ for _,pair in ipairs({{"IDF HUB PRIVAT",main},{"IDF HUB PRIVAT\nInvisible Steal"
     {"IDF HUB PRIVAT\nAction Settings",actionSettingsPanel},{"IDF HUB PRIVAT\nTP & Clone Settings",tpSpeedSettingsPanel}}) do applySavedPosition(pair[1],pair[2]) end
 
 -- LAZY UI LOADING
-if _G.addLazyUI then
-    _G.addLazyUI(main, not Config.AutoCloseOnExec)
-    _G.addLazyUI(actionSettingsPanel, false)
-    _G.addLazyUI(tpSpeedSettingsPanel, false)
+if _G.__alu then
+    _G.__alu(main, not Config.AutoCloseOnExec)
+    _G.__alu(actionSettingsPanel, false)
+    _G.__alu(tpSpeedSettingsPanel, false)
 end
 
 local immediatePanels = {
@@ -8338,8 +8338,8 @@ for name, panel in pairs(panels) do
         end
         if immediatePanels[name] then
             panel.Visible = targetVis
-        elseif _G.addLazyUI then
-            _G.addLazyUI(panel, targetVis, false, name)
+        elseif _G.__alu then
+            _G.__alu(panel, targetVis, false, name)
         end
     end
 end
@@ -8403,13 +8403,13 @@ do
     regToggle("Auto Steal Speed", Config.AutoStealSpeed)
     regToggle("Auto Invis During Steal", Config.AutoInvisDuringSteal)
 
-    local enabledRow = makeSyncStateRow(panels["InvisStealBody"],"Enabled:","Invisible Steal",function(on) if _G.toggleInvisibleSteal then pcall(_G.toggleInvisibleSteal) end end)
+    local enabledRow = makeSyncStateRow(panels["InvisStealBody"],"Enabled:","Invisible Steal",function(on) if _G.__tis then pcall(_G.__tis) end end)
 
-    _G.updateMovementPanelLabels = function() end
-    local rotSlider = makeQuickSlider(panels["InvisStealBody"],"Rotation",0,360,Config.InvisStealAngle or 225,function(v) _G.InvisStealAngle=v; Config.InvisStealAngle=v; saveConfig() end)
-    local depthSlider = makeQuickSlider(panels["InvisStealBody"],"Depth",0,18,Config.SinkSliderValue or 7,function(v) _G.SinkSliderValue=v; Config.SinkSliderValue=v; saveConfig() end)
-    local recoverToggle = makeSyncStateRow(panels["InvisStealBody"],"Auto Recover:","Auto Recover Lagback",function(on) _G.AutoRecoverLagback=on; Config.AutoRecoverLagback=on; saveConfig() end)
-    local autoInvisToggle = makeSyncStateRow(panels["InvisStealBody"],"Auto Invis:","Auto Invis During Steal",function(on) _G.AutoInvisDuringSteal=on; Config.AutoInvisDuringSteal=on; saveConfig() end)
+    _G.__umpl = function() end
+    local rotSlider = makeQuickSlider(panels["InvisStealBody"],"Rotation",0,360,Config.InvisStealAngle or 225,function(v) _G.__isa=v; Config.InvisStealAngle=v; saveConfig() end)
+    local depthSlider = makeQuickSlider(panels["InvisStealBody"],"Depth",0,18,Config.SinkSliderValue or 7,function(v) _G.__ssv=v; Config.SinkSliderValue=v; saveConfig() end)
+    local recoverToggle = makeSyncStateRow(panels["InvisStealBody"],"Auto Recover:","Auto Recover Lagback",function(on) _G.__arlb=on; Config.AutoRecoverLagback=on; saveConfig() end)
+    local autoInvisToggle = makeSyncStateRow(panels["InvisStealBody"],"Auto Invis:","Auto Invis During Steal",function(on) _G.__aids=on; Config.AutoInvisDuringSteal=on; saveConfig() end)
 
     -- WALKSPEED CONTROL (CFrame Bypass, min 15 max 29)
     regToggle("WalkSpeed", Config.WalkSpeedEnabled)
@@ -8428,7 +8428,7 @@ local function spamPlayerBaseOwner(targetPlayer)
     local cmdList = Config.SpamBaseOwnerOrder or AP_ALL_COMMANDS
     
     if Config.SpamBaseOwnerSingleCommand then
-        local startIndex = _G.SpamBaseOwnerIndex or 1
+        local startIndex = _G.__sboi or 1
         if startIndex > #cmdList then startIndex = 1 end
         
         local picked = nil
@@ -8438,7 +8438,7 @@ local function spamPlayerBaseOwner(targetPlayer)
             local cmd = cmdList[idx]
             if Config.SpamBaseOwnerCommands and Config.SpamBaseOwnerCommands[cmd] and not apIsOnCooldown(cmd) then
                 picked = cmd
-                _G.SpamBaseOwnerIndex = idx + 1
+                _G.__sboi = idx + 1
                 break
             end
             attempts = attempts + 1
@@ -8781,7 +8781,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
     end
     RP_BUTTONS = buildRPButtons()
 
-    _G.refreshAdminPanelRows = function()
+    _G.__rapr = function()
         for uid, row in pairs(apRows) do
             if row then row:Destroy() end
         end
@@ -8904,8 +8904,8 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
 
         blacklistBtn.MouseButton1Click:Connect(function()
             local isBlacklisted = isPlayerBlacklisted(plr)
-            _G.apBlacklist[tostring(plr.UserId)] = not isBlacklisted
-            Config.apBlacklist = _G.apBlacklist
+            _G.__abl[tostring(plr.UserId)] = not isBlacklisted
+            Config.apBlacklist = _G.__abl
             saveConfig()
             updateBlacklistVisuals()
             if not isBlacklisted then
@@ -8962,7 +8962,7 @@ LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
             local st=stealLabels[plr.UserId]; if not st then break end
 
             local stealOwner, stealPet = getStealingInfo(plr)
-            local curBaseOwnerId = _G.__getCurrentBaseOwnerId()
+            local curBaseOwnerId = _G.__gcboi()
 
             if stealPet then
                 local fromTxt = stealOwner and (" from " .. (stealOwner.DisplayName or stealOwner.Name)) or ""
@@ -9312,17 +9312,17 @@ function loadTab(tabName)
             if on then task.spawn(function() pcall(refreshTimerESP) end) else clearTimerESP() end
         end)
         makeMainToggle(mainBody,"Subspace Mine ESP",subspaceMineESPEnabled,function(on) subspaceMineESPEnabled=on; Config.SubspaceMineESP=on; saveConfig() end)
-        makeMainToggle(mainBody,"Base Owner ESP",Config.BaseOwnerESP,function(on) if _G.setBaseOwnerESP then _G.setBaseOwnerESP(on) end end)
+        makeMainToggle(mainBody,"Base Owner ESP",Config.BaseOwnerESP,function(on) if _G.__sboe then _G.__sboe(on) end end)
         makeSectionLabel(mainBody,"Beams")
         makeMainToggle(mainBody,"Line To Base",Config.LineToBase,function(on)
             Config.LineToBase=on; saveConfig()
-            if on then if _G.createPlotBeam then pcall(_G.createPlotBeam) end
-            else if _G.resetPlotBeam then pcall(_G.resetPlotBeam) end end
+            if on then if _G.__cpb then pcall(_G.__cpb) end
+            else if _G.__rpb then pcall(_G.__rpb) end end
         end)
         makeMainToggle(mainBody,"Line To Best Brainrot",Config.LineToBrainrot or false,function(on)
             Config.LineToBrainrot=on; saveConfig()
             if on then -- beam auto-creates via heartbeat
-            else if _G.resetBrainrotBeam then pcall(_G.resetBrainrotBeam) end end
+            else if _G.__rbb then pcall(_G.__rbb) end end
         end)
 
     elseif tabName=="UI" then
@@ -9335,7 +9335,7 @@ function loadTab(tabName)
             end)
         end
         makeSectionLabel(mainBody,"Interface")
-        makeMainToggle(mainBody,"Remote Sell Panel",Config.RemoteSellEnabled,function(on) if _G.toggleRemoteSell then _G.toggleRemoteSell(on) end end)
+        makeMainToggle(mainBody,"Remote Sell Panel",Config.RemoteSellEnabled,function(on) if _G.__trs then _G.__trs(on) end end)
         makeMainToggle(mainBody,"Clear Error Popups",Config.CleanErrorGUIs,function(on) Config.CleanErrorGUIs=on; saveConfig() end)
         makeMainToggle(mainBody,"Auto Close Main UI on Execute",Config.AutoCloseOnExec,function(on) Config.AutoCloseOnExec=on; saveConfig() end)
         makeMainToggle(mainBody,"Admin Panel UI",Config.AdminPanelUI ~= nil and Config.AdminPanelUI or true,function(on)
@@ -9386,7 +9386,7 @@ function loadTab(tabName)
         expBtn.MouseEnter:Connect(function() tw(expBtn, {BackgroundColor3 = Theme.RowHover}, 0.12) end)
         expBtn.MouseLeave:Connect(function() tw(expBtn, {BackgroundColor3 = Theme.Row}, 0.12) end)
         expBtn.MouseButton1Click:Connect(function()
-            local str = _G.exportConfig()
+            local str = _G.__econf()
             if str then
                 shareBox.Text = str
             end
@@ -9408,7 +9408,7 @@ function loadTab(tabName)
         impBtn.MouseEnter:Connect(function() tw(impBtn, {BackgroundColor3 = Theme.RowHover}, 0.12) end)
         impBtn.MouseLeave:Connect(function() tw(impBtn, {BackgroundColor3 = Theme.Row}, 0.12) end)
         impBtn.MouseButton1Click:Connect(function()
-            _G.importConfig(shareBox.Text)
+            _G.__iconf(shareBox.Text)
         end)
 
         -- White Mode / Dark Mode buttons removed â€” dark mode only
@@ -9434,7 +9434,7 @@ function loadTab(tabName)
         makeMainToggle(mainBody,"Instant Clone",true)
         -- Desync removed
         makeSectionLabel(mainBody,"Steal")
-        makeMainToggle(mainBody,"Auto Invisible During Steal",Config.AutoInvisDuringSteal,function(on) _G.AutoInvisDuringSteal=on; Config.AutoInvisDuringSteal=on; saveConfig() end)
+        makeMainToggle(mainBody,"Auto Invisible During Steal",Config.AutoInvisDuringSteal,function(on) _G.__aids=on; Config.AutoInvisDuringSteal=on; saveConfig() end)
         makeMainToggle(mainBody,"Auto Unlock During Steal",Config.AutoUnlockOnSteal,function(on) Config.AutoUnlockOnSteal=on; saveConfig() end)
         makeSyncMainToggle(mainBody,"Anti Ragdoll","Anti Ragdoll",function(on) if on then startAntiRagdoll() else stopAntiRagdoll() end end)
         makeSyncMainToggle(mainBody,"Auto Reset Balloon","Auto Reset Balloon",function(on) Config.AutoResetBalloon=on; saveConfig() end)
@@ -9444,8 +9444,8 @@ function loadTab(tabName)
         makeMainToggle(mainBody,"Kick to Private Server",Config.KickToPrivateServer,function(on) Config.KickToPrivateServer=on; saveConfig() end)
         makeMainTextBox(mainBody,"Private Server Code",PrivateServerCode,"e.g. ABC123XYZ...",function(v) PrivateServerCode=v; savePSCode() end)
         makeSectionLabel(mainBody,"Movement")
-        makeSyncMainToggle(mainBody,"Unwalk","Unwalk",function(on) if _G.setUnwalk then _G.setUnwalk(on) end end)
-        makeSyncMainToggle(mainBody,"Invisible Steal","Invisible Steal",function(on) if _G.toggleInvisibleSteal then pcall(_G.toggleInvisibleSteal) end end)
+        makeSyncMainToggle(mainBody,"Unwalk","Unwalk",function(on) if _G.__suw then _G.__suw(on) end end)
+        makeSyncMainToggle(mainBody,"Invisible Steal","Invisible Steal",function(on) if _G.__tis then pcall(_G.__tis) end end)
         makeSyncMainToggle(mainBody,"Float","Float",function(on) setFloat(on) end)
         makeSyncMainToggle(mainBody,"Carpet Speed","Carpet Speed",function(on) setCarpetSpeed(on) end)
         makeSectionLabel(mainBody,"Admin")
@@ -9716,7 +9716,7 @@ function loadTab(tabName)
         -- Admin Panel Commands button (controls which buttons show per player in admin panel)
         makeMainButton(mainBody, "Admin Panel Commands", function()
             makeAPConfigPanel("AdminPanelCmds", "Admin Panel Commands", Config.AdminPanelButtons, "AdminPanelOrder", function()
-                if _G.refreshAdminPanelRows then _G.refreshAdminPanelRows() end
+                if _G.__rapr then _G.__rapr() end
             end)
         end)
 
@@ -9733,12 +9733,12 @@ function loadTab(tabName)
             Config.AntiBeeDisco = on
             saveConfig()
             if on then
-                if _G.ANTI_BEE_DISCO and _G.ANTI_BEE_DISCO.Enable then
-                    _G.ANTI_BEE_DISCO.Enable()
+                if _G.__abd and _G.__abd.Enable then
+                    _G.__abd.Enable()
                 end
             else
-                if _G.ANTI_BEE_DISCO and _G.ANTI_BEE_DISCO.Disable then
-                    _G.ANTI_BEE_DISCO.Disable()
+                if _G.__abd and _G.__abd.Disable then
+                    _G.__abd.Disable()
                 end
             end
         end)
@@ -9761,7 +9761,7 @@ function loadTab(tabName)
 
         makeSectionLabel(mainBody,"Phone")
         makeMainButton(mainBody,"Open Phone",function()
-            if _G.AppDataFrame then _G.AppDataFrame.Visible = not _G.AppDataFrame.Visible end
+            if _G.__adf then _G.__adf.Visible = not _G.__adf.Visible end
         end)
     end
 
@@ -9791,11 +9791,11 @@ local boltAGlow=Instance.new("UIStroke"); boltAGlow.Color=Color3.fromRGB(255,255
 local boltB=Instance.new("Frame"); boltB.Name="LogoBoltB"; boltB.Size=UDim2.new(0,3,0,15); boltB.Position=UDim2.new(0,17,0,14); boltB.Rotation=-25; boltB.BackgroundColor3=Color3.fromRGB(255,255,255); boltB.BorderSizePixel=0; boltB.ZIndex=2; boltB.Parent=iw; corner(boltB,1)
 local boltBGlow=Instance.new("UIStroke"); boltBGlow.Color=Color3.fromRGB(255,255,255); boltBGlow.Thickness=1; boltBGlow.Transparency=0.5; boltBGlow.Parent=boltB
 
-_G.updateLogoImage = function(isDark)
+_G.__uli = function(isDark)
     iwStroke.Color = isDark and Color3.fromRGB(244,114,182) or Color3.fromRGB(236,72,153)
     ic.TextColor3 = Color3.fromRGB(255,255,255)
 end
-_G.updateLogoImage(Config and Config.DarkMode or false)
+_G.__uli(Config and Config.DarkMode or false)
 local lgRow=Instance.new("Frame"); lgRow.Name="BrandRow"; lgRow.Size=UDim2.new(0,200,0,26); lgRow.Position=UDim2.new(0,54,0,5); lgRow.BackgroundTransparency=1; lgRow.Parent=bottomBar
 local lgLay=Instance.new("UIListLayout"); lgLay.FillDirection=Enum.FillDirection.Horizontal; lgLay.VerticalAlignment=Enum.VerticalAlignment.Center; lgLay.SortOrder=Enum.SortOrder.LayoutOrder; lgLay.Parent=lgRow
 local lg=Instance.new("TextLabel"); lg.Name="BrandAccent"; lg.LayoutOrder=1; lg.AutomaticSize=Enum.AutomaticSize.X; lg.Size=UDim2.new(0,0,1,0); lg.BackgroundTransparency=1; lg.Text="IDF "; lg.TextColor3=Theme.Accent; lg.Font=Enum.Font.GothamBlack; lg.TextSize=19; lg.TextXAlignment=Enum.TextXAlignment.Left; lg.Parent=lgRow
@@ -9805,7 +9805,7 @@ local dc=Instance.new("TextLabel"); dc.Size=UDim2.new(0,210,0,26); dc.Position=U
 local sb=Instance.new("TextLabel"); sb.Size=UDim2.new(0,290,0,14); sb.Position=UDim2.new(0,55,0,30); sb.BackgroundTransparency=1; sb.Text="By:@SE67 and @SXLVATORE"; sb.TextColor3=Theme.Dim; sb.Font=Enum.Font.GothamSemibold; sb.TextSize=8; sb.TextXAlignment=Enum.TextXAlignment.Left; sb.Parent=bottomBar
 local rightDiv=Instance.new("Frame"); rightDiv.Size=UDim2.new(0,1,0,36); rightDiv.Position=UDim2.new(1,-138,0.5,-18); rightDiv.BackgroundColor3=Theme.Accent; rightDiv.BackgroundTransparency=0.35; rightDiv.BorderSizePixel=0; rightDiv.Parent=bottomBar
 fpsText=Instance.new("TextLabel"); fpsText.Size=UDim2.new(0,126,1,0); fpsText.Position=UDim2.new(1,-128,0,0); fpsText.BackgroundTransparency=1; fpsText.Text="FPS: --\nPING: --ms"; fpsText.TextColor3=Theme.Green; fpsText.Font=Enum.Font.GothamBold; fpsText.TextSize=10; fpsText.TextXAlignment=Enum.TextXAlignment.Left; fpsText.Parent=bottomBar
-if _G.addLazyUI then _G.addLazyUI(bottomBar, true) end
+if _G.__alu then _G.__alu(bottomBar, true) end
 
 task.defer(function()
     loadTab("Auto TP")
@@ -9814,8 +9814,8 @@ end)
 
 -- FPS/PING COUNTER
 local frames,lastT=0,tick()
-_G.currentFPS = 60
-RunService.RenderStepped:Connect(function() frames=frames+1; local now=tick(); if now-lastT>=1 then local fps=frames; _G.currentFPS=fps; frames=0; lastT=now; local ping=0; pcall(function() ping=math.floor(LocalPlayer:GetNetworkPing() * 1000) end); fpsText.Text="FPS: "..fps.."\nPING: "..ping.."ms" end end)
+_G.__fps = 60
+RunService.RenderStepped:Connect(function() frames=frames+1; local now=tick(); if now-lastT>=1 then local fps=frames; _G.__fps=fps; frames=0; lastT=now; local ping=0; pcall(function() ping=math.floor(LocalPlayer:GetNetworkPing() * 1000) end); fpsText.Text="FPS: "..fps.."\nPING: "..ping.."ms" end end)
 
 -- INPUT HANDLER (NO Steal Speed, NO Unwalk keybinds)
 UIS.InputBegan:Connect(function(input,gp) if gp then return end; if input.UserInputType~=Enum.UserInputType.Keyboard then return end
@@ -9840,7 +9840,7 @@ UIS.InputBegan:Connect(function(input,gp) if gp then return end; if input.UserIn
         ["Reset"]=executeReset, ["Kick"]=kickPlayer,
         ["Proximity"]=function() ProximityAPActive=not ProximityAPActive; setToggle("Proximity",ProximityAPActive) end,
         ["Ragdoll Self"]=function() pcall(runAdminCommand,player,"ragdoll") end,
-        ["Invisible Steal"]=function() if _G.toggleInvisibleSteal then pcall(_G.toggleInvisibleSteal) end end,
+        ["Invisible Steal"]=function() if _G.__tis then pcall(_G.__tis) end end,
         ["Rejoin Job ID"]=function() pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player) end) end,
         ["Manual TP"]=function() task.spawn(runAutoSnipe) end,
         ["Auto Buy"]=function() toggleAutoBuy() end,
@@ -9907,9 +9907,9 @@ task.spawn(function() task.wait(0.5)
     if Config.TimerESP then timerESPEnabled=true end
     if Config.SubspaceMineESP then subspaceMineESPEnabled=true end
     -- RemoteSell is initialized inside the lazy UI thread (at the top of the file)
-    _G.initRemoteSellLazy = function()
-        if Config.RemoteSellEnabled and _G.toggleRemoteSell then
-            _G.toggleRemoteSell(true)
+    _G.__irsl = function()
+        if Config.RemoteSellEnabled and _G.__trs then
+            _G.__trs(true)
         end
     end
     if Config.ProximityAP then setProximityAP(true) end
@@ -9921,8 +9921,8 @@ task.spawn(function() task.wait(0.5)
     if updateMovementPanelLabels then updateMovementPanelLabels() end
 end)
 
-_G.InvisStealAngle=Config.InvisStealAngle or 225; _G.SinkSliderValue=Config.SinkSliderValue or 7
-_G.AutoRecoverLagback=true; _G.AutoInvisDuringSteal=Config.AutoInvisDuringSteal or false
+_G.__isa=Config.InvisStealAngle or 225; _G.__ssv=Config.SinkSliderValue or 7
+_G.__arlb=true; _G.__aids=Config.AutoInvisDuringSteal or false
 
 print("IDF HUB PRIVAT loaded ")
 
@@ -9959,11 +9959,11 @@ local function doTP()
 end
 
 -- No Player Collision Logic
-local lastNoclipUpdate = 0
+local __lnu = 0
 RunService.Stepped:Connect(function()
     local now = tick()
-    if now - lastNoclipUpdate < 0.1 then return end
-    lastNoclipUpdate = now
+    if now - __lnu < 0.1 then return end
+    __lnu = now
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character then
             for _, part in ipairs(p.Character:GetDescendants()) do
@@ -10896,11 +10896,11 @@ do
             pcall(function()
                 local _st = prompt:GetAttribute("State")
                 if _st ~= nil and _st ~= "Steal" then
-                    if not _G._xenStealRemote then
-                        local _net = _G.XenNet or require(game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Net"):FindFirstChildWhichIsA("ModuleScript", true))
-                        _G._xenStealRemote = _net and _net:RemoteEvent("f40f7d9e-2f0d-4167-b250-899273f46874")
+                    if not _G.__xsr then
+                        local _net = _G.__xn or require(game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Net"):FindFirstChildWhichIsA("ModuleScript", true))
+                        _G.__xsr = _net and _net:RemoteEvent("f40f7d9e-2f0d-4167-b250-899273f46874")
                     end
-                    local r = _G._xenStealRemote
+                    local r = _G.__xsr
                     if r then
                         local _t = workspace:GetServerTimeNow() + 124
                         r:FireServer(_t, "68c86eb7-eb7e-4b4d-96ae-cf7cd847c5b0")
@@ -11441,10 +11441,10 @@ do
 end
 
 do
-_G.VanishStartSideTP = doGrabbleVelocityTP
-_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or 400, 200, 500)
-_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or 0.4, 0.15, 0.75)
-_G._stp_tpDelay = _G._stp_tpDelay or 0
+_G.__vstp = doGrabbleVelocityTP
+_G.__tpv = math.clamp(tonumber(_G.__tpv) or 400, 200, 500)
+_G.__ld = math.clamp(tonumber(_G.__ld) or 0.4, 0.15, 0.75)
+_G.__std = _G.__std or 0
 local _SAVE_FILE = "chopper_HUB.json"
 local _HttpService = game:GetService("HttpService")
 local _TeleportService = game:GetService("TeleportService")
@@ -11481,35 +11481,35 @@ end
 local function _stp_saveCurrent()
 	if not writefile then return end
 	local payload = {
-		tpDelay = _G._stp_tpDelay or 0,
-		tpVelocity = _G.TPVelocity or 400,
-		landingDelay = _G.LandingDelay or 0.4,
-		tpKey = _G._stp_tpKeyName or "T",
-		priorityList = _G.SHARED_PRIORITY_ITEMS,
-		priorityListVersion = _G._priorityListVersion or 0,
-		panelX = _G._stp_panelX,
-		panelY = _G._stp_panelY,
+		tpDelay = _G.__std or 0,
+		tpVelocity = _G.__tpv or 400,
+		landingDelay = _G.__ld or 0.4,
+		tpKey = _G.__stkn or "T",
+		priorityList = _G.__spi,
+		priorityListVersion = _G.__plv or 0,
+		panelX = _G.__spx,
+		panelY = _G.__spy,
 	}
 	local root = _stp_readRoot()
 	root.sideTP = payload
 	pcall(function() writefile(_SAVE_FILE, _HttpService:JSONEncode(root)) end)
 end
-_G._stp_saveCurrent = _stp_saveCurrent
+_G.__ssc = _stp_saveCurrent
 do
 	local s = _stp_loadSaved()
-	if type(s.tpDelay) == "number" then _G._stp_tpDelay = s.tpDelay end
-	if type(s.tpVelocity) == "number" then _G.TPVelocity = math.clamp(s.tpVelocity, 200, 500) end
-	if type(s.landingDelay) == "number" then _G.LandingDelay = math.clamp(s.landingDelay, 0.15, 0.75) end
-	if type(s.tpKey) == "string" then _G._stp_tpKeyName = s.tpKey end
+	if type(s.tpDelay) == "number" then _G.__std = s.tpDelay end
+	if type(s.tpVelocity) == "number" then _G.__tpv = math.clamp(s.tpVelocity, 200, 500) end
+	if type(s.landingDelay) == "number" then _G.__ld = math.clamp(s.landingDelay, 0.15, 0.75) end
+	if type(s.tpKey) == "string" then _G.__stkn = s.tpKey end
 	if type(s.priorityList) == "table" and #s.priorityList > 0 then
-		_G.SHARED_PRIORITY_ITEMS = s.priorityList
+		_G.__spi = s.priorityList
 	end
-	if type(s.panelX) == "number" then _G._stp_panelX = s.panelX end
-	if type(s.panelY) == "number" then _G._stp_panelY = s.panelY end
+	if type(s.panelX) == "number" then _G.__spx = s.panelX end
+	if type(s.panelY) == "number" then _G.__spy = s.panelY end
 
 	local savedVersion = tonumber(s.priorityListVersion) or 0
 	if savedVersion < 2 then
-		_G.SHARED_PRIORITY_ITEMS = {
+		_G.__spi = {
 			"signore carapace","headless horseman","strawberry elephant","john pork","arcadragon",
 			"elefanto frigo","meowl","skibidi toilet","griffin","love love bear",
 			"antonio","dragon gingerini","dragon aquanini","pancake and syrup","fishino clownino",
@@ -11521,15 +11521,15 @@ do
 			"cooki and milki","quackini snackini","reinito sleighito","popcuru and fizzuru","gym bros",
 			"capitano moby","burguro and fryuro","garama and madundung","fragrama and chocrama",
 		}
-		_G._priorityListVersion = 2
-		if _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
+		_G.__plv = 2
+		if _G.__ssc then pcall(_G.__ssc) end
 	else
-		_G._priorityListVersion = savedVersion
+		_G.__plv = savedVersion
 	end
 end
 
-if type(_G.SHARED_PRIORITY_ITEMS) ~= "table" or #_G.SHARED_PRIORITY_ITEMS == 0 then
-	_G.SHARED_PRIORITY_ITEMS = {
+if type(_G.__spi) ~= "table" or #_G.__spi == 0 then
+	_G.__spi = {
 		"headless horseman","strawberry elephant","signore carapace","meowl","skibidi toilet",
 		"griffin","dragon gingerini","la supreme combinasion","dragon cannelloni",
 		"hydra dragon cannelloni","love love bear","elefanto frigo","ginger gerat","antonio",
@@ -11568,18 +11568,18 @@ do
 		"john pork"
 	}
 	local existing = {}
-	for _, name in ipairs(_G.SHARED_PRIORITY_ITEMS) do
+	for _, name in ipairs(_G.__spi) do
 		existing[tostring(name):lower()] = true
 	end
 	local changed = false
 	for _, name in ipairs(NEW_PRIORITY_ITEMS) do
 		if not existing[name] then
-			table.insert(_G.SHARED_PRIORITY_ITEMS, name)
+			table.insert(_G.__spi, name)
 			existing[name] = true
 			changed = true
 		end
 	end
-	if changed and _G._stp_saveCurrent then pcall(_G._stp_saveCurrent) end
+	if changed and _G.__ssc then pcall(_G.__ssc) end
 end
 end
 
@@ -11593,7 +11593,7 @@ task.spawn(function()
 
 	local TP_KEY = Enum.KeyCode.T
 	pcall(function()
-		local n = _G._stp_tpKeyName
+		local n = _G.__stkn
 		if type(n) == "string" and Enum.KeyCode[n] then TP_KEY = Enum.KeyCode[n] end
 	end)
 	local C_BG = Color3.fromRGB(255, 252, 255)
@@ -11615,7 +11615,7 @@ task.spawn(function()
 
 	local mf = Instance.new("Frame")
 	mf.Size = UDim2.new(0, 260, 0, 280)
-	mf.Position = UDim2.new(0, _G._stp_panelX or 20, 0, _G._stp_panelY or 300)
+	mf.Position = UDim2.new(0, _G.__spx or 20, 0, _G.__spy or 300)
 	mf.BackgroundColor3 = C_BG
 	mf.BackgroundTransparency = 0.02
 	mf.BorderSizePixel = 0
@@ -11650,9 +11650,9 @@ task.spawn(function()
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dg = false
-					_G._stp_panelX = mf.Position.X.Offset
-					_G._stp_panelY = mf.Position.Y.Offset
-					if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+					_G.__spx = mf.Position.X.Offset
+					_G.__spy = mf.Position.Y.Offset
+					if _G.__ssc then _G.__ssc() end
 				end
 			end)
 		end
@@ -11698,7 +11698,7 @@ task.spawn(function()
 		TweenService:Create(tpBtn, TweenInfo.new(0.1), {BackgroundColor3 = C_SURFACE, TextColor3 = C_TEXT_DIM}):Play()
 	end)
 	tpBtn.MouseButton1Click:Connect(function()
-		task.spawn(function() if _G.VanishStartSideTP then _G.VanishStartSideTP() end end)
+		task.spawn(function() if _G.__vstp then _G.__vstp() end end)
 	end)
 
 	local tpBindBtn = Instance.new("TextButton", tpBtn)
@@ -11731,8 +11731,8 @@ task.spawn(function()
 					TP_KEY = input.KeyCode
 					tpBindBtn.Text = name
 					tpBindBtn.TextColor3 = C_ACCENT
-					_G._stp_tpKeyName = name
-					if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+					_G.__stkn = name
+					if _G.__ssc then _G.__ssc() end
 				end
 			end
 			listeningForTPBind = false
@@ -11748,8 +11748,8 @@ task.spawn(function()
 		end)
 	end)
 
-	_G._stp_tpDelay = _G._stp_tpDelay or 0
-	local _tpDelay = _G._stp_tpDelay
+	_G.__std = _G.__std or 0
+	local _tpDelay = _G.__std
 	local DELAY_MIN = 0
 	local DELAY_MAX = 0.9
 	local delayFrame = Instance.new("Frame", buttonArea)
@@ -11821,7 +11821,7 @@ task.spawn(function()
 		local raw = DELAY_MIN + frac * (DELAY_MAX - DELAY_MIN)
 		_tpDelay = math.floor(raw * 100 + 0.5) / 100
 		_tpDelay = math.clamp(_tpDelay, DELAY_MIN, DELAY_MAX)
-		_G._stp_tpDelay = _tpDelay
+		_G.__std = _tpDelay
 		updateDelayVisual()
 	end
 	delaySliderBtn.InputBegan:Connect(function(input)
@@ -11839,13 +11839,13 @@ task.spawn(function()
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			if delayDragging then
 				delayDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+				if _G.__ssc then _G.__ssc() end
 			end
 		end
 	end)
 
-	_G.LandingDelay = math.clamp(tonumber(_G.LandingDelay) or 0.4, 0.15, 0.75)
-	local _landingDelay = _G.LandingDelay
+	_G.__ld = math.clamp(tonumber(_G.__ld) or 0.4, 0.15, 0.75)
+	local _landingDelay = _G.__ld
 	local LD_MIN = 0.15
 	local LD_MAX = 0.75
 	local ldFrame = Instance.new("Frame", buttonArea)
@@ -11917,7 +11917,7 @@ task.spawn(function()
 		local raw = LD_MIN + frac * (LD_MAX - LD_MIN)
 		_landingDelay = math.floor(raw * 100 + 0.5) / 100
 		_landingDelay = math.clamp(_landingDelay, LD_MIN, LD_MAX)
-		_G.LandingDelay = _landingDelay
+		_G.__ld = _landingDelay
 		updateLdVisual()
 	end
 	ldSliderBtn.InputBegan:Connect(function(input)
@@ -11935,14 +11935,14 @@ task.spawn(function()
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			if ldDragging then
 				ldDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+				if _G.__ssc then _G.__ssc() end
 			end
 		end
 	end)
 
 	local VEL_MIN = 200
 	local VEL_MAX = 500
-	_G.TPVelocity = math.clamp(tonumber(_G.TPVelocity) or 400, VEL_MIN, VEL_MAX)
+	_G.__tpv = math.clamp(tonumber(_G.__tpv) or 400, VEL_MIN, VEL_MAX)
 	local velFrame = Instance.new("Frame", buttonArea)
 	velFrame.Size = UDim2.new(1, 0, 0, 38)
 	velFrame.BackgroundTransparency = 1
@@ -11962,7 +11962,7 @@ task.spawn(function()
 	velValueLabel.Size = UDim2.new(0, 70, 0, 16)
 	velValueLabel.Position = UDim2.new(1, -70, 0, 0)
 	velValueLabel.BackgroundTransparency = 1
-	velValueLabel.Text = tostring(_G.TPVelocity)
+	velValueLabel.Text = tostring(_G.__tpv)
 	velValueLabel.TextColor3 = C_TEXT
 	velValueLabel.TextSize = 12
 	velValueLabel.Font = Enum.Font.GothamBold
@@ -11990,10 +11990,10 @@ task.spawn(function()
 	Instance.new("UICorner", velKnob).CornerRadius = UDim.new(1, 0)
 
 	local function updateVelVisual()
-		local frac = (_G.TPVelocity - VEL_MIN) / (VEL_MAX - VEL_MIN)
+		local frac = (_G.__tpv - VEL_MIN) / (VEL_MAX - VEL_MIN)
 		velFill.Size = UDim2.new(frac, 0, 1, 0)
 		velKnob.Position = UDim2.new(frac, -7, 0.5, -7)
-		velValueLabel.Text = tostring(_G.TPVelocity)
+		velValueLabel.Text = tostring(_G.__tpv)
 	end
 	updateVelVisual()
 
@@ -12010,8 +12010,8 @@ task.spawn(function()
 		local frac = math.clamp((xPos - tx) / tw, 0, 1)
 		local raw = VEL_MIN + frac * (VEL_MAX - VEL_MIN)
 
-		_G.TPVelocity = math.floor(raw / 10 + 0.5) * 10
-		_G.TPVelocity = math.clamp(_G.TPVelocity, VEL_MIN, VEL_MAX)
+		_G.__tpv = math.floor(raw / 10 + 0.5) * 10
+		_G.__tpv = math.clamp(_G.__tpv, VEL_MIN, VEL_MAX)
 		updateVelVisual()
 	end
 	velSliderBtn.InputBegan:Connect(function(input)
@@ -12029,7 +12029,7 @@ task.spawn(function()
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			if velDragging then
 				velDragging = false
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+				if _G.__ssc then _G.__ssc() end
 			end
 		end
 	end)
@@ -12182,8 +12182,8 @@ task.spawn(function()
 	Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
 
 	local function getPriorityList()
-		if type(_G.SHARED_PRIORITY_ITEMS) ~= "table" then _G.SHARED_PRIORITY_ITEMS = {} end
-		return _G.SHARED_PRIORITY_ITEMS
+		if type(_G.__spi) ~= "table" then _G.__spi = {} end
+		return _G.__spi
 	end
 
 	-- ----- Drag-to-reorder for the priority list -----
@@ -12298,7 +12298,7 @@ task.spawn(function()
 			delBtn.ZIndex = 54
 			delBtn.MouseButton1Click:Connect(function()
 				table.remove(list, idx)
-				if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+				if _G.__ssc then _G.__ssc() end
 				rebuildPriorityList()
 			end)
 		end
@@ -12358,7 +12358,7 @@ task.spawn(function()
 		if targetIdx ~= idx and list[idx] then
 			local name = table.remove(list, idx)
 			table.insert(list, targetIdx, name)
-			if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+			if _G.__ssc then _G.__ssc() end
 		end
 		rebuildPriorityList()
 	end)
@@ -12372,7 +12372,7 @@ task.spawn(function()
 		end
 		table.insert(list, name)
 		addInput.Text = ""
-		if _G._stp_saveCurrent then _G._stp_saveCurrent() end
+		if _G.__ssc then _G.__ssc() end
 		rebuildPriorityList()
 	end)
 
@@ -12401,7 +12401,7 @@ task.spawn(function()
 	end)
 
 	-- Opened from the "Auto Teleport" module in the Features panel.
-	_G._stp_openPriority = function()
+	_G.__sop = function()
 		popupOpen = true
 		rebuildPriorityList()
 		priorityPopup.Visible = true
@@ -12451,11 +12451,11 @@ task.spawn(function()
 	_UIS.InputBegan:Connect(function(input, processed)
 		if processed then return end
 		if _UIS:GetFocusedTextBox() then return end
-		local name = _G._stp_tpKeyName
+		local name = _G.__stkn
 		if type(name) ~= "string" then name = "T" end
 		if name == "" then return end
 		if Enum.KeyCode[name] and input.KeyCode == Enum.KeyCode[name] then
-			task.spawn(function() if _G.VanishStartSideTP then _G.VanishStartSideTP() end end)
+			task.spawn(function() if _G.__vstp then _G.__vstp() end end)
 		end
 	end)
 
@@ -12515,12 +12515,12 @@ for name, id in pairs(SOUNDS) do
     soundTemplates[name] = s
 end
 
-if _G.AppDataSoundEnabled == nil then
-    _G.AppDataSoundEnabled = true
+if _G.__adse == nil then
+    _G.__adse = true
 end
 
 local function playSound(name)
-    if not _G.AppDataSoundEnabled then
+    if not _G.__adse then
         return
     end
     local template = soundTemplates[name]
@@ -12580,7 +12580,7 @@ local bodyStroke = Instance.new("UIStroke")
 bodyStroke.Color = Color3.fromRGB(55, 55, 62)
 bodyStroke.Thickness = 2
 bodyStroke.Parent = appWindow
-_G.AppDataFrame = appWindow
+_G.__adf = appWindow
 
 local sideButtonL1 = Instance.new("Frame")
 sideButtonL1.Size = UDim2.new(0, 3, 0, 30)
@@ -12751,10 +12751,10 @@ batteryFill.BorderSizePixel = 0
 batteryFill.Parent = batteryOutline
 corner(batteryFill, UDim.new(0, 1))
 
-_G.AppDataBatteryLevel = _G.AppDataBatteryLevel or 100
+_G.__adbl = _G.__adbl or 100
 
 local function updateBattery()
-    local level = math.clamp(_G.AppDataBatteryLevel or 100, 0, 100)
+    local level = math.clamp(_G.__adbl or 100, 0, 100)
     local ratio = level / 100
     batteryFill.Size = UDim2.new(0, math.max(1, (BATTERY_W - 4) * ratio), 0, BATTERY_H - 4)
     if level <= 20 then
@@ -12779,9 +12779,9 @@ end)
 task.spawn(function()
     while screenGui.Parent do
         task.wait(50)
-        _G.AppDataBatteryLevel = (_G.AppDataBatteryLevel or 100) - 1
-        if _G.AppDataBatteryLevel <= 0 then
-            _G.AppDataBatteryLevel = 100
+        _G.__adbl = (_G.__adbl or 100) - 1
+        if _G.__adbl <= 0 then
+            _G.__adbl = 100
         end
         updateBattery()
     end
@@ -15895,8 +15895,8 @@ local function BuildSettings(gameArea, deps)
     end
 
     sectionTitle("Son", 1)
-    toggleRow("Sons de l'interface", _G.AppDataSoundEnabled, 2, function(state)
-        _G.AppDataSoundEnabled = state
+    toggleRow("Sons de l'interface", _G.__adse, 2, function(state)
+        _G.__adse = state
     end)
 
     sectionTitle("Fond d'ecran", 3)
