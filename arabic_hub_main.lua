@@ -1338,42 +1338,7 @@ pcall(function()
         return nil
     end
 
-    -- Setup value modification bypass
-    local Packages = ReplicatedStorage:FindFirstChild("Packages")
-    local SynMod = Packages and Packages:FindFirstChild("Synchronizer")
-    local okReq, syn = pcall(require, SynMod)
-    if okReq and typeof(syn) == "table" then
-        local function HasBoolUpvalue(Fn)
-            local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
-            if not OkU then return false end
-            for _, V in pairs(Ups) do
-                if typeof(V) == "boolean" then return true end
-            end
-            return false
-        end
-        for _, Fn in pairs(syn) do
-            if typeof(Fn) == "function" and not isexecutorclosure(Fn) then
-                local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
-                if OkU then
-                    for Idx, V in pairs(Ups) do
-                        if typeof(V) == "function" and not isexecutorclosure(V) and HasBoolUpvalue(V) then
-                            pcall(debug.setupvalue, Fn, Idx, newcclosure(function() end))
-                        end
-                    end
-                end
-            end
-        end
-
-        -- Hook Get method directly to route through stealthGet
-        -- local oldGet = syn.Get
-        -- if oldGet then
-        --     syn.Get = function(self, plotName)
-        --         local ch = _G.__sg(plotName)
-        --         if ch then return ch end
-        --         return oldGet(self, plotName)
-        --     end
-        -- end
-    end
+    -- Synchronizer bypass disabled (was causing server-side kick via missing AC heartbeat)
 end)
 
 
@@ -4567,34 +4532,7 @@ do
     end)
 end
 
--- =====================================================================
--- Synchronizer detection bypass
--- =====================================================================
-do
-    local okReq, syn = pcall(require, RS:FindFirstChild("Packages"):FindFirstChild("Synchronizer"))
-    if okReq and typeof(syn) == "table" then
-        local function HasBoolUpvalue(Fn)
-            local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
-            if not OkU then return false end
-            for _, V in pairs(Ups) do
-                if typeof(V) == "boolean" then return true end
-            end
-            return false
-        end
-        for _, Fn in pairs(syn) do
-            if typeof(Fn) == "function" and not isexecutorclosure(Fn) then
-                local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
-                if OkU then
-                    for Idx, V in pairs(Ups) do
-                        if typeof(V) == "function" and not isexecutorclosure(V) and HasBoolUpvalue(V) then
-                            pcall(debug.setupvalue, Fn, Idx, newcclosure(function() end))
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
+-- Synchronizer bypass disabled (causes server kick via missing AC heartbeat)
 
 
 
