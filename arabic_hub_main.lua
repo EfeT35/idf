@@ -7947,8 +7947,15 @@ end
 function clearBody(body) for _,c in ipairs(body:GetChildren()) do if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end end end
 
 function openAnim(f) if not f then return end; local us=f:FindFirstChild("SXEScale") or Instance.new("UIScale"); us.Name="SXEScale"; us.Parent=f
-    local tgt=f.Position; f.Visible=true; us.Scale=0.92; f.Position=UDim2.new(tgt.X.Scale,tgt.X.Offset,tgt.Y.Scale,tgt.Y.Offset+18); tw(us,{Scale=1},0.20); tw(f,{Position=tgt},0.20) end
-function closeAnim(f) if not f then return end; f.Visible = false end
+    local tgt=f.Position; f.Visible=true; f.BackgroundTransparency=1; us.Scale=0.87
+    f.Position=UDim2.new(tgt.X.Scale,tgt.X.Offset,tgt.Y.Scale,tgt.Y.Offset+22)
+    local origTrans = 0.06
+    tw(us,{Scale=1},0.22); tw(f,{Position=tgt,BackgroundTransparency=origTrans},0.22) end
+function closeAnim(f) if not f then return end
+    local us=f:FindFirstChild("SXEScale") or Instance.new("UIScale"); us.Name="SXEScale"; us.Scale=1; us.Parent=f
+    local curTrans=f.BackgroundTransparency
+    tw(us,{Scale=0.90},0.15); tw(f,{BackgroundTransparency=1},0.15)
+    task.delay(0.15, function() if f then f.Visible=false; us.Scale=1; f.BackgroundTransparency=curTrans end end) end
 
 makeDraggable = function(frame,handle,saveName) local dragging,dragStart,startPos=false,nil,nil
     handle.InputBegan:Connect(function(i) if UI.Locked then return end; if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true; dragStart=i.Position; startPos=frame.Position end end)
