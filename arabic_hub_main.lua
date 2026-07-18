@@ -68,25 +68,36 @@ GUID = GUID or _G.__rstGUID or _newGUID()
 resetRemote = nil
 instaResetCooldown = false
 
--- Passively scan for the reset remote (RE/* pattern) without hooking FireServer
+-- Passively scan for reset remote + delayed StopTrying bypass
 task.spawn(function()
+    -- Scan for reset remote first
+    local RS2 = game:GetService("ReplicatedStorage")
     local function scanForResetRemote(parent)
         for _, v in ipairs(parent:GetDescendants()) do
             if v:IsA("RemoteEvent") and v.Name:sub(1,3) == "RE/" and not resetRemote then
-                resetRemote = v
-                return
+                resetRemote = v; return
             end
         end
     end
-    pcall(scanForResetRemote, game:GetService("ReplicatedStorage"))
+    pcall(scanForResetRemote, RS2)
     if not resetRemote then
-        local conn; conn = game:GetService("ReplicatedStorage").DescendantAdded:Connect(function(v)
+        local conn; conn = RS2.DescendantAdded:Connect(function(v)
             if v:IsA("RemoteEvent") and v.Name:sub(1,3) == "RE/" and not resetRemote then
-                resetRemote = v
-                conn:Disconnect()
+                resetRemote = v; conn:Disconnect()
             end
         end)
     end
+    -- Wait for AC initial scan to pass, then hook FireServer to block kick remote
+    task.wait(6)
+    pcall(function()
+        local _old; _old = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
+            local a1 = select(1, ...)
+            if #self.Name == 67 and typeof(a1) == "string" and a1:find("StopTrying") then
+                return
+            end
+            return _old(self, ...)
+        end)
+    end)
 end)
 
 -- LPH_NO_VIRTUALIZE: real preprocessor directive under Luraph; harmless passthrough
@@ -5294,9 +5305,10 @@ local function Strip()
 end
 
 task.spawn(function()
+    task.wait(7)
     while true do
         pcall(Strip)
-        task.wait(0.5)
+        task.wait(2)
     end
 end)
 
@@ -10832,21 +10844,6 @@ do
 
         task.spawn(function()
             for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
-            pcall(function()
-                local _st = prompt:GetAttribute("State")
-                if _st ~= nil and _st ~= "Steal" then
-                    if not _G.__xsr then
-                        local _net = _G.__xn or require(game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Net"):FindFirstChildWhichIsA("ModuleScript", true))
-                        _G.__xsr = _net and _net:RemoteEvent("f40f7d9e-2f0d-4167-b250-899273f46874")
-                    end
-                    local r = _G.__xsr
-                    if r then
-                        local _t = workspace:GetServerTimeNow() + 124
-                        r:FireServer(_t, "68c86eb7-eb7e-4b4d-96ae-cf7cd847c5b0")
-                        r:FireServer(_t, "07b9cc25-2a1f-4a26-a0ec-f2fab578d8bd")
-                    end
-                end
-            end)
             local remain = STEAL_HOLD_DURATION - (tick() - _stealHoldStart)
             if remain > 0 then task.wait(remain) end
             if prompt and prompt.Parent then
