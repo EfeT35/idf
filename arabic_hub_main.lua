@@ -8201,7 +8201,7 @@ function makeMainSliderWithInput(parent,text,min,max,default,callback,suffix)
 
     local boxStroke=Instance.new("UIStroke"); boxStroke.Color=Theme.Accent; boxStroke.Thickness=1; boxStroke.Transparency=0.78; boxStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; boxStroke.Parent=box
     box.Focused:Connect(function() tw(boxStroke,{Transparency=0.2},0.12) end)
-    box.FocusLost:Connect(function(enter)
+    box.FocusLost:Connect(function()
         tw(boxStroke,{Transparency=0.78},0.12)
         local raw = box.Text:gsub("[^%d%.]", "")
         local num = tonumber(raw)
@@ -8224,9 +8224,9 @@ function makeSectionLabel(parent,text)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,22); row.BackgroundTransparency=1; row.Parent=parent
     local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0,120,0,16); lbl.Position=UDim2.new(0.5,-60,0.5,-8); lbl.BackgroundTransparency=1; lbl.Text=text:upper(); lbl.TextColor3=Theme.AccentLight; lbl.Font=Enum.Font.GothamBold; lbl.TextSize=10; lbl.TextXAlignment=Enum.TextXAlignment.Center; lbl.ZIndex=2; lbl.Parent=row
     local leftLine=Instance.new("Frame"); leftLine.Size=UDim2.new(0.5,-64,0,1); leftLine.Position=UDim2.new(0,0,0.5,0); leftLine.BackgroundColor3=Theme.Accent; leftLine.BorderSizePixel=0; leftLine.Parent=row
-    local leftGrad=Instance.new("UIGradient"); leftGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))}); leftGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); leftGrad.Rotation=180; leftGrad.Parent=leftLine
+    local leftGrad=Instance.new("UIGradient"); leftGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); leftGrad.Rotation=180; leftGrad.Parent=leftLine
     local rightLine=Instance.new("Frame"); rightLine.Size=UDim2.new(0.5,-64,0,1); rightLine.Position=UDim2.new(0.5,64,0.5,0); rightLine.BackgroundColor3=Theme.Accent; rightLine.BorderSizePixel=0; rightLine.Parent=row
-    local rightGrad=Instance.new("UIGradient"); rightGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))}); rightGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); rightGrad.Rotation=0; rightGrad.Parent=rightLine
+    local rightGrad=Instance.new("UIGradient"); rightGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); rightGrad.Rotation=0; rightGrad.Parent=rightLine
     return row
 end
 
