@@ -3008,7 +3008,7 @@ activeProgressTween = nil
 instantStealReady = false
 instantStealDidInit = false
 INSTANT_STEAL_RADIUS = 60
-INSTANT_STEAL_COOLDOWN = 0
+INSTANT_STEAL_COOLDOWN = 0.5
 lastInstantStealTime = 0
 PromptMemoryCache = {}
 InternalStealCacheData = {}
@@ -3037,7 +3037,7 @@ local boxes = {
 local trackedPrompts = {}
 local lastFire = {}
 
-local SAFE_POLL_RATE = 0.05
+local SAFE_POLL_RATE = 0.3
 local SAFE_POLL_OVERRIDE_UNTIL = 0
 
 function _G.__gspr()
@@ -3051,11 +3051,11 @@ function _G.__tspb()
     SAFE_POLL_OVERRIDE_UNTIL = os.clock() + 3
 end
 
-local FIRE_DEBOUNCE = 0.12
-local FIRE_BURST = 4
-local ENABLE_BURST = 35
-local ENABLE_DEBOUNCE = 0.00
-local ENABLE_COOLDOWN = 0.08
+local FIRE_DEBOUNCE = 0.8
+local FIRE_BURST = 1
+local ENABLE_BURST = 1
+local ENABLE_DEBOUNCE = 0.8
+local ENABLE_COOLDOWN = 1.5
 local lastEnableFire = {}
 
 local function getHRP()
