@@ -1349,7 +1349,32 @@ pcall(function()
         return nil
     end
 
-    -- Synchronizer bypass disabled (was causing server-side kick via missing AC heartbeat)
+    -- Synchronizer detection bypass: nullify AC probe functions before they fire
+    local _pkg2 = ReplicatedStorage:FindFirstChild("Packages")
+    local _sm2 = _pkg2 and _pkg2:FindFirstChild("Synchronizer")
+    if _sm2 then
+        local _ok2, _syn2 = pcall(require, _sm2)
+        if _ok2 and typeof(_syn2) == "table" then
+            local function _hasBool(fn)
+                local ok, ups = xpcall(debug.getupvalues, function() end, fn)
+                if not ok then return false end
+                for _, v in pairs(ups) do if typeof(v) == "boolean" then return true end end
+                return false
+            end
+            for _, fn in pairs(_syn2) do
+                if typeof(fn) == "function" and not isexecutorclosure(fn) then
+                    local ok, ups = xpcall(debug.getupvalues, function() end, fn)
+                    if ok then
+                        for idx, v in pairs(ups) do
+                            if typeof(v) == "function" and not isexecutorclosure(v) and _hasBool(v) then
+                                pcall(debug.setupvalue, fn, idx, newcclosure(function(...) return true end))
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 end)
 
 
@@ -4543,7 +4568,32 @@ do
     end)
 end
 
--- Synchronizer bypass disabled (causes server kick via missing AC heartbeat)
+-- =====================================================================
+-- Synchronizer detection bypass
+-- =====================================================================
+do
+    local okReq, syn = pcall(require, RS:FindFirstChild("Packages") and RS:FindFirstChild("Packages"):FindFirstChild("Synchronizer"))
+    if okReq and typeof(syn) == "table" then
+        local function HasBoolUpvalue(Fn)
+            local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
+            if not OkU then return false end
+            for _, V in pairs(Ups) do if typeof(V) == "boolean" then return true end end
+            return false
+        end
+        for _, Fn in pairs(syn) do
+            if typeof(Fn) == "function" and not isexecutorclosure(Fn) then
+                local OkU, Ups = xpcall(debug.getupvalues, function() end, Fn)
+                if OkU then
+                    for Idx, V in pairs(Ups) do
+                        if typeof(V) == "function" and not isexecutorclosure(V) and HasBoolUpvalue(V) then
+                            pcall(debug.setupvalue, Fn, Idx, newcclosure(function(...) return true end))
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
 
 
 
