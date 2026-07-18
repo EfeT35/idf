@@ -7934,8 +7934,14 @@ end
 addCyberGradient = function(f)
     if not Theme.CornerAccents then return end
     local grad=Instance.new("UIGradient")
-    grad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(255,255,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(150,150,165))})
-    grad.Rotation=90
+    local a=Theme.Accent or Color3.fromRGB(244,114,182)
+    local r,g,b=a.R*0.18+0.82,a.G*0.18+0.82,a.B*0.18+0.82
+    grad.Color=ColorSequence.new({
+        ColorSequenceKeypoint.new(0,Color3.new(r,g,b)),
+        ColorSequenceKeypoint.new(0.5,Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1,Color3.new(r*0.88,g*0.88,b*0.88))
+    })
+    grad.Rotation=135
     grad.Parent=f
 end
 function clearBody(body) for _,c in ipairs(body:GetChildren()) do if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end end end
@@ -8023,8 +8029,13 @@ end
 
 function makeHeader(f,t,isMain,leftOffset) leftOffset = leftOffset or 0
     local h=Instance.new("Frame"); h.Size=UDim2.new(1,-leftOffset,0,42); h.Position=UDim2.new(0,leftOffset,0,0); h.BackgroundTransparency=1; h.Parent=f
+    -- Barre gradient en haut du panel
+    local topStrip=Instance.new("Frame"); topStrip.Size=UDim2.new(1,0,0,2); topStrip.Position=UDim2.new(0,0,0,0); topStrip.BackgroundColor3=Theme.Accent; topStrip.BorderSizePixel=0; topStrip.ZIndex=6; topStrip.Parent=h
+    local tsg=Instance.new("UIGradient"); tsg.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); tsg.Parent=topStrip
     local parts={}; for s in string.gmatch(t,"([^\n]+)") do table.insert(parts,s) end
     local dot=Instance.new("Frame"); dot.Size=UDim2.new(0,7,0,7); dot.Position=UDim2.new(0,13,0,isMain and 17 or 20); dot.BackgroundColor3=Theme.Accent; dot.BorderSizePixel=0; dot.Parent=h; corner(dot,10)
+    -- Glow autour du dot
+    local dotGlow=Instance.new("UIStroke"); dotGlow.Color=Theme.Accent; dotGlow.Thickness=2; dotGlow.Transparency=0.55; dotGlow.Parent=dot
     local minIcon=Instance.new("TextLabel"); minIcon.Size=UDim2.new(0,16,0,16); minIcon.Position=UDim2.new(1,-24,0,isMain and 12 or 10); minIcon.BackgroundTransparency=1; minIcon.Text="-"; minIcon.TextColor3=Theme.Dim; minIcon.Font=Enum.Font.GothamBold; minIcon.TextSize=16; minIcon.Parent=h
     if isMain then
         local lockIcon=Instance.new("Frame"); lockIcon.Size=UDim2.new(0,18,0,18); lockIcon.Position=UDim2.new(1,-58,0,11); lockIcon.BackgroundTransparency=1; lockIcon.Parent=h
@@ -8066,7 +8077,11 @@ function makeQuickPanel(t,size,pos) local f=Instance.new("Frame"); f.Size=size; 
 function makeSyncStateRow(parent,text,toggleName,callback)
     regToggle(toggleName,getToggle(toggleName))
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,34); row.BackgroundColor3=Theme.Panel; row.BackgroundTransparency=0.18; row.Parent=parent; corner(row,6)
+    local rowStroke=Instance.new("UIStroke"); rowStroke.Color=Theme.Accent; rowStroke.Thickness=1; rowStroke.Transparency=0.88; rowStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; rowStroke.Parent=row
+    row.MouseEnter:Connect(function() tw(row,{BackgroundTransparency=0.08},0.1); tw(rowStroke,{Transparency=0.55},0.1) end)
+    row.MouseLeave:Connect(function() tw(row,{BackgroundTransparency=0.18},0.1); tw(rowStroke,{Transparency=0.88},0.1) end)
     local bar=Instance.new("Frame"); bar.Size=UDim2.new(0,3,0,16); bar.Position=UDim2.new(0,0,0.5,-8); bar.BackgroundColor3=Theme.Accent; bar.BorderSizePixel=0; bar.Parent=row; corner(bar,2)
+    local barGrad=Instance.new("UIGradient"); barGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); barGrad.Rotation=90; barGrad.Parent=bar
     local label=Instance.new("TextLabel"); label.Size=UDim2.new(1,-62,1,0); label.Position=UDim2.new(0,14,0,0); label.BackgroundTransparency=1; label.Text="\226\150\170 "..text:upper(); label.TextColor3=Theme.Text; label.Font=Enum.Font.GothamSemibold; label.TextSize=12; label.TextXAlignment=Enum.TextXAlignment.Left; label.TextTruncate=Enum.TextTruncate.AtEnd; label.Parent=row
     local btn=Instance.new("TextButton"); btn.Name="WhiteTextBtn"; btn.Size=UDim2.new(0,38,0,21); btn.Position=UDim2.new(1,-42,0.5,-10.5); btn.Text=""; btn.AutoButtonColor=false; btn.Parent=row; corner(btn,20)
     local dot=Instance.new("Frame"); dot.Name="WhiteSliderKnob"; dot.Size=UDim2.new(0,16,0,16); dot.BackgroundColor3=Color3.new(1,1,1); dot.BorderSizePixel=0; dot.Parent=btn; corner(dot,20)
@@ -8084,7 +8099,11 @@ end
 function makeSyncMainToggle(parent,text,toggleName,callback)
     regToggle(toggleName,getToggle(toggleName))
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,31); row.BackgroundColor3=Theme.Panel; row.BackgroundTransparency=0.18; row.Parent=parent; corner(row,6)
+    local rowStroke2=Instance.new("UIStroke"); rowStroke2.Color=Theme.Accent; rowStroke2.Thickness=1; rowStroke2.Transparency=0.88; rowStroke2.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; rowStroke2.Parent=row
+    row.MouseEnter:Connect(function() tw(row,{BackgroundTransparency=0.08},0.1); tw(rowStroke2,{Transparency=0.55},0.1) end)
+    row.MouseLeave:Connect(function() tw(row,{BackgroundTransparency=0.18},0.1); tw(rowStroke2,{Transparency=0.88},0.1) end)
     local bar=Instance.new("Frame"); bar.Size=UDim2.new(0,3,0,16); bar.Position=UDim2.new(0,0,0.5,-8); bar.BackgroundColor3=Theme.Accent; bar.BorderSizePixel=0; bar.Parent=row; corner(bar,2)
+    local barGrad2=Instance.new("UIGradient"); barGrad2.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); barGrad2.Rotation=90; barGrad2.Parent=bar
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-62,1,0); l.Position=UDim2.new(0,14,0,0); l.BackgroundTransparency=1; l.Text="\226\150\170 "..text:upper(); l.TextColor3=Theme.Text; l.Font=Enum.Font.GothamMedium; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.TextTruncate=Enum.TextTruncate.AtEnd; l.Parent=row
     local toggle=Instance.new("TextButton"); toggle.Size=UDim2.new(0,38,0,21); toggle.Position=UDim2.new(1,-44,0.5,-10.5); toggle.Text=""; toggle.AutoButtonColor=false; toggle.Parent=row; corner(toggle,20)
     local dot=Instance.new("Frame"); dot.Name="WhiteSliderKnob"; dot.Size=UDim2.new(0,16,0,16); dot.BackgroundColor3=Color3.new(1,1,1); dot.BorderSizePixel=0; dot.Parent=toggle; corner(dot,20)
@@ -8098,7 +8117,9 @@ function makeSyncMainToggle(parent,text,toggleName,callback)
 end
 
 function makeQuickButton(parent,text,callback,bg) local b=Instance.new("TextButton"); b.Size=UDim2.new(1,-4,0,36); b.BackgroundColor3=bg or Theme.SoftButton; b.BackgroundTransparency=0.02; b.Text=text; b.TextColor3=Theme.Text; b.Font=Enum.Font.GothamBold; b.TextSize=13; b.AutoButtonColor=false; b.Parent=parent; corner(b,6)
-    b.MouseEnter:Connect(function() tw(b,{BackgroundColor3=bg or Theme.SoftButtonHover},0.12) end); b.MouseLeave:Connect(function() tw(b,{BackgroundColor3=bg or Theme.SoftButton},0.12) end)
+    local bStroke=Instance.new("UIStroke"); bStroke.Color=Theme.Accent; bStroke.Thickness=1; bStroke.Transparency=0.72; bStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; bStroke.Parent=b
+    b.MouseEnter:Connect(function() tw(b,{BackgroundColor3=bg or Theme.SoftButtonHover},0.12); tw(bStroke,{Transparency=0.3},0.12) end)
+    b.MouseLeave:Connect(function() tw(b,{BackgroundColor3=bg or Theme.SoftButton},0.12); tw(bStroke,{Transparency=0.72},0.12) end)
     b.MouseButton1Click:Connect(function() if callback then callback() end end); return b end
 
 function makeQuickSlider(parent,text,min,max,default,callback,suffix)
@@ -8109,12 +8130,17 @@ function makeQuickSlider(parent,text,min,max,default,callback,suffix)
     local label=Instance.new("TextLabel"); label.Size=UDim2.new(1,-20,1,0); label.Position=UDim2.new(0,14,0,0); label.BackgroundTransparency=1; label.Text="\226\150\170 "..text:upper(); label.TextColor3=Theme.Text; label.Font=Enum.Font.GothamMedium; label.TextSize=10; label.TextXAlignment=Enum.TextXAlignment.Left; label.Parent=labelRow
 
     local stepRow=Instance.new("Frame"); stepRow.Size=UDim2.new(1,0,0,30); stepRow.Position=UDim2.new(0,0,0,36); stepRow.BackgroundColor3=Theme.InputBg; stepRow.BackgroundTransparency=0.1; stepRow.Parent=holder; corner(stepRow,6)
+    local srStroke=Instance.new("UIStroke"); srStroke.Color=Theme.Accent; srStroke.Thickness=1; srStroke.Transparency=0.82; srStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; srStroke.Parent=stepRow
 
     local minusBtn=Instance.new("TextButton"); minusBtn.Name="WhiteTextBtn"; minusBtn.Size=UDim2.new(0,30,1,0); minusBtn.Position=UDim2.new(0,0,0,0); minusBtn.BackgroundTransparency=1; minusBtn.Text="-"; minusBtn.TextColor3=Theme.Dim; minusBtn.Font=Enum.Font.GothamBold; minusBtn.TextSize=16; minusBtn.AutoButtonColor=false; minusBtn.Parent=stepRow
+    minusBtn.MouseEnter:Connect(function() tw(minusBtn,{TextColor3=Theme.Accent},0.1); tw(srStroke,{Transparency=0.45},0.1) end)
+    minusBtn.MouseLeave:Connect(function() tw(minusBtn,{TextColor3=Theme.Dim},0.1); tw(srStroke,{Transparency=0.82},0.1) end)
 
     local valLabel=Instance.new("TextLabel"); valLabel.Size=UDim2.new(1,-60,1,0); valLabel.Position=UDim2.new(0,30,0,0); valLabel.BackgroundTransparency=1; valLabel.Text=tostring(default)..(suffix or ""); valLabel.TextColor3=Theme.Accent; valLabel.Font=Enum.Font.GothamBold; valLabel.TextSize=12; valLabel.TextXAlignment=Enum.TextXAlignment.Center; valLabel.Parent=stepRow
 
     local plusBtn=Instance.new("TextButton"); plusBtn.Name="WhiteTextBtn"; plusBtn.Size=UDim2.new(0,30,1,0); plusBtn.Position=UDim2.new(1,-30,0,0); plusBtn.BackgroundTransparency=1; plusBtn.Text="+"; plusBtn.TextColor3=Theme.Dim; plusBtn.Font=Enum.Font.GothamBold; plusBtn.TextSize=16; plusBtn.AutoButtonColor=false; plusBtn.Parent=stepRow
+    plusBtn.MouseEnter:Connect(function() tw(plusBtn,{TextColor3=Theme.Accent},0.1); tw(srStroke,{Transparency=0.45},0.1) end)
+    plusBtn.MouseLeave:Connect(function() tw(plusBtn,{TextColor3=Theme.Dim},0.1); tw(srStroke,{Transparency=0.82},0.1) end)
 
     local step = ((max-min) >= 100) and 5 or 1
     local current = default
@@ -8173,7 +8199,10 @@ function makeMainSliderWithInput(parent,text,min,max,default,callback,suffix)
         if callback then callback(val) end
     end
 
-    box.FocusLost:Connect(function()
+    local boxStroke=Instance.new("UIStroke"); boxStroke.Color=Theme.Accent; boxStroke.Thickness=1; boxStroke.Transparency=0.78; boxStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; boxStroke.Parent=box
+    box.Focused:Connect(function() tw(boxStroke,{Transparency=0.2},0.12) end)
+    box.FocusLost:Connect(function(enter)
+        tw(boxStroke,{Transparency=0.78},0.12)
         local raw = box.Text:gsub("[^%d%.]", "")
         local num = tonumber(raw)
         if num then
@@ -8185,21 +8214,29 @@ function makeMainSliderWithInput(parent,text,min,max,default,callback,suffix)
     return row
 end
 
-function makeMainButton(parent,text,callback,color) local b=Instance.new("TextButton"); b.Size=UDim2.new(1,-4,0,30); b.BackgroundColor3=color or Theme.Row; b.BackgroundTransparency=0.16; b.Text=text; b.TextColor3=Theme.Text; b.Font=Enum.Font.GothamBold; b.TextSize=11; b.AutoButtonColor=false; b.Parent=parent; corner(b,6); stroke(b,Theme.AccentLight,1,0.28)
-    b.MouseEnter:Connect(function() tw(b,{BackgroundColor3=color or Theme.RowHover},0.12) end); b.MouseLeave:Connect(function() tw(b,{BackgroundColor3=color or Theme.Row},0.12) end)
+function makeMainButton(parent,text,callback,color) local b=Instance.new("TextButton"); b.Size=UDim2.new(1,-4,0,30); b.BackgroundColor3=color or Theme.Row; b.BackgroundTransparency=0.16; b.Text=text; b.TextColor3=Theme.Text; b.Font=Enum.Font.GothamBold; b.TextSize=11; b.AutoButtonColor=false; b.Parent=parent; corner(b,6)
+    local mbStroke=Instance.new("UIStroke"); mbStroke.Color=Theme.Accent; mbStroke.Thickness=1; mbStroke.Transparency=0.65; mbStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; mbStroke.Parent=b
+    b.MouseEnter:Connect(function() tw(b,{BackgroundColor3=color or Theme.RowHover},0.12); tw(mbStroke,{Transparency=0.2},0.12) end)
+    b.MouseLeave:Connect(function() tw(b,{BackgroundColor3=color or Theme.Row},0.12); tw(mbStroke,{Transparency=0.65},0.12) end)
     b.MouseButton1Click:Connect(function() if callback then callback() end end); return b end
 
 function makeSectionLabel(parent,text)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,22); row.BackgroundTransparency=1; row.Parent=parent
-    local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0,120,0,16); lbl.Position=UDim2.new(0.5,-60,0.5,-8); lbl.BackgroundTransparency=1; lbl.Text=text:upper(); lbl.TextColor3=Theme.Dim; lbl.Font=Enum.Font.GothamBold; lbl.TextSize=10; lbl.TextXAlignment=Enum.TextXAlignment.Center; lbl.ZIndex=2; lbl.Parent=row
-    local leftLine=Instance.new("Frame"); leftLine.Size=UDim2.new(0.5,-64,0,1); leftLine.Position=UDim2.new(0,0,0.5,0); leftLine.BackgroundColor3=Theme.Stroke; leftLine.BorderSizePixel=0; leftLine.Parent=row
-    local rightLine=Instance.new("Frame"); rightLine.Size=UDim2.new(0.5,-64,0,1); rightLine.Position=UDim2.new(0.5,64,0.5,0); rightLine.BackgroundColor3=Theme.Stroke; rightLine.BorderSizePixel=0; rightLine.Parent=row
+    local lbl=Instance.new("TextLabel"); lbl.Size=UDim2.new(0,120,0,16); lbl.Position=UDim2.new(0.5,-60,0.5,-8); lbl.BackgroundTransparency=1; lbl.Text=text:upper(); lbl.TextColor3=Theme.AccentLight; lbl.Font=Enum.Font.GothamBold; lbl.TextSize=10; lbl.TextXAlignment=Enum.TextXAlignment.Center; lbl.ZIndex=2; lbl.Parent=row
+    local leftLine=Instance.new("Frame"); leftLine.Size=UDim2.new(0.5,-64,0,1); leftLine.Position=UDim2.new(0,0,0.5,0); leftLine.BackgroundColor3=Theme.Accent; leftLine.BorderSizePixel=0; leftLine.Parent=row
+    local leftGrad=Instance.new("UIGradient"); leftGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))}); leftGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); leftGrad.Rotation=180; leftGrad.Parent=leftLine
+    local rightLine=Instance.new("Frame"); rightLine.Size=UDim2.new(0.5,-64,0,1); rightLine.Position=UDim2.new(0.5,64,0.5,0); rightLine.BackgroundColor3=Theme.Accent; rightLine.BorderSizePixel=0; rightLine.Parent=row
+    local rightGrad=Instance.new("UIGradient"); rightGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))}); rightGrad.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(1,1)}); rightGrad.Rotation=0; rightGrad.Parent=rightLine
     return row
 end
 
 function makeMainToggle(parent,text,enabled,callback)
     local row=Instance.new("Frame"); row.Size=UDim2.new(1,-4,0,31); row.BackgroundColor3=Theme.Panel; row.BackgroundTransparency=0.18; row.Parent=parent; corner(row,6)
+    local rowStrokeT=Instance.new("UIStroke"); rowStrokeT.Color=Theme.Accent; rowStrokeT.Thickness=1; rowStrokeT.Transparency=0.88; rowStrokeT.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; rowStrokeT.Parent=row
+    row.MouseEnter:Connect(function() tw(row,{BackgroundTransparency=0.08},0.1); tw(rowStrokeT,{Transparency=0.5},0.1) end)
+    row.MouseLeave:Connect(function() tw(row,{BackgroundTransparency=0.18},0.1); tw(rowStrokeT,{Transparency=0.88},0.1) end)
     local bar=Instance.new("Frame"); bar.Size=UDim2.new(0,3,0,16); bar.Position=UDim2.new(0,0,0.5,-8); bar.BackgroundColor3=Theme.Accent; bar.BorderSizePixel=0; bar.Parent=row; corner(bar,2)
+    local barGradT=Instance.new("UIGradient"); barGradT.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); barGradT.Rotation=90; barGradT.Parent=bar
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-62,1,0); l.Position=UDim2.new(0,14,0,0); l.BackgroundTransparency=1; l.Text="\226\150\170 "..text:upper(); l.TextColor3=Theme.Text; l.Font=Enum.Font.GothamMedium; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.TextTruncate=Enum.TextTruncate.AtEnd; l.Parent=row
     local toggle=Instance.new("TextButton"); toggle.Size=UDim2.new(0,38,0,21); toggle.Position=UDim2.new(1,-44,0.5,-10.5); toggle.BackgroundColor3=enabled and Theme.Green or Theme.ToggleOff; toggle.Text=""; toggle.AutoButtonColor=false; toggle.Parent=row; corner(toggle,20)
     local dot=Instance.new("Frame"); dot.Name="WhiteSliderKnob"; dot.Size=UDim2.new(0,16,0,16); dot.Position=enabled and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8); dot.BackgroundColor3=Color3.new(1,1,1); dot.BorderSizePixel=0; dot.Parent=toggle; corner(dot,20)
@@ -8214,7 +8251,13 @@ function makeMainTextBox(parent,text,default,placeholder,callback)
     local bar=Instance.new("Frame"); bar.Size=UDim2.new(0,3,0,16); bar.Position=UDim2.new(0,0,0.5,-8); bar.BackgroundColor3=Theme.Accent; bar.BorderSizePixel=0; bar.Parent=row; corner(bar,2)
     local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,-150,1,0); l.Position=UDim2.new(0,14,0,0); l.BackgroundTransparency=1; l.Text="\226\150\170 "..text:upper(); l.TextColor3=Theme.Text; l.Font=Enum.Font.GothamMedium; l.TextSize=10; l.TextXAlignment=Enum.TextXAlignment.Left; l.TextTruncate=Enum.TextTruncate.AtEnd; l.Parent=row
     local box=Instance.new("TextBox"); box.Size=UDim2.new(0,80,0,21); box.Position=UDim2.new(1,-136,0.5,-10.5); box.BackgroundColor3=Theme.InputBg; box.BorderSizePixel=0; box.Text=default or ""; box.PlaceholderText=placeholder or ""; box.TextColor3=Theme.Text; box.Font=Enum.Font.GothamMedium; box.TextSize=10; box.ClearTextOnFocus=false; box.Parent=row; corner(box,4)
+    local tbStroke=Instance.new("UIStroke"); tbStroke.Color=Theme.Accent; tbStroke.Thickness=1; tbStroke.Transparency=0.78; tbStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; tbStroke.Parent=box
+    box.Focused:Connect(function() tw(tbStroke,{Transparency=0.2},0.12) end)
+    box.FocusLost:Connect(function() tw(tbStroke,{Transparency=0.78},0.12) end)
     local applyBtn=Instance.new("TextButton"); applyBtn.Name="WhiteTextBtn"; applyBtn.Size=UDim2.new(0,48,0,21); applyBtn.Position=UDim2.new(1,-50,0.5,-10.5); applyBtn.BackgroundColor3=Theme.Accent; applyBtn.Text="APPLY"; applyBtn.TextColor3=Color3.new(1,1,1); applyBtn.Font=Enum.Font.GothamBold; applyBtn.TextSize=9; applyBtn.AutoButtonColor=false; applyBtn.Parent=row; corner(applyBtn,4)
+    local applyStroke=Instance.new("UIStroke"); applyStroke.Color=Theme.AccentLight; applyStroke.Thickness=1; applyStroke.Transparency=0.6; applyStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border; applyStroke.Parent=applyBtn
+    applyBtn.MouseEnter:Connect(function() tw(applyBtn,{BackgroundColor3=Theme.AccentLight},0.1); tw(applyStroke,{Transparency=0.1},0.1) end)
+    applyBtn.MouseLeave:Connect(function() tw(applyBtn,{BackgroundColor3=Theme.Accent},0.1); tw(applyStroke,{Transparency=0.6},0.1) end)
     local function commit()
         local raw = box.Text:gsub("%s", "")
         if callback then callback(raw) end
@@ -9704,6 +9747,8 @@ for tabName,btn in pairs(tabButtons) do btn.MouseButton1Click:Connect(function()
 
 -- BOTTOM BAR
 bottomBar=Instance.new("Frame"); bottomBar.Size=UDim2.new(0,575,0,50); bottomBar.Position=UDim2.new(0.5,-287,1,-125); bottomBar.BackgroundColor3=Theme.Background; bottomBar.BackgroundTransparency=0.02; bottomBar.BorderSizePixel=0; bottomBar.Parent=gui; corner(bottomBar,12); addOutline(bottomBar); addCyberCorners(bottomBar)
+local bbTopStrip=Instance.new("Frame"); bbTopStrip.Size=UDim2.new(1,0,0,2); bbTopStrip.Position=UDim2.new(0,0,0,0); bbTopStrip.BackgroundColor3=Theme.Accent; bbTopStrip.BorderSizePixel=0; bbTopStrip.ZIndex=4; bbTopStrip.Parent=bottomBar
+local bbGrad=Instance.new("UIGradient"); bbGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Theme.Accent),ColorSequenceKeypoint.new(0.5,Theme.AccentLight),ColorSequenceKeypoint.new(1,Theme.Accent)}); bbGrad.Parent=bbTopStrip
 local iw=Instance.new("Frame"); iw.Size=UDim2.new(0,34,0,34); iw.Position=UDim2.new(0,12,0.5,-17); iw.BackgroundColor3=Color3.fromRGB(18,4,4); iw.BorderSizePixel=0; iw.ClipsDescendants=true; iw.Parent=bottomBar; corner(iw,8)
 local iwGrad=Instance.new("UIGradient"); iwGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(90,14,14)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,2,2))}); iwGrad.Rotation=50; iwGrad.Parent=iw
 local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(244,114,182); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
