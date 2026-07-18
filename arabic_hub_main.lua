@@ -21,7 +21,7 @@ pcall(function() if setfpscap then setfpscap(9999) end end)
 -- GUID is the first arg of the balloon payload. Defaults to a randomly-generated
 -- UUID so the payload is at least syntactically valid (an empty string was
 -- silently rejected by the server -- that's why the reset wasn't firing). If you
--- have a known-good GUID, set `_G.SXE_RESET_GUID` before the script runs.
+-- have a known-good GUID, set `_G.__rstGUID` before the script runs.
 local function _newGUID()
     local hex = "0123456789abcdef"
     local t = {}
@@ -64,7 +64,7 @@ local function makeOneWay(plat)
     end)
 end
 
-GUID = GUID or _G.SXE_RESET_GUID or _newGUID()
+GUID = GUID or _G.__rstGUID or _newGUID()
 resetRemote = nil
 instaResetCooldown = false
 
@@ -95,16 +95,16 @@ if not LPH_NO_VIRTUALIZE then LPH_NO_VIRTUALIZE = function(fn) return fn end end
 -- =====================================================================
 -- LAZY-LOAD QUEUE
 -- =====================================================================
-_G.__SXELazyQ = _G.__SXELazyQ or {}
+_G.__rblxLQ = _G.__rblxLQ or {}
 local function LazyInit(name, fn)
-    table.insert(_G.__SXELazyQ, { name = name, fn = LPH_NO_VIRTUALIZE(fn) })
+    table.insert(_G.__rblxLQ, { name = name, fn = LPH_NO_VIRTUALIZE(fn) })
 end
 task.defer(LPH_NO_VIRTUALIZE(function()
     while true do
-        if #_G.__SXELazyQ > 0 then
-            local item = table.remove(_G.__SXELazyQ, 1)
+        if #_G.__rblxLQ > 0 then
+            local item = table.remove(_G.__rblxLQ, 1)
             local ok, err = pcall(item.fn)
-            if not ok then warn("[SXE Lazy]", item.name, err) end
+            if not ok then end
             task.wait(0.08)
         else
             task.wait(0.5)
@@ -113,7 +113,7 @@ task.defer(LPH_NO_VIRTUALIZE(function()
 end))
 
 -- Persistent panel visibility store that survives script re-executes within the same Roblox session
-_G._SXEPanelVis = _G._SXEPanelVis or {}
+_G.__rblxPV = _G.__rblxPV or {}
 
 _G.lazyUIs = {}
 _G.addLazyUI = function(element, targetVis, isScreenGui, panelName)
@@ -140,7 +140,7 @@ task.delay(4.0, function()
             local vis
             if item.panelName then
                 -- Priority: _G store (survives re-exec) > Config.Visibilities > default true
-                local fromG = _G._SXEPanelVis[item.panelName]
+                local fromG = _G.__rblxPV[item.panelName]
                 if fromG ~= nil then
                     vis = fromG
                 elseif Config and Config.Visibilities then
@@ -181,7 +181,7 @@ local function updateAllGuisScale(newScale)
     for sg, master in pairs(scaledGuis) do
         pcall(function()
             if sg and sg.Parent and master and master.Parent then
-                local scaleObj = master:FindFirstChild("SXE_GlobalScale")
+                local scaleObj = master:FindFirstChild("UIScale_1")
                 if scaleObj then
                     scaleObj.Scale = newScale
                 end
@@ -192,22 +192,22 @@ local function updateAllGuisScale(newScale)
 end
 
 local function registerScreenGui(sg)
-    local master = sg:FindFirstChild("SXE_MasterFrame")
+    local master = sg:FindFirstChild("UIFrame_4")
     if not master then
         master = Instance.new("Frame")
-        master.Name = "SXE_MasterFrame"
+        master.Name = "UIFrame_4"
         master.BackgroundTransparency = 1
         master.BorderSizePixel = 0
         master.Parent = sg
         
         local scaleObj = Instance.new("UIScale")
-        scaleObj.Name = "SXE_GlobalScale"
+        scaleObj.Name = "UIScale_1"
         scaleObj.Parent = master
     end
     scaledGuis[sg] = master
     
     pcall(function()
-        local scaleObj = master:FindFirstChild("SXE_GlobalScale")
+        local scaleObj = master:FindFirstChild("UIScale_1")
         if scaleObj then
             scaleObj.Scale = GlobalUIScaleVal
         end
@@ -246,8 +246,8 @@ end
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(setupCameraListener)
 task.spawn(setupCameraListener)
 
-local old = playerGui:FindFirstChild("SXEHub_V3"); if old then old:Destroy() end
-local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "SXEHub_V3"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 9999999; gui_sg.Parent = playerGui
+local old = playerGui:FindFirstChild("CoreFrame_0"); if old then old:Destroy() end
+local gui_sg = Instance.new("ScreenGui"); gui_sg.Name = "CoreFrame_0"; gui_sg.ResetOnSpawn = false; gui_sg.IgnoreGuiInset = true; gui_sg.DisplayOrder = 15; gui_sg.Parent = playerGui
 local gui = registerScreenGui(gui_sg)
 
 -- SAKURA PETALS DISABLED
@@ -645,7 +645,7 @@ function applyTheme(themeName)
     end
     
     pcall(function()
-        local sg = playerGui:FindFirstChild("SXEHub_V3")
+        local sg = playerGui:FindFirstChild("CoreFrame_0")
         if sg then updateInstanceColors(sg) end
         if _G.updateLogoImage then
             _G.updateLogoImage(themeName == "Dark")
@@ -656,7 +656,7 @@ function applyTheme(themeName)
         local sg = ExploitGui:FindFirstChild("XiPriorityAlertTest")
         if sg then updateInstanceColors(sg) end
     end)
-    for _, name in ipairs({"SXE_RemoteSell", "SXE_StealProgressBar", "XiAdminPanel"}) do
+    for _, name in ipairs({"UIFrame_1", "UIFrame_3", "UIFrame_2"}) do
         pcall(function()
             local otherSg = playerGui:FindFirstChild(name)
             if otherSg then updateInstanceColors(otherSg) end
@@ -681,7 +681,7 @@ function applyTheme(themeName)
     end
     
     pcall(function()
-        local sg = playerGui:FindFirstChild("SXEHub_V3")
+        local sg = playerGui:FindFirstChild("CoreFrame_0")
         if sg then forceWhiteText(sg) end
     end)
     
@@ -3413,7 +3413,7 @@ function setStealMode(mode)
     setToggle("Steal Priority", stealPriorityEnabled)
     setToggle("Steal Nearest", stealNearestEnabled)
     -- Bridge to SXE Clone-TP engine
-    if _G.SXEStealMode then pcall(_G.SXEStealMode, mode) end
+    if _G.__stlMode then pcall(_G.__stlMode, mode) end
 end
 
 -- Create the Bottom Steal HUD matching 
@@ -3620,7 +3620,7 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    local status = _G.SXE_StealStatus or {}
+    local status = _G.__stlStat or {}
     if status.active then
         local p = math.clamp((tick() - (status.start or 0)) / (status.duration or 1.3), 0, 1)
         hudProgressFill.Size = UDim2.new(p, 0, 1, 0)
@@ -5030,7 +5030,7 @@ local MAX_CLIMB = 60
 
 local function velMoveThrough(hrp, waypoints, speedOverride, allowJump, quickStart)
     if not hrp or not hrp.Parent or #waypoints == 0 then return end
-    local _runSpeed = speedOverride or Config.TpSettings.GrabbleTPSpeed or (_G.SXECarpetSpeed or CARPET_SPEED or 230)
+    local _runSpeed = speedOverride or Config.TpSettings.GrabbleTPSpeed or (_G.__cSpd or CARPET_SPEED or 230)
     vizPath(hrp.Position, waypoints)
     local wpIdx = 1
     local done = false
@@ -5367,7 +5367,7 @@ function runAutoSnipe()
     end
     if Config.TpSettings and Config.TpSettings.GrabbleTP then
         _G._isTpMoving = true
-        local fn = _G.SXEStartSideTP or doGrabbleVelocityTP
+        local fn = _G.__sideTP or doGrabbleVelocityTP
         local okGrab, errGrab = pcall(fn)
         _G._isTpMoving = false
         if not okGrab then
@@ -5560,11 +5560,11 @@ function runAutoSnipe()
                 end
             end
             
-            if _G.SXEGoToBrainrot then
+            if _G.__goBR then
                 -- Merko TP got us into the base (and cloned if needed); hand off to
                 -- the SXE Clone-TP engine for the final approach + steal execution.
-                pcall(_G.SXEArmSteal, {plot = targetPetData.plot, slot = targetPetData.slot, name = targetPetData.name, position = targetPart.Position})
-                pcall(_G.SXEGoToBrainrot, targetPart.Position)
+                pcall(_G.__armStl, {plot = targetPetData.plot, slot = targetPetData.slot, name = targetPetData.name, position = targetPart.Position})
+                pcall(_G.__goBR, targetPart.Position)
                 return
             end
 
@@ -7563,7 +7563,7 @@ local function buildRemoteSell()
         end; return nil
     end
 
-    remoteSellGui=Instance.new("ScreenGui"); remoteSellGui.Name="SXE_RemoteSell"; remoteSellGui.ResetOnSpawn=false; remoteSellGui.Parent=playerGui
+    remoteSellGui=Instance.new("ScreenGui"); remoteSellGui.Name="UIFrame_1"; remoteSellGui.ResetOnSpawn=false; remoteSellGui.Parent=playerGui
     local rsFrame=Instance.new("Frame", registerScreenGui(remoteSellGui)); rsFrame.Size=UDim2.new(0,190,0,240)
     rsFrame.Position=UDim2.new(0,350,1,-350); rsFrame.BackgroundColor3=Theme.MainBackground; rsFrame.BackgroundTransparency=0.06; rsFrame.BorderSizePixel=0
     Instance.new("UICorner",rsFrame).CornerRadius=UDim.new(0,12)
@@ -7798,7 +7798,7 @@ _G.ShowStealProgressBar = function(targetName, duration)
     end
     
     local sg = Instance.new("ScreenGui")
-    sg.Name = "SXE_StealProgressBar"
+    sg.Name = "UIFrame_3"
     sg.ResetOnSpawn = false
     sg.Parent = ExploitGui
     stealProgressBarGui = sg
@@ -7946,7 +7946,7 @@ addCyberGradient = function(f)
 end
 function clearBody(body) for _,c in ipairs(body:GetChildren()) do if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end end end
 
-function openAnim(f) if not f then return end; local us=f:FindFirstChild("SXEScale") or Instance.new("UIScale"); us.Name="SXEScale"; us.Parent=f
+function openAnim(f) if not f then return end; local us=f:FindFirstChild("UIScale_0") or Instance.new("UIScale"); us.Name="UIScale_0"; us.Parent=f
     local tgt=f.Position; f.Visible=true; us.Scale=0.92; f.Position=UDim2.new(tgt.X.Scale,tgt.X.Offset,tgt.Y.Scale,tgt.Y.Offset+18); tw(us,{Scale=1},0.20); tw(f,{Position=tgt},0.20) end
 function closeAnim(f) if not f then return end; f.Visible = false end
 
@@ -8328,7 +8328,7 @@ local immediatePanels = {
 for name, panel in pairs(panels) do
     if not string.match(name, "Body$") then
         -- _G._SXEPanelVis survives re-executes; override Config if it has a value
-        local fromG = _G._SXEPanelVis[name]
+        local fromG = _G.__rblxPV[name]
         local targetVis
         if fromG ~= nil then
             targetVis = fromG
@@ -8388,12 +8388,12 @@ end
 function rebuildTpSpeedSettings()
     clearBody(tpSpeedSettingsBody)
     makeMainSliderWithInput(tpSpeedSettingsBody, "Fly TP Speed", 50, 300, Config.TpSettings.FlyTPSpeed or 160, function(v) Config.TpSettings.FlyTPSpeed=v; saveConfig() end)
-    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v) Config.TpSettings.GrabbleTPSpeed=v; saveConfig(); if _G.SXESetCarpetSpeed then pcall(_G.SXESetCarpetSpeed, v) end end)
+    makeMainSliderWithInput(tpSpeedSettingsBody, "Grabble TP Speed", 50, 600, Config.TpSettings.GrabbleTPSpeed or 230, function(v) Config.TpSettings.GrabbleTPSpeed=v; saveConfig(); if _G.__scSpd then pcall(_G.__scSpd, v) end end)
     makeMainSliderWithInput(tpSpeedSettingsBody, "Walk To Brainrot Speed", 50, 300, Config.TpSettings.WalkTPSpeed or 190, function(v) Config.TpSettings.WalkTPSpeed=v; saveConfig() end)
     makeMainSliderWithInput(tpSpeedSettingsBody, "Landing Delay Before Clone", 0.15, 0.75, Config.TpSettings.CloneDelayVal or 0.4, function(v) Config.TpSettings.CloneDelayVal=v; saveConfig() end, "s")
     makeMainSliderWithInput(tpSpeedSettingsBody, "Delay Before TP", 0, 0.9, Config.TpSettings.PreTpDelayVal or 0, function(v) Config.TpSettings.PreTpDelayVal=v; saveConfig() end, "s")
     makeMainButton(tpSpeedSettingsBody, "Manual TP", function() task.spawn(runAutoSnipe) end, Theme.Accent)
-    makeMainButton(tpSpeedSettingsBody, "Edit Priority", function() if _G.SXEOpenPriorityEditor then pcall(_G.SXEOpenPriorityEditor) end end, Theme.SoftAccent)
+    makeMainButton(tpSpeedSettingsBody, "Edit Priority", function() if _G.__openPE then pcall(_G.__openPE) end end, Theme.SoftAccent)
     makeQuickButton(tpSpeedSettingsBody, "Close", function() closeAnim(tpSpeedSettingsPanel) end, Theme.SoftAccentHover)
 end
 
@@ -8572,14 +8572,14 @@ end) -- END COOLDOWN PANEL SCOPE (LazyInit)
 makeSyncStateRow(panels["StealBody"],"Auto Steal:","Auto Steal",function(on)
     autoStealEnabled=on; Config.AutoStealEnabled=on; saveConfig()
     -- SXE Clone-TP engine owns the auto-steal loop unconditionally.
-    if _G.SXEAutoSteal then pcall(_G.SXEAutoSteal, on) end
+    if _G.__autoStl then pcall(_G.__autoStl, on) end
 end)
 makeSyncStateRow(panels["StealBody"],"Steal Highest:","Steal Highest",function(on) if on then setStealMode("Highest") end end)
 makeSyncStateRow(panels["StealBody"],"Steal Priority:","Steal Priority",function(on) if on then setStealMode("Priority") end end)
 makeSyncStateRow(panels["StealBody"],"Steal Nearest:","Steal Nearest",function(on) if on then setStealMode("Nearest") end end)
 makeSyncStateRow(panels["StealBody"],"Auto Buy:","Auto Buy",function(on)
     if toggleAutoBuy then toggleAutoBuy(on)
-    else warn("[SXE] Auto Buy not ready yet -- try again in a sec") end
+    else warn("not ready") end
 end)
 makeSyncStateRow(panels["StealBody"],"Auto Kick:","Auto Kick",function(on) Config.AutoKickOnSteal=on; saveConfig() end)
 
@@ -8723,8 +8723,8 @@ function refreshTargetPanel()
                 task.spawn(function()
                     local pr = PromptMemoryCache[pet.uid] or findProximityPromptForAnimal(pet.animalData)
                     if pr then
-                        if _G.SXE_ExecuteManualSteal then
-                            pcall(_G.SXE_ExecuteManualSteal, pr)
+                        if _G.__exManStl then
+                            pcall(_G.__exManStl, pr)
                         end
                     end
                 end)
@@ -8753,8 +8753,8 @@ end -- END STEAL TARGET SCOPE
 -- ADMIN PANEL UI
 -- ============================================================
 LazyInit("Admin Panel UI", function() -- ADMIN PANEL UI SCOPE
-    pcall(function() local e=playerGui:FindFirstChild("XiAdminPanel"); if e then e:Destroy() end end)
-    apGui=Instance.new("ScreenGui"); apGui.Name="XiAdminPanel"; apGui.ResetOnSpawn=false; apGui.IgnoreGuiInset=true; apGui.DisplayOrder=9999998; apGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; apGui.Parent=playerGui
+    pcall(function() local e=playerGui:FindFirstChild("UIFrame_2"); if e then e:Destroy() end end)
+    apGui=Instance.new("ScreenGui"); apGui.Name="UIFrame_2"; apGui.ResetOnSpawn=false; apGui.IgnoreGuiInset=true; apGui.DisplayOrder=14; apGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; apGui.Parent=playerGui
     apGui.Enabled = (Config.AdminPanelUI == true)
     apOuter=Instance.new("Frame"); apOuter.Name="Frame"; apOuter.BackgroundTransparency=1; apOuter.BorderSizePixel=0; apOuter.Size=UDim2.fromOffset(480,0); apOuter.AutomaticSize=Enum.AutomaticSize.Y; apOuter.Position=UDim2.new(0.18,0,0.57,0); apOuter.ZIndex=10; apOuter.ClipsDescendants=true; apOuter.Parent=registerScreenGui(apGui)
     apBG=Instance.new("Frame"); apBG.BackgroundColor3=Theme.Background; apBG.BackgroundTransparency=0.50; apBG.BorderSizePixel=0; apBG.Position=UDim2.fromOffset(-3,-2); apBG.Size=UDim2.new(1,6,1,4); apBG.ZIndex=0; apBG.Parent=apOuter; corner(apBG,8)
@@ -9284,8 +9284,8 @@ function loadTab(tabName)
             end
             saveConfig()
             -- Grabble TP IS the SXE Clone-TP engine. Sync auto-steal loop state.
-            if _G.SXEAutoSteal then
-                pcall(_G.SXEAutoSteal, on and (Config.AutoStealEnabled or false))
+            if _G.__autoStl then
+                pcall(_G.__autoStl, on and (Config.AutoStealEnabled or false))
             end
         end)
         makeMainToggle(mainBody,"Carpet to Brainrot",Config.TpSettings.BrainrotCarpet,function(on) Config.TpSettings.BrainrotCarpet=on; saveConfig() end)
@@ -9761,7 +9761,7 @@ function loadTab(tabName)
 
         makeSectionLabel(mainBody,"Phone")
         makeMainButton(mainBody,"Open Phone",function()
-            if _G.SXEPhoneFrame then _G.SXEPhoneFrame.Visible = not _G.SXEPhoneFrame.Visible end
+            if _G.AppDataFrame then _G.AppDataFrame.Visible = not _G.AppDataFrame.Visible end
         end)
     end
 
@@ -9783,7 +9783,7 @@ local iw=Instance.new("Frame"); iw.Size=UDim2.new(0,34,0,34); iw.Position=UDim2.
 local iwGrad=Instance.new("UIGradient"); iwGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(90,14,14)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,2,2))}); iwGrad.Rotation=50; iwGrad.Parent=iw
 local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(244,114,182); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
 
-local ic=Instance.new("TextLabel"); ic.Name="LogoIDF"; ic.Size=UDim2.new(1,0,1,0); ic.BackgroundTransparency=1; ic.Text="IDF"; ic.TextColor3=Color3.fromRGB(255,255,255); ic.Font=Enum.Font.GothamBlack; ic.TextSize=13; ic.TextXAlignment=Enum.TextXAlignment.Center; ic.TextYAlignment=Enum.TextYAlignment.Center; ic.ZIndex=3; ic.Parent=iw
+local ic=Instance.new("TextLabel"); ic.Name="TextLabel_0"; ic.Size=UDim2.new(1,0,1,0); ic.BackgroundTransparency=1; ic.Text="IDF"; ic.TextColor3=Color3.fromRGB(255,255,255); ic.Font=Enum.Font.GothamBlack; ic.TextSize=13; ic.TextXAlignment=Enum.TextXAlignment.Center; ic.TextYAlignment=Enum.TextYAlignment.Center; ic.ZIndex=3; ic.Parent=iw
 local icStroke=Instance.new("UIStroke"); icStroke.Color=Color3.fromRGB(8,2,2); icStroke.Thickness=1; icStroke.Transparency=0.35; icStroke.Parent=ic
 
 local boltA=Instance.new("Frame"); boltA.Name="LogoBoltA"; boltA.Size=UDim2.new(0,3,0,15); boltA.Position=UDim2.new(0,23,0,2); boltA.Rotation=25; boltA.BackgroundColor3=Color3.fromRGB(255,255,255); boltA.BorderSizePixel=0; boltA.ZIndex=2; boltA.Parent=iw; corner(boltA,1)
@@ -9974,7 +9974,7 @@ RunService.Stepped:Connect(function()
         end
     end
 end)
-local SXE_AC = {} 
+local _ac = {} 
 end 
    end
 
@@ -10037,15 +10037,15 @@ do
         if not char:FindFirstChild("Grapple Hook") then return end
         pcall(function() NetModule:RemoteEvent("UseItem"):FireServer(2) end)
     end
-    _G.SXEFireGrapple = fireGrapple
+    _G.__fireGrp = fireGrapple
 
     -- ===== Speed config (live-settable) =====
-    local SXESpeed = { CARPET = 400, INBASE = 250 }
-    _G.SXESetCarpetSpeed = function(v) v = tonumber(v); if v and v > 0 then SXESpeed.CARPET = v end end
-    _G.SXESetInbaseSpeed = function(v) v = tonumber(v); if v and v > 0 then SXESpeed.INBASE = v end end
-    _G.SXEGetCarpetSpeed = function() return SXESpeed.CARPET end
+    local _spd = { CARPET = 400, INBASE = 250 }
+    _G.__scSpd = function(v) v = tonumber(v); if v and v > 0 then _spd.CARPET = v end end
+    _G.__sibSpd = function(v) v = tonumber(v); if v and v > 0 then _spd.INBASE = v end end
+    _G.__gcSpd = function() return _spd.CARPET end
     if Config and Config.TpSettings then
-        if tonumber(Config.TpSettings.GrabbleTPSpeed) then SXESpeed.CARPET = tonumber(Config.TpSettings.GrabbleTPSpeed) end
+        if tonumber(Config.TpSettings.GrabbleTPSpeed) then _spd.CARPET = tonumber(Config.TpSettings.GrabbleTPSpeed) end
     end
 
     -- ===== Tools =====
@@ -10294,7 +10294,7 @@ do
 
     -- ===== Fusing check =====
     local _BLOCKING_MACHINE_TYPES = { Fuse=true, Duel=true, Trade=true, Crafting=true }
-    local function _SXEIsFusing(animalData)
+    local function _isFusing(animalData)
         if type(animalData) ~= "table" then return false end
         local m = animalData.Machine
         if type(m) ~= "table" then return false end
@@ -10320,7 +10320,7 @@ do
                 if not animalName then continue end
                 local animalInfo = AnimalsData and AnimalsData[animalName]
                 if not animalInfo then continue end
-                if _SXEIsFusing(animalData) then continue end
+                if _isFusing(animalData) then continue end
                 local mutation = animalData.Mutation or "None"
                 local genValue = 0
                 pcall(function()
@@ -10465,7 +10465,7 @@ do
         -- L'autorite reseau est deja securisee au debut de doVelocityTP (une seule
         -- fois par personnage) -- pas la peine de la re-verifier ici a chaque appel,
         -- ca ajoutait un delai perceptible au demarrage de chaque TP.
-        local _runSpeed = speedOverride or SXESpeed.CARPET
+        local _runSpeed = speedOverride or _spd.CARPET
         vizPath(hrp.Position, waypoints)
         local wpIdx = 1
         local done = false
@@ -10829,7 +10829,7 @@ do
         else
             local _route = computeRoute(hrp.Position, _to, nil)
             if not _route or #_route == 0 then _route = { _to } end
-            velMoveThrough(hrp, _route, (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or SXESpeed.INBASE, true, true)
+            velMoveThrough(hrp, _route, (Config and Config.TpSettings and (tonumber(Config.TpSettings.WalkTPSpeed) or tonumber(Config.TpSettings.GrabbleTPSpeed))) or _spd.INBASE, true, true)
         end
         if hrp and hrp.Parent then
             hrp.AssemblyLinearVelocity = Vector3.zero
@@ -10839,7 +10839,7 @@ do
             local _platPos = (hrp and hrp.Parent and hrp.Position) or _to
             local _feetY = _platPos.Y - 3
             local _plat = Instance.new("Part")
-            _plat.Name = "SXETempPlatform"; _plat.Size = Vector3.new(8, 1, 8)
+            _plat.Name = "BasePart_0"; _plat.Size = Vector3.new(8, 1, 8)
             _plat.Position = Vector3.new(petPos.X, _feetY - 1.5, petPos.Z)
             _plat.Anchored = true; _plat.CanCollide = false; pcall(makeOneWay, _plat); _plat.Transparency = 1
             _plat.Material = Enum.Material.SmoothPlastic; _plat.Parent = workspace
@@ -10886,10 +10886,10 @@ do
         data.ready = false
         _stealHoldStart = tick()
         _stealHoldActive = true
-        _G.SXE_StealStatus = _G.SXE_StealStatus or {}
-        _G.SXE_StealStatus.active = true
-        _G.SXE_StealStatus.start = _stealHoldStart
-        _G.SXE_StealStatus.duration = STEAL_HOLD_DURATION
+        _G.__stlStat = _G.__stlStat or {}
+        _G.__stlStat.active = true
+        _G.__stlStat.start = _stealHoldStart
+        _G.__stlStat.duration = STEAL_HOLD_DURATION
 
         task.spawn(function()
             for _, fn in ipairs(data.holdCallbacks) do task.spawn(fn) end
@@ -10915,7 +10915,7 @@ do
             end
             for _, fn in ipairs(data.holdEndCallbacks) do task.spawn(fn) end
             _stealHoldActive = false
-            if _G.SXE_StealStatus then _G.SXE_StealStatus.active = false end
+            if _G.__stlStat then _G.__stlStat.active = false end
             task.wait(0.05)
             data.ready = true
         end)
@@ -11015,20 +11015,20 @@ do
         if not pet then return end
         _stealTarget = pet; _stealArmedAt = os.clock()
         _stealTarget2 = pet
-        _G.SXE_StealStatus = _G.SXE_StealStatus or {}
-        _G.SXE_StealStatus.target = pet
+        _G.__stlStat = _G.__stlStat or {}
+        _G.__stlStat.target = pet
     end
     local function disarmSteal()
         _stealTarget = nil
-        _G.SXE_StealStatus = _G.SXE_StealStatus or {}
-        _G.SXE_StealStatus.target = nil
-        _G.SXE_StealStatus.active = false
+        _G.__stlStat = _G.__stlStat or {}
+        _G.__stlStat.target = nil
+        _G.__stlStat.active = false
     end
-    _G.SXEArmSteal = armSteal
-    _G.SXEDisarmSteal = disarmSteal
+    _G.__armStl = armSteal
+    _G.__disarmStl = disarmSteal
 
     local AUTO_STEAL = (Config and Config.AutoStealEnabled) and true or false
-    _G.SXEAutoSteal = function(on) AUTO_STEAL = on ~= false end
+    _G.__autoStl = function(on) AUTO_STEAL = on ~= false end
 
     local _stealLastScan = 0
     local _autoLastScan = 0
@@ -11357,7 +11357,7 @@ do
         local _clonePos = (_ahrp and _ahrp.Parent and _ahrp.Position) or destPos
 
         local _clonePlat = Instance.new("Part")
-        _clonePlat.Name = "SXEClonePlatform"
+        _clonePlat.Name = "BasePart_1"
         _clonePlat.Size = Vector3.new(12, 1, 12)
         _clonePlat.Position = Vector3.new(_clonePos.X, _clonePos.Y - 3, _clonePos.Z)
         _clonePlat.Anchored = true; _clonePlat.CanCollide = false; pcall(makeOneWay, _clonePlat); _clonePlat.Transparency = 1
@@ -11409,10 +11409,10 @@ do
     end
 
     doGrabbleVelocityTP = doVelocityTP
-    _G.SXEStartSideTP = doVelocityTP
-    _G.SXEGoToBrainrot = goToBrainrot
+    _G.__sideTP = doVelocityTP
+    _G.__goBR = goToBrainrot
 
-    _G.SXE_ExecuteManualTP = function()
+    _G.__exManTP = function()
         task.spawn(function() pcall(doVelocityTP) end)
     end
 
@@ -12053,7 +12053,7 @@ task.spawn(function()
 	end)
 
 	local priorityPopup = Instance.new("Frame", sg)
-	_G.SXEOpenPriorityEditor = function() priorityPopup.Visible = true end
+	_G.__openPE = function() priorityPopup.Visible = true end
 	priorityPopup.Size = UDim2.new(0, 400, 0, 560)
 	priorityPopup.Position = UDim2.new(0.5, -200, 0.5, -280)
 	priorityPopup.BackgroundColor3 = C_BG
@@ -12515,12 +12515,12 @@ for name, id in pairs(SOUNDS) do
     soundTemplates[name] = s
 end
 
-if _G.SXEPhoneSoundEnabled == nil then
-    _G.SXEPhoneSoundEnabled = true
+if _G.AppDataSoundEnabled == nil then
+    _G.AppDataSoundEnabled = true
 end
 
 local function playSound(name)
-    if not _G.SXEPhoneSoundEnabled then
+    if not _G.AppDataSoundEnabled then
         return
     end
     local template = soundTemplates[name]
@@ -12580,7 +12580,7 @@ local bodyStroke = Instance.new("UIStroke")
 bodyStroke.Color = Color3.fromRGB(55, 55, 62)
 bodyStroke.Thickness = 2
 bodyStroke.Parent = appWindow
-_G.SXEPhoneFrame = appWindow
+_G.AppDataFrame = appWindow
 
 local sideButtonL1 = Instance.new("Frame")
 sideButtonL1.Size = UDim2.new(0, 3, 0, 30)
@@ -12751,10 +12751,10 @@ batteryFill.BorderSizePixel = 0
 batteryFill.Parent = batteryOutline
 corner(batteryFill, UDim.new(0, 1))
 
-_G.SXEPhoneBatteryLevel = _G.SXEPhoneBatteryLevel or 100
+_G.AppDataBatteryLevel = _G.AppDataBatteryLevel or 100
 
 local function updateBattery()
-    local level = math.clamp(_G.SXEPhoneBatteryLevel or 100, 0, 100)
+    local level = math.clamp(_G.AppDataBatteryLevel or 100, 0, 100)
     local ratio = level / 100
     batteryFill.Size = UDim2.new(0, math.max(1, (BATTERY_W - 4) * ratio), 0, BATTERY_H - 4)
     if level <= 20 then
@@ -12779,9 +12779,9 @@ end)
 task.spawn(function()
     while screenGui.Parent do
         task.wait(50)
-        _G.SXEPhoneBatteryLevel = (_G.SXEPhoneBatteryLevel or 100) - 1
-        if _G.SXEPhoneBatteryLevel <= 0 then
-            _G.SXEPhoneBatteryLevel = 100
+        _G.AppDataBatteryLevel = (_G.AppDataBatteryLevel or 100) - 1
+        if _G.AppDataBatteryLevel <= 0 then
+            _G.AppDataBatteryLevel = 100
         end
         updateBattery()
     end
@@ -15540,7 +15540,7 @@ local function BuildMusic(gameArea, deps)
     -- par l'upload/la moderation Roblox. Tu telecharges toi-meme une chanson
     -- (n'importe quelle source, dans ton navigateur) en .mp3/.ogg/.wav, tu la mets
     -- dans le dossier ci-dessous, et elle apparait ici, jouable directement.
-    local MUSIC_LOCAL_FOLDER = "SXEPhone/Musics"
+    local MUSIC_LOCAL_FOLDER = "AppData/Musics"
     local MUSIC_LOCAL_EXTENSIONS = { mp3 = true, ogg = true, wav = true }
 
     local function localFilesSupported()
@@ -15553,7 +15553,7 @@ local function BuildMusic(gameArea, deps)
     local function ensureMusicLocalFolder()
         if not localFilesSupported() then return end
         pcall(function()
-            if not isfolder("SXEPhone") then makefolder("SXEPhone") end
+            if not isfolder("AppData") then makefolder("AppData") end
             if not isfolder(MUSIC_LOCAL_FOLDER) then makefolder(MUSIC_LOCAL_FOLDER) end
         end)
     end
@@ -15895,8 +15895,8 @@ local function BuildSettings(gameArea, deps)
     end
 
     sectionTitle("Son", 1)
-    toggleRow("Sons de l'interface", _G.SXEPhoneSoundEnabled, 2, function(state)
-        _G.SXEPhoneSoundEnabled = state
+    toggleRow("Sons de l'interface", _G.AppDataSoundEnabled, 2, function(state)
+        _G.AppDataSoundEnabled = state
     end)
 
     sectionTitle("Fond d'ecran", 3)
