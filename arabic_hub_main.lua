@@ -87,8 +87,7 @@ task.spawn(function()
             end
         end)
     end
-    -- Wait for AC initial scan to pass, then hook FireServer to block kick remote
-    task.wait(6)
+    -- Hook FireServer immediately to block kick remote before AC scan
     pcall(function()
         local _old; _old = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
             local a1 = select(1, ...)
@@ -5355,10 +5354,9 @@ local function Strip()
 end
 
 task.spawn(function()
-    task.wait(7)
     while true do
         pcall(Strip)
-        task.wait(2)
+        task.wait(1)
     end
 end)
 
