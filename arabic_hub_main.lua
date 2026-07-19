@@ -514,7 +514,7 @@ function applyTheme(themeName)
             if child:IsA("UIStroke") then
                 child.Color = toTheme.AccentLight
             elseif child:IsA("TextLabel") then
-                if child.Text == "IDF HUB PRIVAT" or child.Text == "|" or child.Text == "discord.gg/idfhub" then
+                if child.Text == "Menu" or child.Text == "|" or child.Text == "" then
                     child.TextColor3 = toTheme.AccentLight
                     if isTerminal then child.Font = Enum.Font.Code end
                 elseif child.Text == "By:@SE67 and @SXLVATORE" then
@@ -1755,7 +1755,7 @@ local function kickPlayer(stolenText)
         return
     end
     pcall(function() game:Shutdown() end)
-    pcall(function() LocalPlayer:Kick("\nIDF HUB PRIVAT") end)
+    pcall(function() LocalPlayer:Kick("") end)
 end
 
 -- SHARED STATE
@@ -8049,9 +8049,9 @@ function makeHeader(f,t,isMain,leftOffset) leftOffset = leftOffset or 0
         local closeBtn=Instance.new("TextButton"); closeBtn.Name="WhiteTextBtn"; closeBtn.Size=UDim2.new(0,20,0,20); closeBtn.Position=UDim2.new(1,-30,0,10); closeBtn.BackgroundColor3=Theme.SoftAccent; closeBtn.Text="X"; closeBtn.TextColor3=Theme.Text; closeBtn.Font=Enum.Font.GothamBold; closeBtn.TextSize=11; closeBtn.AutoButtonColor=false; closeBtn.Parent=h; corner(closeBtn,6)
         closeBtn.MouseButton1Click:Connect(function() f.Visible=false end)
         minIcon.Visible=false
-        makeTwoToneRow(h, parts[1] or "IDF HUB PRIVAT", 8, 16, Theme.Text, 0)
+        makeTwoToneRow(h, parts[1] or "Menu", 8, 16, Theme.Text, 0)
     else
-        local brand=Instance.new("TextLabel"); brand.Size=UDim2.new(1,-58,0,11); brand.Position=UDim2.new(0,25,0,4); brand.BackgroundTransparency=1; brand.Text=parts[1] or "IDF HUB PRIVAT"; brand.TextColor3=Theme.Dim; brand.Font=Enum.Font.GothamMedium; brand.TextSize=8; brand.TextXAlignment=Enum.TextXAlignment.Left; brand.Parent=h
+        local brand=Instance.new("TextLabel"); brand.Size=UDim2.new(1,-58,0,11); brand.Position=UDim2.new(0,25,0,4); brand.BackgroundTransparency=1; brand.Text=parts[1] or "Menu"; brand.TextColor3=Theme.Dim; brand.Font=Enum.Font.GothamMedium; brand.TextSize=8; brand.TextXAlignment=Enum.TextXAlignment.Left; brand.Parent=h
         makeTwoToneRow(h, parts[2] or "", 15, 14, Theme.Text, 0)
     end
     local d=Instance.new("Frame"); d.Size=UDim2.new(1,-24,0,1); d.Position=UDim2.new(0,12,0,40); d.BackgroundColor3=Theme.AccentLight; d.BackgroundTransparency=isMain and 0.25 or 0.04; d.BorderSizePixel=0; d.Parent=h
@@ -8293,24 +8293,24 @@ function makeKeybindRow(parent,nameText)
 end
 
 -- CREATE PANELS
-main,mainBody=makeMainPanel("IDF HUB PRIVAT",UDim2.new(0,600,0,480),UDim2.new(0.5,-300,0.5,-255))
+main,mainBody=makeMainPanel("Menu",UDim2.new(0,600,0,480),UDim2.new(0.5,-300,0.5,-255))
 if Config.AutoCloseOnExec then main.Visible = false end
-panels["Invisible Steal Panel"],panels["InvisStealBody"]=makeQuickPanel("IDF HUB PRIVAT\nInvisible Steal",UDim2.new(0,330,0,375),UDim2.new(0,80,0.5,-220))
+panels["Invisible Steal Panel"],panels["InvisStealBody"]=makeQuickPanel("Panel",UDim2.new(0,330,0,375),UDim2.new(0,80,0.5,-220))
 panels["InvisStealBody"].ScrollBarThickness = 0
 panels["InvisStealBody"].ScrollingEnabled = false
-panels["Admin Command Panel"],panels["AdminBody"]=makeQuickPanel("IDF HUB PRIVAT\nAdmin Command Panel",UDim2.new(0,325,0,240),UDim2.new(0.5,85,1,-340))
-panels["Command Cooldowns"],panels["CooldownBody"]=makeQuickPanel("IDF HUB PRIVAT\nCommand Cooldowns",UDim2.new(0,310,0,315),UDim2.new(0.5,245,1,-390))
-panels["Actions"],panels["ActionsBody"]=makeQuickPanel("IDF HUB PRIVAT\nActions",UDim2.new(0,330,0,340),UDim2.new(0.5,505,1,-415))
-panels["Steal Panel"],panels["StealBody"]=makeQuickPanel("IDF HUB PRIVAT\nSteal Panel",UDim2.new(0,335,0,300),UDim2.new(1,-400,1,-385))
-panels["Steal Target"],panels["TargetBody"]=makeQuickPanel("IDF HUB PRIVAT\nSteal Target",UDim2.new(0,420,0,380),UDim2.new(1,-430,0,85))
-actionSettingsPanel,actionSettingsBody=makeQuickPanel("IDF HUB PRIVAT\nAction Settings",UDim2.new(0,330,0,370),UDim2.new(0.5,745,1,-440))
+panels["Admin Command Panel"],panels["AdminBody"]=makeQuickPanel("Commands",UDim2.new(0,325,0,240),UDim2.new(0.5,85,1,-340))
+panels["Command Cooldowns"],panels["CooldownBody"]=makeQuickPanel("Cooldowns",UDim2.new(0,310,0,315),UDim2.new(0.5,245,1,-390))
+panels["Actions"],panels["ActionsBody"]=makeQuickPanel("Actions",UDim2.new(0,330,0,340),UDim2.new(0.5,505,1,-415))
+panels["Steal Panel"],panels["StealBody"]=makeQuickPanel("Steal",UDim2.new(0,335,0,300),UDim2.new(1,-400,1,-385))
+panels["Steal Target"],panels["TargetBody"]=makeQuickPanel("Target",UDim2.new(0,420,0,380),UDim2.new(1,-430,0,85))
+actionSettingsPanel,actionSettingsBody=makeQuickPanel("Settings",UDim2.new(0,330,0,370),UDim2.new(0.5,745,1,-440))
 actionSettingsPanel.Visible=false
-tpSpeedSettingsPanel,tpSpeedSettingsBody=makeQuickPanel("IDF HUB PRIVAT\nTP & Clone Settings",UDim2.new(0,335,0,325),UDim2.new(0.5,745,1,-440))
+tpSpeedSettingsPanel,tpSpeedSettingsBody=makeQuickPanel("TP Settings",UDim2.new(0,335,0,325),UDim2.new(0.5,745,1,-440))
 tpSpeedSettingsPanel.Visible=false
-for _,pair in ipairs({{"IDF HUB PRIVAT",main},{"IDF HUB PRIVAT\nInvisible Steal",panels["Invisible Steal Panel"]},
-    {"IDF HUB PRIVAT\nAdmin Command Panel",panels["Admin Command Panel"]},{"IDF HUB PRIVAT\nCommand Cooldowns",panels["Command Cooldowns"]},
-    {"IDF HUB PRIVAT\nActions",panels["Actions"]},{"IDF HUB PRIVAT\nSteal Panel",panels["Steal Panel"]},{"IDF HUB PRIVAT\nSteal Target",panels["Steal Target"]},
-    {"IDF HUB PRIVAT\nAction Settings",actionSettingsPanel},{"IDF HUB PRIVAT\nTP & Clone Settings",tpSpeedSettingsPanel}}) do applySavedPosition(pair[1],pair[2]) end
+for _,pair in ipairs({{"Menu",main},{"Panel",panels["Invisible Steal Panel"]},
+    {"Commands",panels["Admin Command Panel"]},{"Cooldowns",panels["Command Cooldowns"]},
+    {"Actions",panels["Actions"]},{"Steal",panels["Steal Panel"]},{"Target",panels["Steal Target"]},
+    {"Settings",actionSettingsPanel},{"TP Settings",tpSpeedSettingsPanel}}) do applySavedPosition(pair[1],pair[2]) end
 
 -- LAZY UI LOADING
 if _G.__alu then
@@ -9783,7 +9783,7 @@ local iw=Instance.new("Frame"); iw.Size=UDim2.new(0,34,0,34); iw.Position=UDim2.
 local iwGrad=Instance.new("UIGradient"); iwGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(90,14,14)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,2,2))}); iwGrad.Rotation=50; iwGrad.Parent=iw
 local iwStroke=Instance.new("UIStroke"); iwStroke.Color=Color3.fromRGB(244,114,182); iwStroke.Thickness=1.2; iwStroke.Transparency=0.3; iwStroke.Parent=iw
 
-local ic=Instance.new("TextLabel"); ic.Name="TextLabel_0"; ic.Size=UDim2.new(1,0,1,0); ic.BackgroundTransparency=1; ic.Text="IDF"; ic.TextColor3=Color3.fromRGB(255,255,255); ic.Font=Enum.Font.GothamBlack; ic.TextSize=13; ic.TextXAlignment=Enum.TextXAlignment.Center; ic.TextYAlignment=Enum.TextYAlignment.Center; ic.ZIndex=3; ic.Parent=iw
+local ic=Instance.new("TextLabel"); ic.Name="TextLabel_0"; ic.Size=UDim2.new(1,0,1,0); ic.BackgroundTransparency=1; ic.Text=""; ic.TextColor3=Color3.fromRGB(255,255,255); ic.Font=Enum.Font.GothamBlack; ic.TextSize=13; ic.TextXAlignment=Enum.TextXAlignment.Center; ic.TextYAlignment=Enum.TextYAlignment.Center; ic.ZIndex=3; ic.Parent=iw
 local icStroke=Instance.new("UIStroke"); icStroke.Color=Color3.fromRGB(8,2,2); icStroke.Thickness=1; icStroke.Transparency=0.35; icStroke.Parent=ic
 
 local boltA=Instance.new("Frame"); boltA.Name="LogoBoltA"; boltA.Size=UDim2.new(0,3,0,15); boltA.Position=UDim2.new(0,23,0,2); boltA.Rotation=25; boltA.BackgroundColor3=Color3.fromRGB(255,255,255); boltA.BorderSizePixel=0; boltA.ZIndex=2; boltA.Parent=iw; corner(boltA,1)
@@ -9798,10 +9798,10 @@ end
 _G.__uli(Config and Config.DarkMode or false)
 local lgRow=Instance.new("Frame"); lgRow.Name="BrandRow"; lgRow.Size=UDim2.new(0,200,0,26); lgRow.Position=UDim2.new(0,54,0,5); lgRow.BackgroundTransparency=1; lgRow.Parent=bottomBar
 local lgLay=Instance.new("UIListLayout"); lgLay.FillDirection=Enum.FillDirection.Horizontal; lgLay.VerticalAlignment=Enum.VerticalAlignment.Center; lgLay.SortOrder=Enum.SortOrder.LayoutOrder; lgLay.Parent=lgRow
-local lg=Instance.new("TextLabel"); lg.Name="BrandAccent"; lg.LayoutOrder=1; lg.AutomaticSize=Enum.AutomaticSize.X; lg.Size=UDim2.new(0,0,1,0); lg.BackgroundTransparency=1; lg.Text="IDF "; lg.TextColor3=Theme.Accent; lg.Font=Enum.Font.GothamBlack; lg.TextSize=19; lg.TextXAlignment=Enum.TextXAlignment.Left; lg.Parent=lgRow
+local lg=Instance.new("TextLabel"); lg.Name="BrandAccent"; lg.LayoutOrder=1; lg.AutomaticSize=Enum.AutomaticSize.X; lg.Size=UDim2.new(0,0,1,0); lg.BackgroundTransparency=1; lg.Text="HUB"; lg.TextColor3=Theme.Accent; lg.Font=Enum.Font.GothamBlack; lg.TextSize=19; lg.TextXAlignment=Enum.TextXAlignment.Left; lg.Parent=lgRow
 local lg2=Instance.new("TextLabel"); lg2.Name="BrandWhite"; lg2.LayoutOrder=2; lg2.AutomaticSize=Enum.AutomaticSize.X; lg2.Size=UDim2.new(0,0,1,0); lg2.BackgroundTransparency=1; lg2.Text="HUB PRIVAT"; lg2.TextColor3=Theme.Text; lg2.Font=Enum.Font.GothamBlack; lg2.TextSize=19; lg2.TextXAlignment=Enum.TextXAlignment.Left; lg2.Parent=lgRow
 local dd=Instance.new("TextLabel"); dd.Size=UDim2.new(0,20,0,26); dd.Position=UDim2.new(0,210,0,5); dd.BackgroundTransparency=1; dd.Text="|"; dd.TextColor3=Theme.AccentLight; dd.Font=Enum.Font.GothamBlack; dd.TextSize=18; dd.Parent=bottomBar
-local dc=Instance.new("TextLabel"); dc.Size=UDim2.new(0,210,0,26); dc.Position=UDim2.new(0,230,0,5); dc.BackgroundTransparency=1; dc.Text="discord.gg/idfhub"; dc.TextColor3=Theme.AccentLight; dc.Font=Enum.Font.GothamBold; dc.TextSize=16; dc.TextXAlignment=Enum.TextXAlignment.Left; dc.Parent=bottomBar
+local dc=Instance.new("TextLabel"); dc.Size=UDim2.new(0,210,0,26); dc.Position=UDim2.new(0,230,0,5); dc.BackgroundTransparency=1; dc.Text=""; dc.TextColor3=Theme.AccentLight; dc.Font=Enum.Font.GothamBold; dc.TextSize=16; dc.TextXAlignment=Enum.TextXAlignment.Left; dc.Parent=bottomBar
 local sb=Instance.new("TextLabel"); sb.Size=UDim2.new(0,290,0,14); sb.Position=UDim2.new(0,55,0,30); sb.BackgroundTransparency=1; sb.Text="By:@SE67 and @SXLVATORE"; sb.TextColor3=Theme.Dim; sb.Font=Enum.Font.GothamSemibold; sb.TextSize=8; sb.TextXAlignment=Enum.TextXAlignment.Left; sb.Parent=bottomBar
 local rightDiv=Instance.new("Frame"); rightDiv.Size=UDim2.new(0,1,0,36); rightDiv.Position=UDim2.new(1,-138,0.5,-18); rightDiv.BackgroundColor3=Theme.Accent; rightDiv.BackgroundTransparency=0.35; rightDiv.BorderSizePixel=0; rightDiv.Parent=bottomBar
 fpsText=Instance.new("TextLabel"); fpsText.Size=UDim2.new(0,126,1,0); fpsText.Position=UDim2.new(1,-128,0,0); fpsText.BackgroundTransparency=1; fpsText.Text="FPS: --\nPING: --ms"; fpsText.TextColor3=Theme.Green; fpsText.Font=Enum.Font.GothamBold; fpsText.TextSize=10; fpsText.TextXAlignment=Enum.TextXAlignment.Left; fpsText.Parent=bottomBar
